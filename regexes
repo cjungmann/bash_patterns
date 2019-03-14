@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+
+# This script will apply regular expressions to the output of various
+# and sundry commands.  In most cases, there are MUCH more efficient
+# methods to extract information, but in the interest of demonstrating
+# more complicated expressions, we work with verbose and otherwise
+# challenging strings.
+
+# There are multiple versions of regular expressions.  The two basic
+# flavors are Perl and Posix.
+#
+# The BASH =~ operator in [[ ]] uses the Posix flavor of regular
+# expressions.  This syntax is documentated in man(7) regex.
+#
+# GREP uses the PCRE (Perl-compatible regular expressions).
+# PCRE is documented in man(3) pcresyntax and man(3) pcrepattern
+
+show_funcname()
+{
+    fname="$1"
+    echo -n "[2J[1;1H"
+    echo "Running function [1;36m$fname[0m"
+    echo
+}
+
+prompt_pause()
+{
+    read -s -p "Press ENTER to continue"
+}
+
+# Often used display of a successful match:
+show_matches()
+{
+    echo "matched, group matches are:"
+    printf "'%s'\n" "${BASH_REMATCH[@]}"
+}
+
+
+# It is considered a best practice to assign the regular expression
+# to a variable, then use the variable with the [[ =~ ]] operators.
+#
+# It is important to refer to the regular expression variable
+# WITHOUT QUOTES.
+canonical_extract_time()
+{
+    show_funcname "$FUNCNAME"
+
+    local rePosix='([[:digit:]]{2}):([[:digit:]]{2}):([[:digit:]]{2})'
+
+    if [[ "$DStr" =~ $rePosix ]]; then
+        show_matches
+    else
+        echo "Posix Not matched"
+    fi
+    echo
+}
+
+
+# Sometimes I prefer to directly use the regular expression.
+#
+# Attempt to extract data using a raw regular expression, that is
+# to put the expression directly in the [[ =~ ]] expression,
+# without an intermediary variable.  Notice that neither of the
+# regular expressions required escaping any characters, not the
+# '(', '[', nor '{'.
+raw_extract_time()
+{
+    show_funcname "$FUNCNAME"
+
+    echo "Grouped quantified numbers (the minutes and seconds of the time)"
+    echo "Notice that the minutes value is not isolated in the BASH_REMATCH"
+    echo "array."
+    echo
+
+    if [[ "$DStr" =~ ([[:digit:]]{2})((:([[:digit:]]{2})){2}) ]]; then
+        show_matches
+    else
+        echo "Not matched"
+    fi
+
+    echo
+    echo "Explicitly matching each of the time components makes all"
+    echo "time components available in the BASH_REMATCH array."
+    echo
+
+    if [[ "$DStr" =~ ([[:digit:]]{2}):([[:digit:]]{2}):([[:digit:]]{2}) ]]; then
+        echo "matched, group matches:"
+        printf "'%s'\n" "${BASH_REMATCH[@]}"
+    else
+        echo "Not matched"
+    fi
+
+    echo
+}
+
+# Using an array to document and build a full regular expression
+canonical_extract_date()
+{
+    show_funcname "$FUNCNAME"
+
+    # Note that in the following array, I'm using a space character class [[:space:]]
+    # instead of a space character.  This is done because if the array is used directly,
+    # the space thus does not need to be escaped.  Once it is accepted that the first
+    # example fails, the [[:space:]] array elements could be replaced with ' '.
+
+    local -a rearr=(
+        # Ignoring characters in front of the month
+
+        # Handle either abbreviated or full-length month names
+        # Two groups, use #1 for full match, group #2 for abbreviation.
+        # $BASH_REMATCH[1] for abbreviated name
+        # $BASH_REMATCH[2] for possibly longer full-length name
+        '((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^[:space:]]*)'
+
+        # match, but discard space
+        '[[:space:]]'
+
+        # match and preserve the day-of-the-month:
+        # group/index 3 (ie $BASH_REMATCH[3} )
+        '([[:digit:]]{2})'
+
+        # match and discard the content before the year
+        '[[:space:]]'
+        '[[:digit:]:]+'
+        '.*'
+
+        # match and preserve the year
+        # ( ${BASH_REMATCH[4]} )
+        '([[:digit:]]{4})'
+    )
+
+    # Remove IFS setting to join the array elements
+    # with no joining characters.
+    local IFS=
+
+    echo "Attempt to use joined array directly as the regexp:"
+    if [[ "$DStr" =~ "${rearr[*]}" ]]; then
+        show_matches
+    else
+        echo "Not matched"
+    fi
+
+    echo
+    echo "Join the regex first, then use joined string:"
+    local joined="${rearr[*]}"
+    echo "[1;36m$joined[0m"
+    if [[ "$DStr" =~ $joined ]]; then
+        show_matches
+    else
+        echo "Not matched"
+    fi
+
+
+}
+
+# In the raw expression, the only escaped characters are the spaces.
+raw_extract_date()
+{
+    show_funcname "$FUNCNAME"
+
+    if [[ "$DStr" =~ ([[:alpha:]]+)\ ([[:digit:]]{2})\ .*\ ([[:digit:]]{4})$ ]]; then
+        show_matches
+    else
+        echo "Not matched"
+    fi
+
+    echo
+}
+
+
+
+declare DStr=$( date )
+echo "Extracting the parts of the time expression:"
+echo "[1;36m'$DStr'[0m"
+echo
+
+# canonical_extract_time
+# prompt_pause
+
+# raw_extract_time
+# prompt_pause
+
+# raw_extract_date
+# prompt_pause
+
+canonical_extract_date

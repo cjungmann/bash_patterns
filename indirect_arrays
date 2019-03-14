@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+# Access one of multiple global arrays by name
+
+declare -a Arr_People=()
+declare -a Arr_Places=()
+declare -a Arr_Things=()
+
+# Confirm BASH supports necessary feature (declare/local -n):
+bash_is_new_enough()
+{
+    local -i major="${BASH_VERSINFO[0]}"
+    local -i minor="${BASH_VERSINFO[1]}"
+    if [ "$major" -ge 4 ] && [ "$minor" -ge 3 ]; then
+        return 0
+    else
+        echo "The script requires version 4.3 or newer of BASH."
+        return 1
+    fi
+}
+
+# Confirm that the name represents an existing array
+name_is_array()
+{
+    local obj_name="$1"
+    local declr=$( declare -p "$obj_name" 2>/dev/null )
+    # obj_name must be both found AND declared with declare -a:
+    if [ $? -eq 0 ]; then
+        if [ "${declr:0:10}" == "declare -a" ]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# 
+add_to_array()
+{
+    local arr_name="$1"
+    shift
+
+    local -a arr=( "$@" )
+
+    if name_is_array "$arr_name"; then
+        local -n iarray="$arr_name"
+        iarray+=( "${arr[@]}" )
+    else
+        echo "Array '$arr_name' does not exist." >&2
+    fi
+}
+
+add_people()
+{
+    add_to_array "Arr_People" "$@"
+}
+
+add_places()
+{
+    add_to_array "Arr_Places" "$@"
+}
+
+add_things()
+{
+    add_to_array "Arr_Things" "$@"
+}
+
+
+if bash_is_new_enough; then
+    add_people "Adam" "Barbara" "Chad" "Diana" "Edward" "Frieda" "Gregory" "Harriet"
+    add_places "Plymouth, MN" "New York, NY" "Washington, DC" "Boston MA"
+    add_things "computer" "bicycle" "sauce pan" "spatula" "pillow"
+
+    echo
+    echo "People are ${Arr_People[*]}"
+    echo
+    echo "Places are ${Arr_Places[*]}"
+    echo
+    echo "Things are ${Arr_Things[*]}"
+    echo
+fi
+
