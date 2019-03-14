@@ -14,6 +14,10 @@ The included scripts are:
   to an array in the global scope of the program.  Requires
   (and checks for) BASH versions 4.3 and up.
 
+  Some useful references mentioned are the man pages for
+  both Posix (*man(7) regex*) and PCRE (*man(3) pcresyntax*, and
+  *man(3) pcrepattern*).
+
 - **regexes** is an exploration and a small (but perhaps
   growing) set of examples of using regular expressions
   in a BASH script.  It ignores (for now) the *grep*
