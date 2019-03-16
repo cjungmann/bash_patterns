@@ -167,6 +167,29 @@ raw_extract_date()
     echo
 }
 
+# Contrived example to demonstrate a grep regular expression
+# Notice that the entire regular expression is unescaped.
+# I couldn't get the {1,} notation to work, but then the * 
+# synonym worked, anyway.
+grep_unescaped()
+{
+    local -i Cat_One=1
+    local -i Cat_Two=2
+    Cat_Three() { echo "hi"; }
+    local -i Cat_Four=4
+    local -a Cat_Five=( 1 2 3 4 5 )
+
+    local -a raw_vars=( $( set -o posix; set | grep ^Cat_[[:alpha:]_]*=[[:digit:]]*$ - ) )
+    echo "This is confusing.  There are ${#raw_vars} matching"
+    echo "items, but when we print them out, there are only three:"
+    echo
+    local IFS=$'\n'
+    echo "${raw_vars[*]}"
+    echo
+}
+
+grep_unescaped
+exit 1
 
 
 declare DStr=$( date )
