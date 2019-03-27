@@ -19,15 +19,15 @@ The included scripts are:
   in a BASH script.  It ignores (for now) the *grep*
   utility and focuses on *[[ string =~ $regex ]]* notation.
 
-- **echoing** includes a fancy echo replacement that hilites
-  a portion of a string that is marked out between two delimiters.
-  It exploits array handling with different IFS settings and
-  converting a string into an array of characters using *sed*.
-
   Some useful references mentioned are the man pages for:
   - *man 7 regex* for Posix flavor used by [[ =~ ]] notation.
   - *man 3 pcresyntax*, and *man 3 pcrepattern* are documents
     supporting PCRE (Perl-Compatible Regular Expression) that is
     used by **grep**.
+
+- **echoing** includes a fancy echo replacement that hilites
+  a portion of a string that is marked out between two delimiters.
+  It exploits array handling with different IFS settings and
+  converting a string into an array of characters using *sed*.
 
   
