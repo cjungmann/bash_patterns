@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# This script demonstrates handling a string as an array
+# to process each character individually.
+
+# Echo a string, with substrings between two delimiters color-hilited
+# The default hilited delimiter is an underscore (_), but if that's
+# not convenient (ie it's included in the message), it can be replaced
+# with a single character parameter before the message string.
+#
+# This works because a string with hiliting needs at least three characters,
+# a single character surrounded by whatever delimiter is being used.  If
+# $1 is one-character long, it will be used as the delimiter and the
+# message text will be taken from $2
+hilite_echo()
+{
+    local delimiter=$'_'
+    local msg="$1"
+
+    if [ "${#msg}" -eq 1 ]; then
+        delimiter="$1"
+        msg="$2"
+    fi
+
+    # Convert the msg string to an array of characters,
+    # including the spaces.  Note how sed substitutes every
+    # character to the character followed by a newline.
+    # Obviously, this will only work if the msg string doesn't
+    # contain any newlines.  A modification that would handle
+    # embedded newlines would be to replace the "echo" command
+    # with "tr" to replace newlines with an unprintable
+    # character like $'/006', then reversing the translation
+    # in the final echo.
+    local IFS=$'\n'
+    local -a input=( $( echo "$msg" | sed -e 's|\(.\)|\1\n|g' ) )
+
+    local -a output=()
+    local -i in_hilite=0
+    local cch
+    for cch in "${input[@]}"; do
+        if [ "$cch" == "$delimiter" ]; then
+            if [ "$in_hilite" -eq 0 ]; then
+                in_hilite=1
+                output+=( '[1;36m' )
+            else
+                in_hilite=0
+                output+=( '[0m' )
+            fi
+        else
+            output+=( "$cch" )
+        fi
+    done
+
+    IFS=
+    echo "${output[*]}"
+}
+
+# Sample usage:
+hilite_echo "This is a _simple_ string."
+echo
+echo "About to process 'This more_complicated string',"
+echo "attempting to hilite the 'more_complicated' substring."
+echo
+echo "Using the default underscore character (in the string proper):"
+hilite_echo "This _more_complicated_ string ."
+echo
+echo "Notice that the text coloring is messed up.  Fixing on next line."
+hilite_echo "__"
+echo
+echo "Using alternate delimiter '#' (which is not in the string proper):"
+hilite_echo "#" "This #more_complicated# string ."
+echo
+echo "Using alternate delimiter '#' without telling the function."
+echo "That is, calling hilite_echo without specifying the hilite"
+echo "delimiter.  The hilite delimiter is still underscore, causing"
+echo "the unexpected coloring:"
+hilite_echo "This #more_complicated# string ."
+
+
