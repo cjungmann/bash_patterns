@@ -27,9 +27,10 @@ The included scripts are:
   as an offline reference, and a huge [VT100 page](https://vt100.net/docs/vt510-rm/chapter4.html).
   for a lot more information and ideas.
 
-- **indirect_arrays** is an exploration of indirect access
-  to an array in the global scope of the program.  Requires
-  (and checks for) BASH versions 4.3 and up.
+- **echoing** includes a fancy echo replacement that hilites
+  a portion of a string that is marked out between two delimiters.
+  It exploits array handling with different IFS settings and
+  converting a string into an array of characters using *sed*.
 
 - **regexes** is an exploration and a small (but perhaps
   growing) set of examples of using regular expressions
@@ -42,9 +43,9 @@ The included scripts are:
     supporting PCRE (Perl-Compatible Regular Expression) that is
     used by **grep**.
 
-- **echoing** includes a fancy echo replacement that hilites
-  a portion of a string that is marked out between two delimiters.
-  It exploits array handling with different IFS settings and
-  converting a string into an array of characters using *sed*.
+- **useful** includes several functions that are useful for- **indirect_arrays** is an exploration of indirect access
+  to an array in the global scope of the program.  Requires
+  (and checks for) BASH versions 4.3 and up.
 
-  
+  making BASH applications.  As I write this, I have only included
+  a smallist set of functions.  I expect this file will grow.
