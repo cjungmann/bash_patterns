@@ -10,6 +10,23 @@ BASH scripts themselves.
 
 The included scripts are:
 
+- **ansi** started as a place to record solutions for
+  screen manipulation using console codes.  As such, it
+  starts with **pause_for_keypress** and **erase_screen**
+  functions.
+
+  **ansi** continues with many color-setting functions,
+  then a function to collect function names from BASH,
+  distill from the function names the set of colors,
+  then execute a loop that displays each color with plain,
+  dim, and bold styling.  The output shows all the colors
+  that can be generated in a console window using ANSI
+  console codes.
+
+  In the script, I suggest a **man** page that can serve
+  as an offline reference, and a huge [VT100 page](https://vt100.net/docs/vt510-rm/chapter4.html).
+  for a lot more information and ideas.
+
 - **indirect_arrays** is an exploration of indirect access
   to an array in the global scope of the program.  Requires
   (and checks for) BASH versions 4.3 and up.

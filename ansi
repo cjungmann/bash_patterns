@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+# use 'man' for offline documentation of ansi codes:
+# man console_codes
+
+# For MUCH more comprehensive documentation on VT-100,
+# https://vt100.net/docs/vt510-rm/chapter4.html
+
+# Remember, to type an escape character in EMACS,
+# press and hold Control-q, then press the key to be escaped.
+#
+# For example, enter Control-Esc, press and hold Control-q,
+# the press the ESCAPE key.
+
+pause_for_keypress() { read -n 1 -p "Press any key to continue."; }
+erase_screen()       { echo -n "[2J"; }
+goto_origin()        { echo -n "[0;0f"; }
+moveto()             { echo -n "[${1};${2}f"; }
+
+# Text color settings
+set_bold()         { echo -n "[1m"; }
+unset_bold()       { echo -n "[21m"; }
+set_dim()          { echo -n "[2m"; }
+unset_dim()        { echo -n "[22m"; }
+set_underscore()   { echo -n "[4m"; }
+unset_underscore() { echo -n "[24m"; }
+
+reset_color()      { echo -n "[0m"; }
+
+set_black_fg()     { echo -n "[30m"; }
+set_red_fg()       { echo -n "[31m"; }
+set_green_fg()     { echo -n "[32m"; }
+set_brown_fg()     { echo -n "[33m"; }
+set_blue_fg()      { echo -n "[34m"; }
+set_magenta_fg()   { echo -n "[35m"; }
+set_cyan_fg()      { echo -n "[36m"; }
+set_white_fg()     { echo -n "[37m"; }
+
+set_black_bg()     { echo -n "[40m"; }
+set_red_bg()       { echo -n "[41m"; }
+set_green_bg()     { echo -n "[42m"; }
+set_brown_bg()     { echo -n "[43m"; }
+set_blue_bg()      { echo -n "[44m"; }
+set_magenta_bg()   { echo -n "[45m"; }
+set_cyan_bg()      { echo -n "[46m"; }
+set_white_bg()     { echo -n "[47m"; }
+
+collect_funcs()
+{
+    local IFS=$'\n'
+    local -a All_Funcs=( $( declare -F ) )
+    local name
+    local color
+    for name in "${All_Funcs[@]}"; do
+        [[ "${name}" =~ set_([^_]+)_fg ]]
+        if [ $? -eq 0 ]; then
+            color="${BASH_REMATCH[1]}"
+            echo
+            echo "Show display options for color $color (simple, dim, then bold)"
+            set_${color}_fg
+            echo -n "color $color "
+            set_dim
+            echo -n "dim "
+            unset_dim
+            set_bold
+            echo "bold "
+            reset_color
+        fi
+    done
+}
+
+erase_screen
+goto_origin
+echo "Collect function names to be sorted for colors"
+echo
+pause_for_keypress
+collect_funcs
