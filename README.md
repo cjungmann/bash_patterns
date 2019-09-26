@@ -43,9 +43,11 @@ The included scripts are:
     supporting PCRE (Perl-Compatible Regular Expression) that is
     used by **grep**.
 
-- **useful** includes several functions that are useful for- **indirect_arrays** is an exploration of indirect access
+- **useful** includes several functions that are useful for
+  making BASH applications.  As I write this, I have only included
+  a smallist set of functions.  I expect this file will grow.
+
+- **indirect_arrays** is an exploration of indirect access
   to an array in the global scope of the program.  Requires
   (and checks for) BASH versions 4.3 and up.
 
-  making BASH applications.  As I write this, I have only included
-  a smallist set of functions.  I expect this file will grow.
