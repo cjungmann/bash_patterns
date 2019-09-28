@@ -44,8 +44,8 @@ The included scripts are:
     used by **grep**.
 
 - **useful** includes several functions that are useful for
-  making BASH applications.  As I write this, I have only included
-  a smallist set of functions.  I expect this file will grow.
+  making BASH applications.  The [useful README](README_useful.md)
+  includes explanations of some functions and concepts.
 
 - **indirect_arrays** is an exploration of indirect access
   to an array in the global scope of the program.  Requires

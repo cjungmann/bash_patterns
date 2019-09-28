@@ -3,8 +3,41 @@
 is_root()            { [[ "$EUID" -eq 0 ]]; }
 pause_for_keypress() { read -n 1 -p "Press any key to continue."; }
 
-reset_screen()       { echo -n "[2J[0;0f"; }
-unset_text_colors()  { echo -n "[0m"; }
+# Waits for and returns single keypress, even if it is
+# represented by multiple characters.
+get_keypress()
+{
+    local prompt="${1:=Press any key}"
+
+    local keyp
+    local echar
+    local -a echars
+    
+    read -n 1 -s -p "${prompt}" keyp
+    if [ "$keyp" = '' ]; then
+
+        # pull characters off stdin until buffer is exhausted.
+        # `read -t 0` returns 0 if the buffer contains additional
+        # characters, non-zero if the buffer is empty:
+        while read -t 0; do
+            read -n 1 echar
+            echars=( "${echars[@]}" "$echar" )
+        done
+
+        # empty IFS so array is joined without delimiters
+        # when replacing the *keyp* echo value with full
+        # keypress representation:
+        local IFS=''
+        keyp="${keyp}${echars[*]}"
+    fi
+    echo "$keyp"
+}
+
+# Terminal escape code functions:
+
+reset_screen()      { echo -n "[2J[0;0f"; }
+clear_line()        { echo -n "[K"; }
+unset_text_colors(  { echo -n "[0m"; }
 
 set_text_background()
 {
