@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-is_root()            { [[ "$EUID" -eq 0 ]]; }
+is_root()            { [ "$USER" = "root" ]; }
 pause_for_keypress() { read -n 1 -p "Press any key to continue."; }
 
 # Waits for and returns single keypress, even if it is
