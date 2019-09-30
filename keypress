@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# Waits for and returns single keypress, even if it is
+# represented by multiple characters.
+get_keypress()
+{
+    local prompt="${1:=Press any key}"
+
+    # Array to collect chars in case of multi-char keypress
+    local -a chars=( )
+    
+    # Wait for a keypress (-n 1), save to array
+    local keychar
+    read -n 1 -s -p "${prompt}" keychar
+    chars=( "${chars[@]}" "$keychar" )
+
+    # Collect additional characters if available, especially for escape characters
+    while read -t 0; do
+        read -n 1 keychar
+        chars=( "${chars[@]}" "$keychar" )
+    done
+
+    # empty IFS so array is joined without delimiters
+    local IFS=''
+    echo "${echars[*]}"
+}
+
+# Examples of possible get_keypress returns:
+
+# Enter escape character in EMACS with C-q, ESC
+# (see documentation: info emacs -n "Inserting Text")
+declare keypress_down_arrow='[B'
+declare keypress_up_array='[A'
+
+# Other control characters can be tested with $'\c.':
+declare keypress_ctrl_n=$'\cn'
+declare keypress_ctrl_p=$'\cp'
+
+

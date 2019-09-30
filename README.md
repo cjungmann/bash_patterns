@@ -32,6 +32,11 @@ The included scripts are:
   It exploits array handling with different IFS settings and
   converting a string into an array of characters using *sed*.
 
+- [**keypress**](README_keypress.md) defines a function,
+  *get_keypress*, the uses a few **read** modes to return
+  a representation of a single keypress, even if the
+  representation includes multiple characters.
+
 - **regexes** is an exploration and a small (but perhaps
   growing) set of examples of using regular expressions
   in a BASH script.  It ignores (for now) the *grep*
@@ -43,9 +48,9 @@ The included scripts are:
     supporting PCRE (Perl-Compatible Regular Expression) that is
     used by **grep**.
 
-- **useful** includes several functions that are useful for
-  making BASH applications.  The [useful README](README_useful.md)
-  includes explanations of some functions and concepts.
+- [**useful**](README_useful.md) includes several functions that
+  are useful for making BASH applications.  The script includes
+  some explanatory notes.
 
 - **indirect_arrays** is an exploration of indirect access
   to an array in the global scope of the program.  Requires
