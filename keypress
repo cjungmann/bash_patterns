@@ -12,7 +12,7 @@ get_keypress()
     # Wait for a keypress (-n 1), save to array
     local keychar
     read -n 1 -s -p "${prompt}" keychar
-    chars=( "${chars[@]}" "$keychar" )
+    chars=( "$keychar" )
 
     # Collect additional characters if available, especially for escape characters
     while read -t 0; do
@@ -22,7 +22,7 @@ get_keypress()
 
     # empty IFS so array is joined without delimiters
     local IFS=''
-    echo "${echars[*]}"
+    echo "${chars[*]}"
 }
 
 # Examples of possible get_keypress returns:
@@ -30,10 +30,32 @@ get_keypress()
 # Enter escape character in EMACS with C-q, ESC
 # (see documentation: info emacs -n "Inserting Text")
 declare keypress_down_arrow='[B'
-declare keypress_up_array='[A'
+declare keypress_up_arrow='[A'
 
 # Other control characters can be tested with $'\c.':
 declare keypress_ctrl_n=$'\cn'
 declare keypress_ctrl_p=$'\cp'
 
 
+
+
+# Demonstrate usage:
+
+declare keystroke
+
+while [ "$keystroke" != "q" ]; do
+    keystroke=$( get_keypress "Press q to quit. " )
+
+    case "$keystroke" in
+        "$keypress_down_arrow") echo "You pressed down-arrow" ;;
+        "$keypress_up_arrow" )  echo "You pressed up arrow" ;;
+        "$keypress_ctrl_n" )    echo "You pressed control-n" ;;
+        "$keypress_ctrl_p" )    echo  "You pressed control-p" ;;
+        *)
+            if [ "${keystroke:0:1}" = "" ]; then
+                keystroke="^[${keystroke:1}"
+            fi
+            echo "keystroke is [32m${keystroke}[m" ;;
+    esac
+
+done
