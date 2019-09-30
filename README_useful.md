@@ -42,15 +42,6 @@ some BASH coding protocols.
   Illustrates replacing missing parameter values with default
   values using `${string:-default}`.
 
-- **get_keypress**\
-  Gets a single keypress.  This sounds simple, but many key
-  presses return a short string of characters instead of a
-  single character.  This function recognizes when a keypress
-  is represented by several characters and packages them to
-  be judged in the calling function.
-
-  Illustrates using builtin **read** function to detect
-  and collect extra characters.
   
 
   
