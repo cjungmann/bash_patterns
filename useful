@@ -8,7 +8,7 @@ pause_for_keypress() { read -n 1 -p "Press any key to continue."; }
 
 reset_screen()      { echo -n "[2J[0;0f"; }
 clear_line()        { echo -n "[K"; }
-unset_text_colors(  { echo -n "[0m"; }
+unset_text_colors() { echo -n "[0m"; }
 
 set_text_background()
 {
@@ -53,4 +53,45 @@ cecho()
     set_text_foreground "$color"
     echo "${msg}"
     unset_text_colors
+}
+
+get_ip_address()
+{
+    # Also consider `ip -o -4 addr | grep '{ print $1 " " $3 }' -`
+    # though it doesn't truncate the slash from the IP address.
+
+    local IFS=$'\n'
+    local -a lines=( $( ip -o -4 addr ) )
+
+    local line
+    local -a lparts
+
+    IFS=$' '
+    for line in "${lines[@]}"; do
+        lparts=( $line )
+        echo "${lparts[1]} ${lparts[3]%/*}"
+    done
+}
+
+is_local_ip()
+{
+    local IFS=$'.'
+    local -a ip=( $1 )
+
+    if [ "${#ip[@]}" -ne 4 ]; then
+       return 1
+    fi
+
+    local -i v1="${ip[0]}"
+    local -i v2="${ip[1]}"
+
+     if [ "$v1" -eq 10 ]; then
+         return 0
+     elif [ "$v1" -eq 192 ] && [ "$v2" -eq 168 ]; then
+         return 0
+     elif [ "$v1" -eq 172 ] && [ "$v2" -ge 16 ] && [ "$v2" -le 31 ]; then
+         return 0
+     else
+         return 1
+     fi
 }
