@@ -2,6 +2,9 @@
 
 [Main README](README.md)
 
+The bottom of this page shows how one can use these simple functions
+from the command line.
+
 There are several very simple functions that may be interesting:
 
 - **is_root**\
@@ -42,6 +45,31 @@ some BASH coding protocols.
   Illustrates replacing missing parameter values with default
   values using `${string:-default}`.
 
+- **get_ip_address**\
+  Returns a list of network interfaces by name and ip address
+
+- **is_local_ip**\
+  Returns 0 (true) if the passed IP address is a LAN address,
+  1 otherwise.  Call like this:\
+
+  ~~~sh
+  tryip=192.168.0.10
+  if is_local_ip $tryip; then
+     echo "$tryip is a LAN address"
+  else
+     echo "$tryip is a WAN address"
+  fi
+  ~~~
+
   
+## Use *useful* On the Command Line
+
+Use the **source** command to load **useful** as a library,
+then call a useful function.
+
+For example, get the list of IP addresses with
+
+`source useful; get_ip_address1`
+
 
   
