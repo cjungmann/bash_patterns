@@ -4,6 +4,9 @@
 # represented by multiple characters.
 get_keypress()
 {
+    # IFS characters will be invisible to 'read', so:
+    local IFS=''
+
     local prompt="${1:=Press any key}"
 
     # Array to collect chars in case of multi-char keypress
@@ -21,7 +24,6 @@ get_keypress()
     done
 
     # empty IFS so array is joined without delimiters
-    local IFS=''
     echo "${chars[*]}"
 }
 
