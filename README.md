@@ -37,16 +37,21 @@ The included scripts are:
   a representation of a single keypress, even if the
   representation includes multiple characters.
 
-- **regexes** is an exploration and a small (but perhaps
-  growing) set of examples of using regular expressions
-  in a BASH script.  It ignores (for now) the *grep*
-  utility and focuses on *[[ string =~ $regex ]]* notation.
+- The **regexes** script is an exploration and a small
+  (but perhaps growing) set of examples of using regular
+  expressions in a BASH script.  It ignores (for now) the
+  *grep* utility and focuses on *[[ string =~ $regex ]]* notation.
 
   Some useful references mentioned are the man pages for:
   - *man 7 regex* for Posix flavor used by [[ =~ ]] notation.
   - *man 3 pcresyntax*, and *man 3 pcrepattern* are documents
     supporting PCRE (Perl-Compatible Regular Expression) that is
     used by **grep**.
+
+- The [**regexes**](README_regexes.md) page is an exploration of
+  different flavors of regular expression, including examples
+  that will hopefully help avoid trial-and-error development
+  to discover the appropriate character escaping requirements.
 
 - [**useful**](README_useful.md) includes several functions that
   are useful for making BASH applications.  The script includes
