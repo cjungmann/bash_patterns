@@ -94,3 +94,29 @@ character.
 [[ $( emacs --version ) =~ ([[:digit:]]+)\.[[:digit:]]+ ]]
 echo "${BASH_REMATCH[1]}"
 ~~~
+
+## SED Regular Expressions
+
+Unaltered *sed* use BRE rules, and meta-characters meant to
+be interpreted as such must be escaped.  Unescaped meta-characters
+represent themselves in a string.  Consider the following
+expression:
+
+~~~sh
+sed 's/#\\(net.ipv4.ip_forward\\.*\\)/\\1/' /etc/sysctl.conf
+~~~
+
+The grouping parentheses around the string are escaped,
+as is the meta-character period that matches the rest of the
+line.  Surprisingly, the asterisk character following the
+period should not be escaped, or I should say, the match
+fails if the asterisk is escaped.
+
+Notice that the periods that separate the substrings are
+**not** escaped.  They are meant to match actual periods
+in the text.  If these periods are escaped, they still
+match the periods in the text, but they might also match
+a typo where one of the periods is replaces by a non-period
+character.
+
+
