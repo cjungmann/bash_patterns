@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+declare username
+declare usergroup
+
+declare -a user_info=( "username" "usergroup" )
+
+get_user_info()
+{
+    local vname
+    for vname in "${user_info[@]}"; do
+        read -p "Please enter $vname: "
+        printf -v "$vname" "%s" "$REPLY"
+    done
+}
+
+show_user_info()
+{
+    local vname
+    for vname in "${user_info[@]}"; do
+        eval "local tname=\$$vname"
+        printf "$vname is %s\n" "$tname"
+    done
+}
+
+echo "We will collect values as directed by an array of variable names."
+get_user_info
+
+echo
+echo
+echo "Demonstrate how the global variables have retained the values."
+show_user_info
