@@ -112,7 +112,7 @@ show_user_info()
         if [ "$silent_write" -eq 0 ]; then
             printf "$vname is %s\n" "$tname"
         else
-            printf "$vname is hidden\n"
+            printf "not showing $vname\n"
         fi
     done
 }
