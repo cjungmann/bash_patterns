@@ -1,4 +1,4 @@
-# Project bash_ideas
+# Project bash_patterns
 
 This project is a place for me to isolate solutions and successful
 examples of troublesome BASH programming.  I'm tired of having to
@@ -61,7 +61,7 @@ The included scripts are:
   to an array in the global scope of the program.  Requires
   (and checks for) BASH versions 4.3 and up.
 
-- **get_responses** is a simple demonstration of a method
-  that uses an array of variable names to present several
-  prompts to a user to get information.
+- **get_responses** includes two implementations of using
+  an array of variable names to define a set of interactions
+  getting user input.
 

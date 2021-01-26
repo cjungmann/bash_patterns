@@ -1,32 +1,162 @@
 #!/usr/bin/env bash
 
-declare username
-declare usergroup
+# simple_get_user_info() and simple_show_user_info()
+# was my first implementation where the variable name
+# becomes the prompt using a simple array.
+#
+# Look at get_user_info()/show_user_info() for a
+# more advanced and flexible implementation
+declare simple_username
+declare simple_usergroup
 
-declare -a user_info=( "username" "usergroup" )
+declare -a simple_user_info=( "simple_username" "simple_usergroup" )
 
-get_user_info()
+simple_get_user_info()
 {
     local vname
-    for vname in "${user_info[@]}"; do
+    for vname in "${simple_user_info[@]}"; do
         read -p "Please enter $vname: "
         printf -v "$vname" "%s" "$REPLY"
     done
 }
 
-show_user_info()
+simple_show_user_info()
 {
     local vname
-    for vname in "${user_info[@]}"; do
+    for vname in "${simple_user_info[@]}"; do
         eval "local tname=\$$vname"
         printf "$vname is %s\n" "$tname"
     done
 }
 
-echo "We will collect values as directed by an array of variable names."
-get_user_info
 
-echo
-echo
-echo "Demonstrate how the global variables have retained the values."
-show_user_info
+# get_user_info()/show_user_info() is an
+# enhancement that uses two-dimensional array to
+# define the variable name and a prompt and can 
+# hide password entry.
+#
+# This example can be used as a template for
+# further enhancement using additional subarray
+# elements.
+declare username
+declare userpw
+declare usergroup
+
+
+# The elements of the subarray are delimited with a semicolon ';'.
+# This can be changed, but you need to change the IFS setting
+# in get_user_info and show_user_info() in order to parse the
+# subarray.
+
+# Also note that the _*userpw_ entry in the user_info array
+# is prefixed with an asterisk '*'.  The code detects the asterisk,
+# adjusting to use the appropriate variable while setting a flag
+# to use the -s parameter of the read command.
+
+declare IPS=$'\n'
+declare -a user_info=(
+    "username;User Name"
+    "*userpw;Password"
+    "usergroup;Login Group (wheel for sudoers)"
+)
+
+get_user_info()
+{
+    local setraw
+    local -a setarr
+    local -a extra_args
+    local prompt vname IFS
+    IFS=$';'
+    for setraw in "${user_info[@]}"; do
+        extra_args=()
+
+        setarr=( $setraw )
+
+        # Detect asterisk prefix signalling a password
+        vname="${setarr[0]}"
+        if [ "${vname:0:1}" == '*' ]; then
+            extra_args=( -s )
+            vname="${vname:1}"
+        fi
+
+        read_args=( "${read_args[@]}" -s )
+        if [ "${#setarr[@]}" -gt 1 ]; then
+            prompt="${setarr[1]}: "
+        fi
+        read "${extra_args[@]}" -p "$prompt"
+        printf -v "$vname" "%s" "$REPLY"
+
+        if [ "${#extra_args[@]}" -gt 0 ]; then
+            echo
+        fi
+    done
+}
+
+show_user_info()
+{
+    local setraw
+    local -a setarr
+    local prompt vname IFS
+    local silent_write
+    IFS=$';'
+    for setraw in "${user_info[@]}"; do
+        silent_write=0
+        setarr=( $setraw )
+        # Detect asterisk prefix signalling a password
+        vname="${setarr[0]}"
+        if [ "${vname:0:1}" == '*' ]; then
+            silent_write=1
+            vname="${vname:1}"
+        fi
+        eval "local tname=\$$vname"
+        if [ "$silent_write" -eq 0 ]; then
+            printf "$vname is %s\n" "$tname"
+        else
+            printf "$vname is hidden\n"
+        fi
+    done
+}
+
+declare color_on="[34;1m"
+declare color_off="[m"
+
+
+simple_example()
+{
+    echo "$color_on"
+    echo "This example shows a simple implementation with a simple array."
+    echo "The prompts use the variable names when asking for the user's response."
+    echo "$color_off"
+    simple_get_user_info
+
+    echo
+    echo "$color_on"
+    echo "Demonstrate how the global variables have retained the values."
+    echo "$color_off"
+    simple_show_user_info
+    echo
+}
+
+advanced_example()
+{
+    echo
+    echo "$color_on"
+    echo "This example shows a more advanced implementation using a"
+    echo "two-dimensional array to define the interactions.  Notice that"
+    echo "the prompts are more informative and that the password input"
+    echo "is silent."
+    echo
+    echo "We will collect values as directed by an array of variable names."
+    echo "$color_off"
+    get_user_info
+
+    echo
+    echo "$color_on"
+    echo "Demonstrate how the global variables have retained the values."
+    echo "$color_off"
+    show_user_info
+}
+
+
+simple_example
+advanced_example
