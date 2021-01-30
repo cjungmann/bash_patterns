@@ -18,6 +18,10 @@ The *get_keypress* function takes advantage of *read* features:
   this is used in a loop condition to collect extra characters
   resulting from a keypress.
 
+For cases with a limited number of acceptable responses, the
+*await_letter* function takes a string of acceptable characters
+and only returns when one of those characters have been typed.
+Look at the example section of the *keypress* script.
 
 ## Example Recognition Strings
 

@@ -32,10 +32,17 @@ The included scripts are:
   It exploits array handling with different IFS settings and
   converting a string into an array of characters using *sed*.
 
-- [**keypress**](README_keypress.md) defines a function,
-  *get_keypress*, the uses a few **read** modes to return
-  a representation of a single keypress, even if the
-  representation includes multiple characters.
+- [**keypress**](README_keypress.md) defines two keypress
+  functions, *get_keypress* and *await_letter* that use a few
+  **read** modes to return a representation of a single keypress.
+  *get_keypress* may return a string of multiple characters for
+  non-printing keys like function or arrow keys.
+
+  This script also includes another, possibly useful, function,
+  *str_contains_chr*, which returns 0/TRUE if a submitted character
+  can be found in a string.  It's not named *strchr* because it
+  doesn't return the position of the matched char.
+
 
 - The **regexes** script is an exploration and a small
   (but perhaps growing) set of examples of using regular

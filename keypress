@@ -7,14 +7,12 @@ get_keypress()
     # IFS characters will be invisible to 'read', so:
     local IFS=''
 
-    local prompt="${1:=Press any key}"
-
     # Array to collect chars in case of multi-char keypress
     local -a chars=( )
     
     # Wait for a keypress (-n 1), save to array
     local keychar
-    read -n 1 -s -p "${prompt}" keychar
+    read -n 1 -s keychar
     chars=( "$keychar" )
 
     # Collect additional characters if available, especially for escape characters
@@ -25,6 +23,38 @@ get_keypress()
 
     # empty IFS so array is joined without delimiters
     echo "${chars[*]}"
+}
+
+
+# Returns TRUE (0) if the needle character is in the haystack string.
+str_contains_chr()
+{
+    local haystack="$1"
+    local needle="$2"
+    [ "${#needle}" -eq 1 ] && [ "${haystack//[^$needle]/}" ]
+}
+
+
+# Keep getting keystrokes until matching a character in the haystack.
+# If a default parameter is included, typing ENTER will return the
+# default character.
+await_letter()
+{
+    local haystack="$1"
+    local default="$2"
+
+    local keystroke=$''
+    while ! str_contains_chr "$haystack" "$keystroke"; do
+        keystroke=$( get_keypress )
+        if [ "$default" ] && [ "${#keystroke}" -eq 0 ]; then
+           keystroke="$default"
+           break
+        elif [ "${#keystroke}" -gt 1 ]; then
+            keystroke=$''
+        fi
+    done
+
+    echo "$keystroke"
 }
 
 # Examples of possible get_keypress returns:
@@ -45,8 +75,10 @@ declare keypress_ctrl_p=$'\cp'
 
 declare keystroke
 
+echo "[32;1mBeginning test of key_keypress function.[m"
 while [ "$keystroke" != "q" ]; do
-    keystroke=$( get_keypress "Press q to quit. " )
+    echo -n "Press any key to see how it's represented; q to quit. "
+    keystroke=$( get_keypress )
 
     case "$keystroke" in
         "$keypress_down_arrow") echo "You pressed down-arrow" ;;
@@ -61,3 +93,21 @@ while [ "$keystroke" != "q" ]; do
     esac
 
 done
+
+echo
+echo "[32;1mBeginning test of await_letter function.[m"
+echo "await_letter will only return if the keypress matches a"
+echo "a character in a submitted \"haystack\"  string.  An optional"
+echo "second echo parameter will be returned if the user simply"
+echo "presses ENTER."
+echo
+echo "In the following example, the haystack is \"YyNn\" and the"
+echo "default response (for pressing ENTER) is \"n\".  Any other"
+echo "keypresses will be ignored."
+echo -n "Do you like pina coladas (y/N)? "
+declare response=$( await_letter "YyNn" "n" )
+echo
+case "${response,,?}" in
+    'y') echo "You like pina coladas." ;;
+    'n') echo "You do NOT like pina coladas." ;;
+esac
