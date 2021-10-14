@@ -1,5 +1,27 @@
 #!/usr/bin/env bash
 
+# Simple implementation of a Yes/No prompt.
+# Waits for either Y or N (either case), returning 0
+# for 'Y' and 1 for 'N'.
+get_yes_no()
+{
+    local keyp
+    while true; do
+        read -n1 -p"[Y]es or [N]o: " keyp
+        if [ $? -eq 0 ]; then
+            if [ "${keyp^^}" == "Y" ]; then
+                echo
+                return 0
+            elif [ "${keyp^^}" == "N" ]; then
+                echo
+                return 1
+            else
+                echo -n "[2K[1G"  # erase line; move to leftmost (1) column
+            fi
+        fi
+    done
+}
+
 # Waits for and returns single keypress, even if it is
 # represented by multiple characters.
 get_keypress()

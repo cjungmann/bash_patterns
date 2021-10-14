@@ -2,11 +2,12 @@
 
 [Main README](README.md)
 
-This script includes a function, *get_keypress*, followed by
-some examples of strings that can be used to interpret the
-return value of *get_keypress*.  The benefit of this function
-is that it can return a multi-character string as the appropriate
-representation of a keystroke.
+After a very simple example, the *get_yes_or_no* function that waits for
+a single keypress, this script also includes a function, *get_keypress*,
+followed by some examples of strings that can be used to interpret the
+return value of *get_keypress*.  The benefit of this function is that
+it can return a multi-character string as the appropriate representation
+of a keystroke.
 
 The *get_keypress* function takes advantage of *read* features:
 
