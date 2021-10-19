@@ -43,6 +43,10 @@ The included scripts are:
   can be found in a string.  It's not named *strchr* because it
   doesn't return the position of the matched char.
 
+- [**get_credentials**](README_get_credentials.md)
+  is an example of a dialog getting a username and password
+  where the password is hidden immediately after entry to
+  enhance security against prying eyes.
 
 - The **regexes** script is an exploration and a small
   (but perhaps growing) set of examples of using regular
