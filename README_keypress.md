@@ -1,4 +1,4 @@
-# Project bash_ideas : keypress
+# Project bash_patterns : keypress
 
 [Main README](README.md)
 
