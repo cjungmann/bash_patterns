@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+
+declare keypress_down_arrow='[B'
+declare keypress_up_arrow='[A'
+
+reset_screen() { echo -n "[2J[1;1H"; }
+
+# Waits for and returns single keypress, even if it is
+# represented by multiple characters.
+get_keypress()
+{
+    local IFS=''
+    local -a chars=( )
+    
+    local keychar
+    read -n 1 -s keychar
+    chars=( "$keychar" )
+
+    while read -t 0; do
+        read -n 1 keychar
+        chars=( "${chars[@]}" "$keychar" )
+    done
+
+    echo "${chars[*]}"
+}
+
+# Print a single choice, called by function toggler_print_choices()
+#
+# A new implementation will likely need to change or replace this
+# function to generate options according to the new need.
+toggler_print_choice()
+{
+    local key="$1"
+    local -i value="$2" hilite="$3"
+    local prefix
+    if [ "$hilite" -ne 0 ]; then
+        echo -n "[43m"
+    fi
+    
+    if [ "$value" -eq 0 ]; then
+        prefix="[31;1mNOT installing"
+    else
+        prefix="[32;1mInstalling"
+    fi
+    echo "$prefix $key[m"
+}
+
+# Prints all options, using the keys array for order and the choices
+# associative array for the values.
+toggler_print_choices()
+{
+    local keys_name="$1"
+    local choices_name="$2"
+    local -n keys="$keys_name"
+    local -n choices="$choices_name"
+    local -i selected="$3"
+    local key
+    local -i count=0 hilite
+
+    for key in "${keys[@]}"; do
+        if [ "$(( count++ ))" -eq "$selected" ]; then
+            hilite=1
+        else
+            hilite=0
+        fi
+        toggler_print_choice "$key" "${choices[$key]}" "$hilite"
+    done
+    
+}
+
+# Toggles the specified value
+toggler_switch_choice()
+{
+    local -n keys="$1"
+    local -n choices="$2"
+    local -i ndx="$3"
+
+    local key="${keys[$ndx]}"
+
+    choices[$key]=$(( (${choices[$key]} + 1) % 2 ))
+}
+
+# Initialize the associative array passed to function toggler()
+toggler_map_guidance()
+{
+    local -n choices="$1"
+    local -n results="$2"
+    local key
+
+    for key in "${choices[@]}"; do
+        results[$key]=0
+    done
+}
+
+#####################################################################################
+# Create a arrow-key navigated list of switches to collect user input.
+# Arguments:
+#    $1 (array):             name of array of strings to be used as keys
+#    $2 (associative array): name of associative array in which user
+#                            responses will be stored.  Typically, the calling
+#                            function will reference an empty array which will
+#                            be initialized and filled in this function (toggler()).
+#
+# The result of this function will be found in the instance of the associative
+# array whose name was passed as the second argument in the call to this function.
+#####################################################################################
+toggler()
+{
+    toggler_map_guidance "$1" "$2"
+
+    local list_name="$1"
+    local result_name="$2"
+    
+    local -n keys="$list_name"
+    local -n choices="$result_name"
+
+    local -i limit=$(( "${#keys[@]}" - 1 ))
+    local -i hilite=0
+    local keyp
+
+    while [ 1 -eq 1 ]; do
+        reset_screen
+        toggler_print_choices $list_name $result_name $hilite
+        echo "Arrow keys to select, ENTER to toggle, 'u' to use values, 'q' to quit"
+
+        keyp=$( get_keypress )
+        if [ "${#keyp}" -eq 0 ]; then
+            toggler_switch_choice "$list_name" "$result_name" $hilite
+        else
+            case "$keyp" in
+                $keypress_up_arrow )
+                    if [ "$hilite" -gt 0 ]; then
+                        hilite=$(( hilite - 1 ))
+                    fi
+                    ;;
+                
+                $keypress_down_arrow )
+                    if [ "$hilite" -lt "$limit" ]; then
+                        hilite=$(( hilite + 1 ))
+                    fi
+                    ;;
+                'u' ) return 0 ;;
+                'q' ) return 1 ;;
+            esac
+        fi
+    done
+}
+
+# Insignificant function to show the user choices that may not
+# be necessary when using this code for production.
+show_choices()
+{
+    local map_name="$1"
+    local -n choices="$map_name"
+    local key
+    local -i value
+    for key in "${!choices[@]}"; do
+        value="${choices[$key]}"
+        if [ "$value" -ne 0 ]; then
+            echo "Installing $key"
+        fi
+    done
+}
+
+############
+### MAIN ###
+############
+
+# declare regular array of keys (to maintain order),
+declare -a packages=( apache mariadb php )
+# and an associative array to store user responses
+declare -A guidance
+
+if toggler "packages" "guidance"; then
+    show_choices "guidance"
+fi
+    
+
