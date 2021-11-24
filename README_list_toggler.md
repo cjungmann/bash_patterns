@@ -36,10 +36,9 @@ presses in order to move the highlighting between options.
 
 ## Usage
 
-This script can be used as a template, modifying functions `toggler`
-and `toggler_print_choice` and possibly `toggler_map_guidance`.
-Look at the code following the `### Main ###` sign for usage.
-
+This script is designed to be included in another script with a
+`source` statement.  Look at script **list_toggler_example** for
+guidance on the use of **list_toggler**.
 
 [1]: <README.md>                                      "Index"
 [2]: <README_keypress.md>                             "get_keypress"
