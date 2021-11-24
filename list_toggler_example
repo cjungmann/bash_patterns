@@ -11,10 +11,44 @@ show_choices()
     for key in "${!choices[@]}"; do
         value="${choices[$key]}"
         if [ "$value" -ne 0 ]; then
-            echo "Installing $key"
+            echo "Selected $key"
         fi
     done
 }
+
+############################
+###### Customizations ######
+############################
+
+# Change line display by overriding default toggler_print_choice() function
+toggler_print_choice()
+{
+    local key="$1"
+    local -i value="$2" hilite="$3"
+    local lineval="$key"
+
+    if [ "$value" -eq 0 ]; then
+        lineval="[31;1m$lineval NOT selected"
+    else
+        lineval="[32;1m$lineval selected"
+    fi
+
+    if [ "$hilite" -ne 0 ]; then
+        lineval="[43m${lineval}"
+    fi
+
+    echo "$lineval[m"
+}
+
+# Override prompt by setting the T_PROMPT variable:
+T_PROMPT="
+SHIFT-TAB/TAB (or arrow keys) to move up and down
+SPACE to select
+ENTER to continue
+'q' to quit"
+
+# Add introduction text if desired (default is no intro text):
+T_INTRO="Select one or more of the following options:"$'\n'
 
 ############
 ### MAIN ###
