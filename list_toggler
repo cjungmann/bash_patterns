@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 
-declare keypress_down_arrow='[B'
-declare keypress_up_arrow='[A'
+declare T_UP_ARROW=$'\e[A'
+declare T_TAB=$'\t'
 
-declare keypress_tab=$'\t'
-declare keypress_shift_tab='[Z'
+declare T_DOWN_ARROW=$'\e[B'
+declare T_SHIFT_TAB=$'\e[Z'
+
+declare T_INTRO=""
+declare T_PROMPT="Arrow keys to move, SPACE to toggle, ENTER to use values, 'q' to quit"
+
 
 reset_screen() { echo -n "[2J[1;1H"; }
 
@@ -41,9 +45,9 @@ toggler_print_choice()
     fi
     
     if [ "$value" -eq 0 ]; then
-        prefix="[31;1mNOT installing"
+        prefix="[31;1mNOT selected"
     else
-        prefix="[32;1mInstalling"
+        prefix="[32;1mSelected"
     fi
     echo "$prefix $key[m"
 }
@@ -123,32 +127,29 @@ toggler()
 
     while [ 1 -eq 1 ]; do
         reset_screen
+        if [ "$T_INTRO" ]; then echo "$T_INTRO"; fi
         toggler_print_choices $list_name $result_name $hilite
-        echo "Arrow keys to select, SPACE to toggle, ENTER to use values, 'q' to quit"
+        if [ "$T_PROMPT" ]; then echo "$T_PROMPT"; fi
 
         keyp=$( get_keypress )
         if [ "${#keyp}" -eq 0 ]; then
             return 0
         else
             case "$keyp" in
-                $keypress_down_arrow | $keypress_tab )
-                    if [ "$hilite" -lt "$limit" ]; then
-                        hilite=$(( hilite + 1 ))
-                    fi
-                    ;;
-                
-                $keypress_up_arrow | $keypress_shift_tab )
+                $T_UP_ARROW | $T_SHIFT_TAB )
                     if [ "$hilite" -gt 0 ]; then
                         hilite=$(( hilite - 1 ))
                     fi
                     ;;
                 
+                $T_DOWN_ARROW | $T_TAB )
+                    if [ "$hilite" -lt "$limit" ]; then
+                        hilite=$(( hilite + 1 ))
+                    fi
+                    ;;
+                
                 ' ' ) toggler_switch_choice "$list_name" "$result_name" $hilite ;;
                 'q' ) return 1 ;;
-
-                * ) echo "Unrecognized key, '$keyp'" >&2
-                    read -n1
-                    ;;
             esac
         fi
     done
