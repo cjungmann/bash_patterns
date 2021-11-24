@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+source list_toggler
+
+show_choices()
+{
+    local map_name="$1"
+    local -n choices="$map_name"
+    local key
+    local -i value
+    for key in "${!choices[@]}"; do
+        value="${choices[$key]}"
+        if [ "$value" -ne 0 ]; then
+            echo "Installing $key"
+        fi
+    done
+}
+
+############
+### MAIN ###
+############
+
+# declare regular array of keys (to maintain order),
+declare -a packages=( apache mariadb php )
+# and an associative array to store user responses
+declare -A guidance
+
+if toggler "packages" "guidance"; then
+    show_choices "guidance"
+fi
