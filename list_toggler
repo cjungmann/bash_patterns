@@ -3,6 +3,9 @@
 declare keypress_down_arrow='[B'
 declare keypress_up_arrow='[A'
 
+declare keypress_tab=$'\t'
+declare keypress_shift_tab='[Z'
+
 reset_screen() { echo -n "[2J[1;1H"; }
 
 # Waits for and returns single keypress, even if it is
@@ -121,58 +124,33 @@ toggler()
     while [ 1 -eq 1 ]; do
         reset_screen
         toggler_print_choices $list_name $result_name $hilite
-        echo "Arrow keys to select, ENTER to toggle, 'u' to use values, 'q' to quit"
+        echo "Arrow keys to select, SPACE to toggle, ENTER to use values, 'q' to quit"
 
         keyp=$( get_keypress )
         if [ "${#keyp}" -eq 0 ]; then
-            toggler_switch_choice "$list_name" "$result_name" $hilite
+            return 0
         else
             case "$keyp" in
-                $keypress_up_arrow )
+                $keypress_down_arrow | $keypress_tab )
+                    if [ "$hilite" -lt "$limit" ]; then
+                        hilite=$(( hilite + 1 ))
+                    fi
+                    ;;
+                
+                $keypress_up_arrow | $keypress_shift_tab )
                     if [ "$hilite" -gt 0 ]; then
                         hilite=$(( hilite - 1 ))
                     fi
                     ;;
                 
-                $keypress_down_arrow )
-                    if [ "$hilite" -lt "$limit" ]; then
-                        hilite=$(( hilite + 1 ))
-                    fi
-                    ;;
-                'u' ) return 0 ;;
+                ' ' ) toggler_switch_choice "$list_name" "$result_name" $hilite ;;
                 'q' ) return 1 ;;
+
+                * ) echo "Unrecognized key, '$keyp'" >&2
+                    read -n1
+                    ;;
             esac
         fi
     done
 }
-
-# Insignificant function to show the user choices that may not
-# be necessary when using this code for production.
-show_choices()
-{
-    local map_name="$1"
-    local -n choices="$map_name"
-    local key
-    local -i value
-    for key in "${!choices[@]}"; do
-        value="${choices[$key]}"
-        if [ "$value" -ne 0 ]; then
-            echo "Installing $key"
-        fi
-    done
-}
-
-############
-### MAIN ###
-############
-
-# declare regular array of keys (to maintain order),
-declare -a packages=( apache mariadb php )
-# and an associative array to store user responses
-declare -A guidance
-
-if toggler "packages" "guidance"; then
-    show_choices "guidance"
-fi
-    
 
