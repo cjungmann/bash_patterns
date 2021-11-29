@@ -6,8 +6,20 @@ declare T_TAB=$'\t'
 declare T_DOWN_ARROW=$'\e[B'
 declare T_SHIFT_TAB=$'\e[Z'
 
+shopt -s extglob
+
+declare TGROUP_UP=$'\e\\[A|\e\\[Z' # Up-arrow, shift-tab
+declare TKEYS_UP="Up-arrow|Shift-Tab"
+declare TGROUP_DOWN=$'\e\\[B|\t|\n'  # Down-arrow, tab, Enter
+declare TKEYS_DOWN="Down-arrow|Tab|Enter"
+
+declare TGROUP_TOGGLE=$' '
+declare TGROUP_EXEC=$'x'
+declare TGROUP_QUIT=$'q'
+declare TGROUP_HELP=$'\\?'
+
 declare T_INTRO=""
-declare T_PROMPT="Arrow keys to move, SPACE to toggle, ENTER to use values, 'q' to quit"
+declare T_PROMPT="'?' for help, 'q' to quit"
 
 
 reset_screen() { echo -n "[2J[1;1H"; }
@@ -16,19 +28,76 @@ reset_screen() { echo -n "[2J[1;1H"; }
 # represented by multiple characters.
 get_keypress()
 {
+    local -n charlist="$1"
+    charlist=
+
     local IFS=''
-    local -a chars=( )
-    
-    local keychar
-    read -n 1 -s keychar
-    chars=( "$keychar" )
+
+    read  -srN1
+    charlist="$REPLY"
 
     while read -t 0; do
-        read -n 1 keychar
-        chars=( "${chars[@]}" "$keychar" )
+        read -srN1
+        charlist="${charlist[@]}$REPLY"
     done
+}
 
-    echo "${chars[*]}"
+toggler_show_key()
+{
+    local key="$1"
+    if [ "$key" == " " ]; then
+        echo -n "SPACE"
+    elif [ "${#key}" -eq 1 ]; then
+        echo -n "'$key' key"
+    else
+        echo -n "$key"
+    fi
+}
+
+toggler_split_group()
+{
+    local -n keynames="TKEYS_$1"
+    local -n keygroup="TGROUP_$1"
+
+    local -a keylist
+
+    IFS=$'|'
+
+    if [ "$keynames" ]; then
+        keylist=( $keynames )
+    else
+        keylist=( $keygroup )
+    fi
+
+    if [ "${#keylist[@]}" -gt 0 ]; then
+        toggler_show_key "${keylist[0]}"
+        for key in "${keylist[@]:1}"; do
+            echo -n ", "
+            toggler_show_key "$key"
+        done
+        echo
+    fi
+}
+
+toggler_generate_help()
+{
+    reset_screen
+    echo "Use the following keys to navigate this dialog:"
+    echo
+    echo -n "Previous entry keys: "
+    toggler_split_group "UP"
+    echo -n "    Next entry keys: "
+    toggler_split_group "DOWN"
+    echo -n "        Toggle keys: "
+    toggler_split_group "TOGGLE"
+    echo -n "  Key(s) to execute: "
+    toggler_split_group "EXEC"
+    echo -n "     Key(s} to quit: "
+    toggler_split_group "QUIT"
+    echo
+    echo -n "Type any key to continue"
+
+    read -n1
 }
 
 # Print a single choice, called by function toggler_print_choices()
@@ -129,29 +198,29 @@ toggler()
         reset_screen
         if [ "$T_INTRO" ]; then echo "$T_INTRO"; fi
         toggler_print_choices $list_name $result_name $hilite
-        if [ "$T_PROMPT" ]; then echo "$T_PROMPT"; fi
+        if [ "$T_PROMPT" ]; then echo; echo -n "$T_PROMPT"; fi
 
-        keyp=$( get_keypress )
-        if [ "${#keyp}" -eq 0 ]; then
-            return 0
-        else
-            case "$keyp" in
-                $T_UP_ARROW | $T_SHIFT_TAB )
-                    if [ "$hilite" -gt 0 ]; then
-                        hilite=$(( hilite - 1 ))
-                    fi
-                    ;;
+        get_keypress keyp
+        case "$keyp" in
+            +($TGROUP_HELP) ) toggler_generate_help ;;
                 
-                $T_DOWN_ARROW | $T_TAB )
-                    if [ "$hilite" -lt "$limit" ]; then
-                        hilite=$(( hilite + 1 ))
-                    fi
-                    ;;
-                
-                ' ' ) toggler_switch_choice "$list_name" "$result_name" $hilite ;;
-                'q' ) return 1 ;;
-            esac
-        fi
+            +($TGROUP_UP) )
+                if [ "$hilite" -gt 0 ]; then
+                    hilite=$(( hilite - 1 ))
+                fi
+                ;;
+            +($TGROUP_DOWN) )
+                if [ "$hilite" -lt "$limit" ]; then
+                    hilite=$(( hilite + 1 ))
+                fi
+                ;;
+            
+            +($TGROUP_TOGGLE) )
+                toggler_switch_choice "$list_name" "$result_name" $hilite
+                ;;
+            +($TGROUP_QUIT) ) return 1 ;;
+            +($TGROUP_EXEC) ) echo; return 0 ;;
+        esac
     done
 }
 

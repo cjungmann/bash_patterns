@@ -41,11 +41,7 @@ toggler_print_choice()
 }
 
 # Override prompt by setting the T_PROMPT variable:
-T_PROMPT="
-SHIFT-TAB/TAB (or arrow keys) to move up and down
-SPACE to select
-ENTER to continue
-'q' to quit"
+T_PROMPT="Get help with '?', use 'q' to quit."
 
 # Add introduction text if desired (default is no intro text):
 T_INTRO="Select one or more of the following options:"$'\n'
