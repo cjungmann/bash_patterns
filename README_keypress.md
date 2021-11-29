@@ -2,6 +2,28 @@
 
 [Main README](README.md)
 
+It is common to need to detect individual keypresses in an interactive
+program.  While many keypresses emit a single character, special keys
+like arrow and function keys often return several characters for a single
+keypress.  Detecting keypresses in BASH poses some difficulties that
+do not exist in other languages, and the `keypress` script demonstrates
+how to overcome some of these difficulties.
+
+In the **keypress** script, there are two keypress-getting functions,
+**get_keypress** and a more capable **key_keypress_var**, the main
+difference being how the calling function acquires the result.
+
+- **get_keypress** returns the keypress character string with an
+  **echo**.  This works fine for most keys, but may fail to detect
+  **IFS** characters at either end.  What this means in practice is
+  that **get_keypress** cannot reliably return a result for ENTER,
+  which may be clobbered by the **IFS** value in the calling
+  function.
+
+- **get_keypress_var** thwarts the **IFS** problem by using a
+  *nameref* variable from the calling function, thus avoiding the
+  use of **echo**.  
+
 After a very simple example, the *get_yes_or_no* function that waits for
 a single keypress, this script also includes a function, *get_keypress*,
 followed by some examples of strings that can be used to interpret the

@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+
+source keypress
+
+reset_screen() { echo -n $'\e[2J\e[1;1H'; }
+
+# Returns TRUE (0) if the needle character is in the haystack string.
+str_contains_chr()
+{
+    local haystack="$1" needle="$2"
+    [ "${#needle}" -eq 1 ] && [ "${haystack//[^$needle]/}" ]
+}
+
+
+# Keep getting keystrokes until matching a character in the haystack.
+# If a default parameter is included, typing ENTER will return the
+# default character.
+await_letter()
+{
+    local haystack="$1" default="$2"
+
+    local keystroke=$''
+    while ! str_contains_chr "$haystack" "$keystroke"; do
+        keystroke=$( get_keypress_echo )
+        if [ "$default" ] && [ "${#keystroke}" -eq 0 ]; then
+           keystroke="$default"
+           break
+        elif [ "${#keystroke}" -gt 1 ]; then
+            keystroke=$'\e'
+        fi
+    done
+
+    echo "$keystroke"
+}
+
+char_is_printable() { local -i chr="$1"; [ "$chr" -gt 31 ] && [ "$chr" -lt 127 ]; }
+char_is_escapable() { local -i chr="$1"; [ "$chr" -gt 7 -a "$chr" -lt 14 ] || [ "$chr" -eq 27 ]; }
+char_is_extascii()  { local -i chr="$1"; [ "$chr" -ge 127 ]; }
+
+declare COL_ESC=$'\e[32;1m'
+declare COL_NUL=$'\e[m'
+
+get_char_display()
+{
+    local -i val="$1"
+    if char_is_printable "$val"; then
+        local chr=$( char_from_val "$val" )
+        echo -n $chr
+    else
+        echo -n "$COL_ESC"
+        case "$val" in
+            0 ) echo -n '\0' ;;
+            7 ) echo -n '\a' ;;
+            8 ) echo -n '\b' ;;
+            9 ) echo -n '\t' ;;
+            10) echo -n '\n' ;;
+            11) echo -n '\v' ;;
+            12) echo -n '\f' ;;
+            13) echo -n '\r' ;;
+            27) echo -n '\e' ;;
+            127) echo -n 'DEL' ;;
+            * ) printf '0x%02x' "$val" ;;
+        esac
+        echo -n "$COL_NUL"
+    fi
+}
+
+show_keystroke()
+{
+    local -n k="$1"
+    local -i limit="${#k}"
+    local -i ndx=0
+    local chr
+    local -i val
+
+    local -a keyarr=()
+
+    while [ "$ndx" -lt "$limit" ]; do
+        chr="${k:$(( ndx++ )):1}"
+        val=$( val_from_char "$chr" )
+        keyarr+=( $( get_char_display "$val") )
+    done
+
+    IFS=''
+    raw_string="\$'${keyarr[*]}'"
+
+    glob_string=
+    for key in "${keyarr[@]}"; do
+        if [ "$key" == '[' ]; then
+            glob_string="$glob_string\\\\$key"
+        else
+            glob_string="$glob_string$key"
+        fi
+    done
+
+    echo "$raw_string (glob version: $'$glob_string')"
+}
+
+# Examples of possible get_keypress returns:
+
+# Enter escape character in EMACS with C-q, ESC
+# (see documentation: info emacs -n "Inserting Text")
+declare keypress_down_arrow='[B'
+declare keypress_up_arrow=$'\e[A'
+
+# Other control characters can be tested with $'\c.':
+declare keypress_ctrl_n=$'\cn'
+declare keypress_ctrl_p=$'\cp'
+declare keypress_ENTER=$'\n'
+
+
+
+
+declare KEYPRESS_PROMPT="Press any key to see its representation, ? to explain output, q to quit. "
+
+# Demonstrate usage:
+
+declare keystroke
+
+explain_keypress()
+{
+    cat <<'EOF'
+
+The keypress reporter may seem a bit peculiar.  It prints typeable characters
+intact, but otherwise it seems to randomly show a human-readable name, colored
+back-slash characters, and hexadecimal values.
+
+The reason for this arises from the testing heritage of this little test.  I
+wanted to detect arrow keys and the ENTER key in order to create a 'dialog'
+for toggling a list of options, so there are variables that match those
+keypress strings.
+EOF
+}
+
+show_keypress()
+{
+    local keypress_name="$1"
+    local -n sk_kp="$keypress_name"
+    local split_chars=$( show_keystroke $keypress_name )
+
+    case "$sk_kp" in
+        # "$keypress_down_arrow") echo "You pressed down-arrow ($split_chars)" ;;
+        # "$keypress_up_arrow" )  echo "You pressed up arrow ($split_chars)" ;;
+        # "$keypress_ctrl_n" )    echo "You pressed control-n ($split_chars)" ;;
+        # "$keypress_ctrl_p" )    echo "You pressed control-p ($split_chars)" ;;
+        # "$keypress_ENTER" )     echo "You pressed ENTER ($split_chars)" ;;
+        '?' )
+            echo
+            explain_keypress
+            echo
+            echo $KEYPRESS_PROMPT
+            ;;
+        *)
+            echo "key string is $split_chars"
+    esac
+}
+
+
+show_get_keypress_echo()
+{
+    reset_screen
+    echo "[32;1mBeginning test of get_keypress function.[m"
+    echo "Detect ESC character with '\e', CONTROL with '\c."
+    echo
+    echo $KEYPRESS_PROMPT
+    
+    local keystroke
+    while [ "$keystroke" != "q" ]; do
+        keystroke=$( get_keypress_echo )
+        show_keypress keystroke
+    done
+}
+
+show_get_keypress()
+{
+    reset_screen
+    echo "[32;1mBeginning test of get_keypress function.[m"
+    echo "The get_keypress function returns its result in a nameref"
+    echo "variable passed to it rather than an echo.  You should notice"
+    echo "that the ENTER key recognized."
+    echo
+    echo $KEYPRESS_PROMPT
+
+    local keystroke
+    while [ "$keystroke" != "q" ]; do
+        get_keypress keystroke
+        show_keypress keystroke
+    done
+}
+
+
+show_await_letter()
+{
+    reset_screen
+
+    echo "[32;1mBeginning test of await_letter function.[m"
+    echo "await_letter will only return if the keypress matches a"
+    echo "a character in a submitted \"haystack\"  string.  An optional"
+    echo "second echo parameter will be returned if the user simply"
+    echo "presses ENTER."
+    echo
+    echo "In the following example, the haystack is \"YyNn\" and the"
+    echo "default response (for pressing ENTER) is \"n\".  Any other"
+    echo "keypresses will be ignored."
+    echo -n "Do you like pina coladas (y/N)? "
+    declare response=$( await_letter "YyNn" "n" )
+    echo
+    case "${response,,?}" in
+        'y') echo "You like pina coladas." ;;
+        'n') echo "You do NOT like pina coladas." ;;
+    esac
+}
+
+# show_get_keypress_echo
+show_get_keypress
+# show_await_letter
+
+

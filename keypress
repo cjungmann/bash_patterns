@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+val_from_char() { local chr="$1"; LC_CTYPE=C; printf '%d' "'$chr"; }
+char_from_val() { local -i val="$1"; printf $(printf "\\%03o" $val); }
+
 # Simple implementation of a Yes/No prompt.
 # Waits for either Y or N (either case), returning 0
 # for 'Y' and 1 for 'N'.
@@ -22,9 +25,14 @@ get_yes_no()
     done
 }
 
-# Waits for and returns single keypress, even if it is
-# represented by multiple characters.
-get_keypress()
+# Waits for and returns single keypress, even if it is represented
+# by multiple characters.
+#
+# This used to be the definitive get_keypress function, until I solved
+# the ENTER key problem by using a *nameref* variable in which to return
+# the detected keypress.  The *nameref* version is so much superior, I
+# demoted this function to have the qualifier name (_echo).
+get_keypress_echo()
 {
     # IFS characters will be invisible to 'read', so:
     local IFS=''
@@ -47,89 +55,30 @@ get_keypress()
     echo "${chars[*]}"
 }
 
-
-# Returns TRUE (0) if the needle character is in the haystack string.
-str_contains_chr()
+# This keypress function stores the array of characters
+# to a named variable in order to preserve IFS characters.
+get_keypress()
 {
-    local haystack="$1"
-    local needle="$2"
-    [ "${#needle}" -eq 1 ] && [ "${haystack//[^$needle]/}" ]
-}
+    # nameref var: using variable from caller's scope
+    local -n charlist="$1"
+    charlist=
 
+    # IFS characters will be invisible to 'read', so:
+    local IFS=''
 
-# Keep getting keystrokes until matching a character in the haystack.
-# If a default parameter is included, typing ENTER will return the
-# default character.
-await_letter()
-{
-    local haystack="$1"
-    local default="$2"
+    # read arguments:
+    # -r  to force single characters (eschewing the backslash)
+    # -N1 to force completion with first character
+    # -s  silent: don't echo characters
+    read  -srN1
+    charlist="$REPLY"
 
-    local keystroke=$''
-    while ! str_contains_chr "$haystack" "$keystroke"; do
-        keystroke=$( get_keypress )
-        if [ "$default" ] && [ "${#keystroke}" -eq 0 ]; then
-           keystroke="$default"
-           break
-        elif [ "${#keystroke}" -gt 1 ]; then
-            keystroke=$''
-        fi
+    # Collect additional characters if available, especially for
+    # escape characters.  Loops until `read` encounters an EOF.
+    while read -t 0; do
+        read -srN1
+        charlist="${charlist[@]}$REPLY"
     done
-
-    echo "$keystroke"
 }
 
-# Examples of possible get_keypress returns:
 
-# Enter escape character in EMACS with C-q, ESC
-# (see documentation: info emacs -n "Inserting Text")
-declare keypress_down_arrow='[B'
-declare keypress_up_arrow='[A'
-
-# Other control characters can be tested with $'\c.':
-declare keypress_ctrl_n=$'\cn'
-declare keypress_ctrl_p=$'\cp'
-
-
-
-
-# Demonstrate usage:
-
-declare keystroke
-
-echo "[32;1mBeginning test of key_keypress function.[m"
-while [ "$keystroke" != "q" ]; do
-    echo -n "Press any key to see how it's represented; q to quit. "
-    keystroke=$( get_keypress )
-
-    case "$keystroke" in
-        "$keypress_down_arrow") echo "You pressed down-arrow" ;;
-        "$keypress_up_arrow" )  echo "You pressed up arrow" ;;
-        "$keypress_ctrl_n" )    echo "You pressed control-n" ;;
-        "$keypress_ctrl_p" )    echo  "You pressed control-p" ;;
-        *)
-            if [ "${keystroke:0:1}" = "" ]; then
-                keystroke="^[${keystroke:1}"
-            fi
-            echo "keystroke is [32m${keystroke}[m" ;;
-    esac
-
-done
-
-echo
-echo "[32;1mBeginning test of await_letter function.[m"
-echo "await_letter will only return if the keypress matches a"
-echo "a character in a submitted \"haystack\"  string.  An optional"
-echo "second echo parameter will be returned if the user simply"
-echo "presses ENTER."
-echo
-echo "In the following example, the haystack is \"YyNn\" and the"
-echo "default response (for pressing ENTER) is \"n\".  Any other"
-echo "keypresses will be ignored."
-echo -n "Do you like pina coladas (y/N)? "
-declare response=$( await_letter "YyNn" "n" )
-echo
-case "${response,,?}" in
-    'y') echo "You like pina coladas." ;;
-    'n') echo "You do NOT like pina coladas." ;;
-esac
