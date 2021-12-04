@@ -40,11 +40,22 @@ toggler_print_choice()
     echo "$lineval[m"
 }
 
-# Override prompt by setting the T_PROMPT variable:
-T_PROMPT="Get help with '?', use 'q' to quit."
-
-# Add introduction text if desired (default is no intro text):
+# If desired, add introduction text that precedes options (default is no intro text):
 T_INTRO="Select one or more of the following options:"$'\n'
+
+# Override prompt that follows options by setting the T_PROMPT variable:
+T_PROMPT="Get help with '?', use 'x' to execute, 'q' to quit."
+
+# Allow upper- or lower-case letter for execute and quit
+# TGROUP_EXEC=$'x|X'
+# TGROUP_QUIT=$'q|Q'
+
+# Define new UP or DOWN group of keys (leave out TAB/shift-TAB options).
+# Notice that the TKEYS_XXX string must change to match the TGROUP_XXX:
+TGROUP_UP=$'\e\\[A' # Up-arrow, shift-tab
+TKEYS_UP="Up-arrow"
+TGROUP_DOWN=$'\e\\[B|\n'  # Down-arrow, tab, Enter
+TKEYS_DOWN="Down-arrow|Enter"
 
 ############
 ### MAIN ###
@@ -53,8 +64,10 @@ T_INTRO="Select one or more of the following options:"$'\n'
 # declare regular array of keys (to maintain order),
 declare -a packages=( apache mariadb php )
 # and an associative array to store user responses
-declare -A guidance
+declare -A guidance=( [apache]=1 [mariadb]=1 )
 
 if toggler "packages" "guidance"; then
     show_choices "guidance"
 fi
+
+echo
