@@ -19,7 +19,7 @@ declare TGROUP_QUIT=$'q'
 declare TGROUP_HELP=$'\\?'
 
 declare T_INTRO=""
-declare T_PROMPT="'?' for help, 'q' to quit"
+declare T_PROMPT="'?' for help, 'x' to execute, 'q' to quit"
 
 
 reset_screen() { echo -n "[2J[1;1H"; }
@@ -156,18 +156,6 @@ toggler_switch_choice()
     choices[$key]=$(( (${choices[$key]} + 1) % 2 ))
 }
 
-# Initialize the associative array passed to function toggler()
-toggler_map_guidance()
-{
-    local -n choices="$1"
-    local -n results="$2"
-    local key
-
-    for key in "${choices[@]}"; do
-        results[$key]=0
-    done
-}
-
 #####################################################################################
 # Create a arrow-key navigated list of switches to collect user input.
 # Arguments:
@@ -182,8 +170,6 @@ toggler_map_guidance()
 #####################################################################################
 toggler()
 {
-    toggler_map_guidance "$1" "$2"
-
     local list_name="$1"
     local result_name="$2"
     
