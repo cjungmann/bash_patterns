@@ -79,9 +79,14 @@ The included scripts are:
   how to use BASH arrays, associative arrays, and named
   variables.
 
+- [**console_colors**][7] should eventually be a script that
+  allows the user to generate console colors and export them to
+  an **LS_COLORS**-compatible environment statement.
+
 [1]: <https://vt100.net/docs/vt510-rm/chapter4.html>    "vt100"
 [2]: <README_keypress.md>                               "keypress"
 [3]: <README_get_credentials.md>                        "get credentials"
 [4]: <README_regexes.md>                                "regular expressions"
 [5]: <README_useful.md>                                 "random useful patterns"
 [6]: <README_list_toggler.md>                           "list toggler"
+[7]: <README_colors.md>                                 "console colors"
