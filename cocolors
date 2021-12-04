@@ -1,0 +1,474 @@
+#!/usr/bin/env bash
+
+# function prefixes:
+#    display_xxx:  output is user-readable
+#    render_xxx:   output is abstract view
+#    get_xxx:      get value without interpretation
+#    compute_xxx:  calcuated (interpreted) value
+
+source list_toggler
+
+declare -i MAX_COL=5
+
+declare -a COL_TYPES=(
+    "base"
+    "grey-indexed"
+    "base-indexed"
+    "cube-indexed"
+    "rbg"
+)
+
+declare -a COL_NAMES=(
+    "black"
+    "red"
+    "green"
+    "yellow"
+    "blue"
+    "magenta"
+    "cyan"
+    "white"
+)
+
+declare -a COL_MIXES=(
+    "0|0|0"     # black
+    "1|0|0"     # red
+    "0|1|0"     # green
+    "1|1|0"     # yellow
+    "0|0|1"     # blue
+    "1|0|1"     # magenta
+    "0|1|1"     # cyan
+    "1|1|1"     # white
+    )
+
+declare -i TYPES_COUNT="${#COL_TYPES[@]}"
+
+reset_color_map()
+{
+    local -n c="$1"
+    c[type]=0
+    c[red]=0
+    c[green]=0
+    c[blue]=0
+    c[blink]=0
+    c[disabled]=0
+    c[index]=0
+}
+
+get_max_by_type()
+{
+    local -n cmap="$1"
+    case "${cmap[type]}" in
+        0|2 ) echo 15 ;;
+        1 )   echo 23 ;;
+        3 )   echo 5 ;;
+        4 )   echo 255 ;;
+    esac
+}
+
+toggle_nameref_element()
+{
+    local -n ref="$1"
+    ref[$2]=$(( (${ref["$2"]} + 1) % 2 ))
+}
+
+three_set_color()
+{
+    local -i col="$1"
+    ## breaks at 0x55 (85) and 0xAA (170)
+    if [ "$col" -lt 85 ]; then echo 0; fi
+    if [ "$col" -lt 170 ]; then echo 1; fi
+    echo 2
+}
+
+identify_color()
+{
+    local -n c="$1"
+    local -a col=(
+        "${c[red]}"
+        "${c[green]}"
+        "${c[blue]}"
+    )
+    local mixstr
+    local -a mix
+    local -i index=0
+
+    local IFS='|'
+
+    for mixstr in "${COL_MIXES[@]}"; do
+        mix=( $mixstr )
+        if [ mix_is_match "mix" "col" ]; then
+            echo "$index"
+            return 0
+        fi
+
+        (( ++index ))
+    done
+    
+}
+
+
+adjust_color_map_elements()
+{
+    local -n ref="$1"
+    local -i type="${ref[type]}"
+    local -i index
+    case "$type" in
+        0)  ;; # had been rgb 
+        1)   # had been rgb, average values
+            index=$(( (ref[red] + ref[green] + ref[blue]) / 3 ))
+            (( ref[red]=0; ref[green]=0; ref[blue]=0 ))
+            ;;
+        # 1) no change between two 1-16-indexed types
+        2) ;;
+    esac
+            
+}
+
+cycle_type_element()
+{
+    local -n ref="$1"
+    local -i val="${ref[type]}"
+    ref[type]=$(( (ref[type] + 1) % (TYPES_COUNT - 1) ))
+
+    adjust_color_map_elements "$1"
+}
+
+reset_ansi_color() { echo -n $'\e[m'; }
+
+process_color_keypress()
+{
+    local -n cmap="$1"
+    local max_col=$( get_max_by_type "$1" )
+    local keyp="$2"
+    case "$keyp" in
+        "r" ) if [ "${cmap[red]}" -lt "$max_col" ]; then (( cmap[red]++ )); fi ;;
+        "R" ) if [ "${cmap[red]}" -gt 0 ]; then (( cmap[red]-- )); fi ;;
+        "g" ) if [ "${cmap[green]}" -lt "$max_col" ]; then (( cmap[green]++ )); fi ;;
+        "G" ) if [ "${cmap[green]}" -gt 0 ]; then (( cmap[green]-- )); fi ;;
+        "b" ) if [ "${cmap[blue]}" -lt "$max_col" ]; then (( cmap[blue]++ )); fi ;;
+        "B" ) if [ "${cmap[blue]}" -gt 0 ]; then (( cmap[blue]-- )); fi ;;
+    esac
+    cmap[index]=$(( ("${cmap[red]}" * 36) + ("${cmap[green]}" * 6) + "${cmap[blue]}" ))
+}
+
+
+echo_color_from_map()
+{
+    local -n cm="$1"
+    if [ "${cm[disabled]}" -ne 1 ]; then
+        echo "working with ${cm[*]}" >&2
+
+        local level="${1:0:1}"    # 'f' for foreground, 'b' for background
+        local -i color_index="${cm[index]}"
+
+        # Array of parameters to packed for final result
+        local -a parts=()
+
+        # Putting blink flag first seems to work best (for now):
+        if [ "${cm[blink]}" -eq 1 ]; then
+            parts+=( 5 )
+        fi
+
+        # Determine color definition type
+        local -i deftype=0
+
+        if [ "$level" == "f" ]; then
+            deftype=30
+        else
+            deftype=40
+        fi
+
+        local -i cm_type="${cm[type]}"
+
+        if [ "$cm_type" -eq 0 ]; then
+            if [ "$color_index" -lt 8 ]; then
+                (( deftype += color_index ))
+            elif [ "$color_index" -lt 16 ]; then
+                (( deftype += $(( color_index - 8 )) ))
+                # add intensity flag:
+                parts+=( 1 )
+            fi
+            parts+=( "$deftype" )
+        else
+            (( deftype += 8 ))
+            parts+=( "$deftype" )
+
+            if [ "$cm_type" -eq 4 ]; then
+                parts+=( 2 )
+                parts+=( "${cm[red]}" "${cm[green]}" "${cm[blue]}" )
+            else
+                parts+=( 5 )
+                case "$cm_type" in
+                    1 ) parts+=( $(( color_index +  232 )) ) ;; # grey-indexed
+                    2 ) parts+=( "$color_index" ) ;;            # base-indexed
+                    3 ) parts+=( $(( color_index + 16 )) ) ;;   # cube-indexed
+                esac
+            fi
+        fi
+        
+        local IFS=';'
+        echo "parts consiste of ${#parts[@]} parts: ${parts[*]}" >&2
+        echo -n "${parts[*]}"
+
+        # local type="${1:0:1}"
+        # local -i lev=0
+        # local blink=""
+        # if [ "${cm[blink]}" -eq 1 ]; then blink="5;"; fi
+        # if [ "$type" == "b" ]; then lev=48; else lev=38; fi
+        # echo -n "${blink}${lev};5;$(( cm[index] + 16 ))"
+    fi
+}
+
+get_color_string()
+{
+    local -a parts=(
+        $( echo_color_from_map "$1" )
+        $( echo_color_from_map "$2" )
+    )
+    local IFS=";"
+    echo $'\e['"${parts[*]}m"
+}
+
+print_color_values()
+{
+    local -n c="$1"
+    local -i index="${c[type]}"
+    local tname="${COL_TYPES[$index]}"
+    echo -n "type=$tname; red=${c[red]}; green=${c[green]}; blue=${c[blue]}; disabled=${c[disabled]}; index=${c[index]}"
+    if [ "${c[blink]}" -eq 1 ]; then
+        echo -n " (blinking)"
+    fi
+}
+
+print_color_status()
+{
+    local name="$1"
+    local curcol="$2"
+
+    local -n c="$name"
+    if [ "$curcol" == "$name" ]; then
+        echo -n $'\e[38;5;10m>>'
+    else
+        echo -n "  "
+    fi
+
+    echo -n "$name "
+    print_color_values "$name"
+    echo $'\e[m'
+}
+
+print_instructions()
+{
+    echo "r|g|b to increase color intensity"
+    echo "R|G|B to decrease color intensity"
+    echo "t or T to toggle blinking"
+    echo "d or D to toggle disabled"
+    echo "c or C to cycle color type"
+    echo "s or S to toggle ansi string"
+    echo "TAB to switch between foreground and background changes."
+    echo "ENTER to save, 'q' to abort"
+}
+
+# Function to duplicate a character a given number of times
+# Args
+#    (integer):   number of characters to repeat
+#    (character): character to be repeated
+dupchar()
+{
+    local -i len="$1"
+    local chr="$2"
+
+    local s=$( printf "%0${len}d" 0 ); echo -n "${s//0/${chr}}"
+}
+
+# Called by print_framed_demo() to display a top or bottom border
+# (they are identical) string in the default colors
+# Args:
+#    (integer):   number of characters enclosed by each line of the frame
+#    (integer, optional, default 5):
+#                 number of characters to right-shift the frame
+#
+# The output will look like this: +-------+, where the number of dashes
+# matches the first parameter value.
+print_vborder()
+{
+    local buff=$( dupchar "$1" "-" )
+    local -i padlen="${2:-5}"
+    dupchar "$padlen" ' '
+    echo "+${buff}+"
+}
+
+# Called by print_framed_demo() to display a single line of the
+# framed content.  The frame will be right-shifted by the $padlen value
+# (argument $6), will have a default color pipe-character just before
+# and after the content, and the content will be blank or with a
+# centered display of the text (argument #2)
+# Args:
+#    (integer):  number of characters enclosed by each line of the frame
+#    (string):   text to display selected ANSI color settings
+#    (string):   ANSI color string
+#    (string):   ANSI color cancel string
+#    (integer):  number of content lines to print
+#    (integer, optional, default 4):
+#                number of characters to right-shift the frame
+#
+print_vline()
+{
+    local -i wide="$1"
+    local text="$2"
+    local con="$3"
+    local coff="$4"
+    local -i lines="${5:-1}"
+    local -i padlen="${6:-5}"
+
+    local -i tlen="${#text}"
+    local -i lspaces=$(( (wide - tlen) / 2 ))
+
+    local pad_spaces=$( dupchar "$padlen" ' ' )
+
+    local lbuff=$( dupchar $lspaces ' ' )
+    local rbuff=$( dupchar $(( side - lspaces )) ' ' )
+    for (( i=0; i<lines; ++i )); do
+        echo "${pad_spaces}|${con}${lbuff}${text}${rbuff}${coff}|"
+    done
+}
+
+
+# This function prints a size-configurable box in which the user-defined
+# foreground and background colors are used to demonstrate how the
+# combination will work.
+# Args:
+#  (string):  ANSI string defining display colors
+#  (string):  ANSI string to cancel $1
+#  (string):  string of characters to display in frame
+#  (integer): number of blank lines before and after the text
+#  (integer): number of characters to left and right of the text
+print_framed_demo()
+{
+    local con=$1
+    local coff=$2
+
+    local text="$3"
+    local -i vmarg="${4:=1}"
+    local -i hmarg="${5:=4}"
+
+    local -i winwide=$(( ${#text} + 2 * hmarg ))
+
+    print_vborder $winwide
+    print_vline $winwide "" "$con" "$coff" "$vmarg"
+    print_vline $winwide "$text" "$con" "$coff"
+    print_vline $winwide "" "$con" "$coff" "$vmarg"
+    print_vborder $winwide
+}
+
+# This function displays an editable dialog for changing a color
+# according to ANSI color codes.
+edit_color()
+{
+    local -A foreground background
+    reset_color_map "foreground"
+
+    reset_color_map "background"
+    background[disabled]=1
+    
+    local keyp
+    local curcol="foreground"
+    local -i help_flag=0
+    local -i ansi_flag=0
+    local colstr
+    local text="####"
+
+    local -i done=0
+    while [ "$done" -eq 0 ]; do
+        reset_screen
+
+        print_color_status "foreground" "$curcol"
+        print_color_status "background" "$curcol"
+
+        colstr=$( get_color_string "foreground" "background" )
+        coloff=$( reset_ansi_color )
+
+        print_framed_demo "$colstr" "$coloff" "$text" 1 4
+
+        if [ "$ansi_flag" -eq 1 ]; then
+            echo "ansi string is \$'${colstr///\\e}'"
+            echo
+        fi
+
+        if [ "$help_flag" -eq 1 ]; then
+            print_instructions
+        fi
+        echo "Press '?' to toggle instructions."
+
+        get_keypress "keyp"
+        case "$keyp" in
+            "?"   ) (( help_flag = (help_flag+1) % 2 )) ;;
+            "q"   ) return 1 ;;
+            c|C   ) cycle_type_element $curcol ;;
+            s|S   ) (( ansi_flag = (ansi_flag+1) % 2 )) ;;
+            t|T   ) (( foreground[blink] = (foreground[blink]+1) % 2 )) ;;
+            d|D   ) toggle_nameref_element $curcol "disabled" ;;
+            $'\n' ) done=1 ;;
+            $'\t' ) 
+                if [ "$curcol" == "foreground" ]; then
+                    curcol="background"
+                else
+                    curcol="foreground"
+                fi
+                ;;
+            * ) process_color_keypress "$curcol" "$keyp" ;;
+        esac
+    done
+    
+    return 0
+}
+
+
+# Called by get_ls_colors(), this function displays one color
+# by name and ANSI color string.
+# Args:
+#    (string)  name of array of key names
+#    (string)  name of associated array mapping key names to color strings
+show_ls_colors()
+{
+    local kname="$1"
+    local mname="$2"
+
+    local -n keys="$kname"
+    local -n map="$mname"
+
+    local key value
+
+    for key in "${keys[@]}"; do
+        value="${map[$key]}"
+        echo $'\e['"${value}m$key"$'\e[m'" $value"
+    done
+}
+
+# This function displays all the defined LS_COLORS values.
+get_ls_colors()
+{
+    local -a lsc_keys=()
+    local -A lsc_map=()
+    local -a codef=()
+    local IFS=':'
+    local key
+    local -a entries=( $LS_COLORS )
+    echo "There are ${#entries[@]} colors"
+    for entry in "${entries[@]}"; do
+        IFS='='
+        codef=( $entry )
+        key="${codef[0]}"
+        key="${key/\*\./\a_dot_}"
+
+        lsc_keys+=( "$key" )
+
+        lsc_map["$key"]="${codef[1]}"
+    done
+
+    show_ls_colors "lsc_keys" "lsc_map"
+}
+
+
+get_ls_colors
+edit_color "38;5;128"
