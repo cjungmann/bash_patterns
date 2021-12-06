@@ -135,6 +135,7 @@ cycle_type_element()
 
 reset_ansi_color() { echo -n $'\e[m'; }
 
+
 process_color_keypress()
 {
     local -n cmap="$1"
@@ -156,8 +157,6 @@ echo_color_from_map()
 {
     local -n cm="$1"
     if [ "${cm[disabled]}" -ne 1 ]; then
-        echo "working with ${cm[*]}" >&2
-
         local level="${1:0:1}"    # 'f' for foreground, 'b' for background
         local -i color_index="${cm[index]}"
 
@@ -207,7 +206,6 @@ echo_color_from_map()
         fi
         
         local IFS=';'
-        echo "parts consiste of ${#parts[@]} parts: ${parts[*]}" >&2
         echo -n "${parts[*]}"
 
         # local type="${1:0:1}"
@@ -229,7 +227,7 @@ get_color_string()
     echo $'\e['"${parts[*]}m"
 }
 
-print_color_values()
+display_color_values()
 {
     local -n c="$1"
     local -i index="${c[type]}"
@@ -240,7 +238,7 @@ print_color_values()
     fi
 }
 
-print_color_status()
+display_color_status()
 {
     local name="$1"
     local curcol="$2"
@@ -253,11 +251,11 @@ print_color_status()
     fi
 
     echo -n "$name "
-    print_color_values "$name"
+    display_color_values "$name"
     echo $'\e[m'
 }
 
-print_instructions()
+display_instructions()
 {
     echo "r|g|b to increase color intensity"
     echo "R|G|B to decrease color intensity"
@@ -281,7 +279,7 @@ dupchar()
     local s=$( printf "%0${len}d" 0 ); echo -n "${s//0/${chr}}"
 }
 
-# Called by print_framed_demo() to display a top or bottom border
+# Called by display_framed_demo() to display a top or bottom border
 # (they are identical) string in the default colors
 # Args:
 #    (integer):   number of characters enclosed by each line of the frame
@@ -293,12 +291,12 @@ dupchar()
 print_vborder()
 {
     local buff=$( dupchar "$1" "-" )
-    local -i padlen="${2:-5}"
+    local -i padlen="${2:=5}"
     dupchar "$padlen" ' '
     echo "+${buff}+"
 }
 
-# Called by print_framed_demo() to display a single line of the
+# Called by display_framed_demo() to display a single line of the
 # framed content.  The frame will be right-shifted by the $padlen value
 # (argument $6), will have a default color pipe-character just before
 # and after the content, and the content will be blank or with a
@@ -318,8 +316,8 @@ print_vline()
     local text="$2"
     local con="$3"
     local coff="$4"
-    local -i lines="${5:-1}"
-    local -i padlen="${6:-5}"
+    local -i lines="${5:=1}"
+    local -i padlen="${6:=5}"
 
     local -i tlen="${#text}"
     local -i lspaces=$(( (wide - tlen) / 2 ))
@@ -343,7 +341,8 @@ print_vline()
 #  (string):  string of characters to display in frame
 #  (integer): number of blank lines before and after the text
 #  (integer): number of characters to left and right of the text
-print_framed_demo()
+#  (integer); number of character positions to right-shift the frame
+display_framed_demo()
 {
     local con=$1
     local coff=$2
@@ -351,14 +350,15 @@ print_framed_demo()
     local text="$3"
     local -i vmarg="${4:=1}"
     local -i hmarg="${5:=4}"
+    local -i hpadd="${6:=5}"
 
     local -i winwide=$(( ${#text} + 2 * hmarg ))
 
-    print_vborder $winwide
-    print_vline $winwide "" "$con" "$coff" "$vmarg"
-    print_vline $winwide "$text" "$con" "$coff"
-    print_vline $winwide "" "$con" "$coff" "$vmarg"
-    print_vborder $winwide
+    print_vborder $winwide "$hpadd"
+    print_vline $winwide "" "$con" "$coff" "$vmarg" "$hpadd"
+    print_vline $winwide "$text" "$con" "$coff" "$vmarg" "$hpadd"
+    print_vline $winwide "" "$con" "$coff" "$vmarg" "$hpadd"
+    print_vborder $winwide "$hpadd"
 }
 
 # This function displays an editable dialog for changing a color
@@ -382,13 +382,13 @@ edit_color()
     while [ "$done" -eq 0 ]; do
         reset_screen
 
-        print_color_status "foreground" "$curcol"
-        print_color_status "background" "$curcol"
+        display_color_status "foreground" "$curcol"
+        display_color_status "background" "$curcol"
 
         colstr=$( get_color_string "foreground" "background" )
         coloff=$( reset_ansi_color )
 
-        print_framed_demo "$colstr" "$coloff" "$text" 1 4
+        display_framed_demo "$colstr" "$coloff" "$text" 1 4 12
 
         if [ "$ansi_flag" -eq 1 ]; then
             echo "ansi string is \$'${colstr///\\e}'"
@@ -396,7 +396,7 @@ edit_color()
         fi
 
         if [ "$help_flag" -eq 1 ]; then
-            print_instructions
+            display_instructions
         fi
         echo "Press '?' to toggle instructions."
 
