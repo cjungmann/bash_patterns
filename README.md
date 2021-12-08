@@ -83,6 +83,10 @@ The included scripts are:
   allows the user to generate console colors and export them to
   an **LS_COLORS**-compatible environment statement.
 
+- [**palettes**][8] is a script that helped me visualize and
+  identify colors in the various available ANSI schemes for
+  displaying console colors.
+
 [1]: <https://vt100.net/docs/vt510-rm/chapter4.html>    "vt100"
 [2]: <README_keypress.md>                               "keypress"
 [3]: <README_get_credentials.md>                        "get credentials"
@@ -90,3 +94,4 @@ The included scripts are:
 [5]: <README_useful.md>                                 "random useful patterns"
 [6]: <README_list_toggler.md>                           "list toggler"
 [7]: <README_cocolors.md>                               "console colors"
+[8]: <README_palettes.md>                               "palette display"

@@ -185,5 +185,4 @@ display_palette()
     fi
 }
 
-get_label_index_from_substring "help"
 display_palette "${1:-local_index}"
