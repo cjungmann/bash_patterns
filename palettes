@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+
+declare -a LABEL_TYPES=(
+    local_index
+    complete_index
+    ansi
+    rgb
+)
+
+display_usage()
+{
+    local label
+    echo "There are ${#LABEL_TYPES[@]} options:"
+    for label in "${LABEL_TYPES[@]}"; do
+        echo "   $label"
+    done
+}
+
+get_label_index_from_substring()
+{
+    local chr="${1:0:1}"
+    local -i limit="${#LABEL_TYPES[@]}"
+    local -i index
+    local label first
+    for (( index=0; index<limit; ++index )); do
+        label="${LABEL_TYPES[$index]}"
+        first="${label:0:1}"
+        if [ "$first" == "$chr" ]; then
+            echo "$index"
+            return 0
+        fi
+    done
+
+    return 1
+}
+    
+
+generate_label()
+{
+    local -i label_type="$1"
+    local colstr="$2"
+    local -i index="$3"
+    local -i offset="$4"
+    local -i field_len="${5:-2}"
+
+    local format="%${field_len}d"
+
+    case "$label_type" in
+        0) printf "$format" "$index" ;;
+        1) printf "$format" $(( index + offset )) ;;
+        2) printf "%8s" "$colstr" ;;
+        3) if [ "$offset" -eq 16 ]; then
+               local -i red green blue
+               blue=$(( index % 6 ))
+               green=$(( (index / 6) % 6 ))
+               red=$(( index / 36 ))
+               printf "%d|%d|%d" "$red" "$green" "$blue"
+           elif [ "$offset" -eq -1 ]; then
+               local -i red green blue
+               blue=$(( index % 256 ))
+               green=$(( (index / 256) % 6 ))
+               red=$(( index / 65536 ))
+               printf "%06X" "$index"
+               # printf "%2x|%2x|%2x" "$red" "$green" "$blue"
+           else
+               printf "$format" $(( index + offset ))
+           fi ;;
+        *) "N/A" ;;
+    esac
+}
+
+display_base_colors()
+{
+    echo "base colors:"
+    for (( index=0; index<16; ++index )); do
+        label=$( printf "%2d" "$index" )
+        if [ "$index" -lt 8 ]; then
+            colstr="4${index}"
+        else
+            colstr="4$(( index - 8 ));1"
+        fi
+        echo -n "[${colstr}m  $colstr  "
+    done
+    echo "[m"
+}
+
+display_indexed_colors()
+{
+    local -i label_type="${1:-0}"
+    local -i index=0
+    local label
+    local colstr
+
+    echo "indexed colors:"
+
+    for (( index=0; index<16; ++index )); do
+        colstr="48;5;${index}"
+        label=$( generate_label $label_type $colstr $index 0 2 )
+        echo -n $'\e['"${colstr}m  $label  "
+    done
+    echo "[m"
+}
+
+display_indexed_grays()
+{
+    local -i label_type="${1:-0}"
+    local -i index=0
+    local label
+    local colstr
+
+    echo "indexed grays:"
+
+    for (( index=0; index<24; ++index )); do
+        colstr="48;5;$(( index + 232))"
+        label=$( generate_label $label_type $colstr $index 232 3)
+        echo -n $'\e['"${colstr}m  $label  "
+    done
+    echo "[m"
+}
+
+display_cubed_colors()
+{
+    local -i label_type="${1:-0}"
+    local -i index=0
+    local label
+    local colstr
+
+    local -i green=0 blue=0 red=0
+    echo
+    echo "cube-indexed colors (counting up in base-6):"
+
+    for (( red=0; red<6; ++red )); do
+        for (( green=0; green<6; ++green )); do
+            for (( blue=0; blue<6; ++blue )); do
+                index=$(( blue + 6 * green + 36 * red ))
+                colstr="48;5;$(( index + 16 ))"
+                label=$( generate_label $label_type $colstr $index 16 3 )
+                echo -n $'\e['"${colstr}m $label "
+            done
+            echo "[m"
+        done
+        echo
+    done
+}
+
+display_rgb()
+{
+    local -i label_type="${1:-0}"
+    local -i increment="${2:-32}"
+    local -i index=0
+    local label
+    local colstr
+
+    local -i green=0 blue=0 red=0
+    echo
+    echo "cube-indexed colors (counting up in base-6):"
+
+    for (( red=0; red<256; red+=increment )); do
+        for (( green=0; green<256; green+=increment )); do
+            for (( blue=0; blue<256; blue+=increment )); do
+                index=$(( blue + 256 * green + 65536 * red ))
+                colstr="48;2;$red;$green;$blue"
+                label=$( generate_label $label_type $colstr $index -1 )
+                echo -n $'\e['"${colstr}m $label "
+            done
+            echo "[m"
+        done
+        echo
+    done
+}
+
+display_palette()
+{
+    local -i label_type
+    
+    if label_type=$( get_label_index_from_substring "$1" ); then
+        display_base_colors "$label_type"
+        display_indexed_colors "$label_type"
+        display_cubed_colors "$label_type"
+        display_indexed_grays "$label_type"
+        display_rgb "$label_type"
+    else
+        echo "Unrecognized label type '$1'"
+        display_usage
+    fi
+}
+
+get_label_index_from_substring "help"
+display_palette "${1:-local_index}"

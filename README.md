@@ -89,4 +89,4 @@ The included scripts are:
 [4]: <README_regexes.md>                                "regular expressions"
 [5]: <README_useful.md>                                 "random useful patterns"
 [6]: <README_list_toggler.md>                           "list toggler"
-[7]: <README_colors.md>                                 "console colors"
+[7]: <README_cocolors.md>                               "console colors"
