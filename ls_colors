@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+
+source keypress
+source cocolors
+
+declare KP_UP_ARROW=$'\e[A'
+declare KP_DOWN_ARROW=$'\e[B'
+
+make_example_files()
+{
+    local dir2make="$1"
+    mkdir "$dir2make"
+    cd "$dir2make"
+
+    mkdir dir_generic
+    mkdir dir_other_writable; chmod o+w dir_other_writable
+    mkdir dir_other_writable_sticky; chmod +t,o+w dir_other_writable_sticky
+    mkdir dir_sticky; chmod +t dir_sticky
+
+    if [ "$USER" == "root" ]; then
+        touch capability_file
+        setcap cap_net_raw+ep capability_file
+    else
+        echo "Can't make a capability file unless we're root (use sudo)"
+    fi
+
+    touch executable; chmod a+x executable
+    touch missing; cp -s missing orphan; rm missing
+    touch setuid; chmod u+s setuid
+    touch setgid; chmod g+s setgid
+    mkfifo fifo_pipe
+}
+
+
+# Called by get_ls_colors(), this function displays one color
+# by name and ANSI color string.
+# Args:
+#    (string)  name of array of key names
+#    (string)  name of associated array mapping key names to color strings
+edit_ls_colors()
+{
+    local kname="$1"
+    local mname="$2"
+
+    local -n keys="$kname"
+    local -n map="$mname"
+
+    local key value keyp
+    local -i selected=0
+    local -i limit="${#keys[@]}"
+    local -i ndx
+    local -i done=0
+
+    while [ "$done" -eq 0 ]; do
+        reset_screen
+        for (( ndx=0; ndx<limit; ++ndx )); do
+            key="${keys[$ndx]}"
+            value="${map[$key]}"
+
+            if [ "$ndx" -eq "$selected" ]; then
+                echo "Hilighting $key" >&2
+                echo -n $'\e[7m'
+            fi
+
+            echo $'\e['"${value}m$key"$'\e[m'" $value"
+        done
+        
+
+        get_keypress "keyp"
+        case "$keyp" in
+            "$KP_UP_ARROW" )
+                if [ "$selected" -gt 0 ]; then (( --selected )); fi
+                ;;
+            "$KP_DOWN_ARROW")
+                if [ "$(( selected+1 ))" -lt "$limit" ]; then (( ++selected )); fi
+                ;;
+            "q" ) done=1 ;;
+        esac
+    done
+
+}
+
+
+# This function displays all the defined LS_COLORS values.
+get_ls_colors()
+{
+    local -n keys="$1"
+    local -n map="$2"
+    
+    local -a codef=()
+    local IFS=':'
+    local key
+    local -a entries=( $LS_COLORS )
+    for entry in "${entries[@]}"; do
+        IFS='='
+        codef=( $entry )
+
+        key="${codef[0]}"
+
+        if [ "${#key}" -eq 2 ]; then
+            keys+=( "$key" )
+            map["$key"]="${codef[1]}"
+        fi
+    done
+}
+
+
+
+
+declare -a lsc_keys
+declare -A lsc_map
+
+get_ls_colors "lsc_keys" "lsc_map"
+edit_ls_colors "lsc_keys" "lsc_map"
