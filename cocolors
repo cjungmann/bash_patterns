@@ -19,6 +19,7 @@ declare -a COL_TYPES=(
     "rbg"
 )
 
+is_foreground()   { [ "${1:0:1}" == "f" ]; }
 is_color_value()  { local -i v="$1"; [ "$v" -eq 0 ]; }
 is_grey_indexed() { local -i v="$1"; [ "$v" -eq 1 ]; }
 is_color_indexed(){ local -i v="$1"; [ "$v" -eq 2 ]; }
@@ -52,7 +53,7 @@ declare -i TYPES_COUNT="${#COL_TYPES[@]}"
 declare -a FIELD_NAMES=(
     type         # (integer) see COL_TYPES for indexed type names
     red          # (integer) 0-5 for cube-indexed, 0-255 for rbg
-    gree n       # (integer) 0-5 for cube-indexed, 0-255 for rbg
+    green        # (integer) 0-5 for cube-indexed, 0-255 for rbg
     blue         # (integer) 0-5 for cube-indexed, 0-255 for rbg
     blink        # (integer) 1 for on, 0 for off
     disabled     # (integer) 1 for disabled, 0 for enabled
@@ -282,8 +283,6 @@ generate_color_string_with_map()
 {
     local -n cm="$1"
     if [ "${cm[disabled]}" -ne 1 ]; then
-        local level="${1:0:1}"    # 'f' for foreground, 'b' for background
-
         local -i color_index="${cm[index]}"
         local -i cm_type="${cm[type]}"
 
@@ -298,7 +297,7 @@ generate_color_string_with_map()
         # Determine color definition type
         local -i deftype=0
 
-        if [ "$level" == "f" ]; then
+        if is_foreground "$1"; then
             deftype=30
         else
             deftype=40
@@ -308,25 +307,7 @@ generate_color_string_with_map()
             if [ "${cm[bold]}" -ne 0 ]; then
                 parts+=( 1 )
             fi
-
             parts+=( $(( color_index + deftype )) )
-
-            # echo -n "color_index is $color_index" >&2
-
-            # if [ "$color_index" -lt 8 ]; then
-            #     echo -n "BEFORE normal $deftype " >&2
-            #     (( deftype += color_index ))
-            #     echo -n "AFTER normal $deftype" >&2
-            # elif [ "$color_index" -lt 16 ]; then
-            #     echo -n "BEFORE bold $deftype " >&2
-            #     (( deftype += $(( color_index - 8 )) ))
-            #     echo -n "AFTER bold $deftype" >&2
-            #     # add intensity flag:
-            #     parts+=( 1 )
-            # fi
-            # echo
-
-            # parts+=( "$deftype" )
         else
             (( deftype += 8 ))
             parts+=( "$deftype" )
@@ -346,18 +327,12 @@ generate_color_string_with_map()
         
         local IFS=';'
         echo -n "${parts[*]}"
-
-        # local type="${1:0:1}"
-        # local -i lev=0
-        # local blink=""
-        # if [ "${cm[blink]}" -eq 1 ]; then blink="5;"; fi
-        # if [ "$type" == "b" ]; then lev=48; else lev=38; fi
-        # echo -n "${blink}${lev};5;$(( cm[index] + 16 ))"
     fi
 }
 
-# Generates an ANSI command string from the contents of the foregroun
-# and background color maps.
+# Generates an ANSI command string (without the '\e[' prefix or the
+# 'm' suffix) from the contents of the foreground and background
+# color maps.
 # Args
 #    (string):   name of foreground color map
 #    (string):   name of background color map
@@ -368,7 +343,7 @@ generate_color_string_with_maps()
         $( generate_color_string_with_map "$2" )
     )
     local IFS=";"
-    echo $'\e['"${parts[*]}m"
+    echo "${parts[*]}"
 }
 
 ##############################################################
@@ -414,7 +389,7 @@ display_color_values()
             echo "    blue: ${c[blue]}"
         fi
 
-        if [ "$index" -eq 0 -a "${1:0:1}" == "f" ]; then
+        if [ "$index" -eq 0 ] && is_foreground "$1"; then
             echo "    bold: ${c[bold]}"
         fi
 
@@ -448,13 +423,15 @@ display_instructions()
     if [ "$type" -lt 3 ]; then
         echo "i to increase the index"
         echo "I to decrease the index"
-        echo "b or B to toggle bold"
+        if is_foreground "$1"; then
+            echo "b or B to toggle bold"
+        fi
     else
         echo "r|g|b to increase color intensity"
         echo "R|G|B to decrease color intensity"
     fi
 
-    if [ "${1:0:1}" == "f" ]; then
+    if is_foreground "$1"; then
         echo "t or T to toggle blinking"
     fi
     
@@ -577,7 +554,11 @@ process_color_keypress()
     local keyp="$2"
     if [ "$type" -lt 3 ]; then
         case "$keyp" in
-            b|B ) toggle_nameref_element "$1" "bold" ;;
+            b|B )
+                if is_foreground "$1"; then
+                    toggle_nameref_element "$1" "bold"
+                fi
+                ;;
             i|I ) index_limited_adjust $1 "index" "$max_col" "$keyp" ;;
         esac
     else
@@ -602,14 +583,10 @@ edit_color()
     set_color_map_init "background"
     background[disabled]=1
 
+    # Initialize with color, if name of color variable is specified:
     if [ "$#" -gt 0 ]; then
-        transform_color_maps_with_string "foreground" "background" "$1"
-        # reset_screen
-        # echo "Setting maps with string '$1'"
-        # display_color_map foreground
-        # display_color_map background
-        # read -n1
-        # return
+        local -n color="$1"
+        transform_color_maps_with_string "foreground" "background" "$color"
     fi
     
     local keyp
@@ -623,7 +600,7 @@ edit_color()
     while [ "$done" -eq 0 ]; do
         reset_screen
 
-        colstr=$( generate_color_string_with_maps "foreground" "background" )
+        colstr=$'\e['$( generate_color_string_with_maps "foreground" "background" )"m"
         coloff=$( reset_ansi_color )
 
         display_color_status "foreground" "$curcol"
@@ -637,19 +614,23 @@ edit_color()
         fi
 
         if [ "$help_flag" -eq 1 ]; then
-            display_instructions
+            display_instructions "curcol"
         fi
         echo "Press '?' to toggle instructions."
 
         get_keypress "keyp"
         case "$keyp" in
-            "?"   ) (( help_flag = (help_flag+1) % 2 )) ;;
-            "q"   ) return 1 ;;
-            c|C   ) cycle_type_element $curcol ;;
-            s|S   ) (( ansi_flag = (ansi_flag+1) % 2 )) ;;
-            t|T   ) (( foreground[blink] = (foreground[blink]+1) % 2 )) ;;
-            d|D   ) toggle_nameref_element $curcol "disabled" ;;
+            "?" ) (( help_flag = (help_flag+1) % 2 )) ;;
+            "q" ) return 1 ;;
+            c|C ) cycle_type_element $curcol ;;
+            s|S ) (( ansi_flag = (ansi_flag+1) % 2 )) ;;
+            d|D ) toggle_nameref_element $curcol "disabled" ;;
             $'\n' ) done=1 ;;
+            t|T )
+                if is_foreground "$curcol"; then
+                    (( foreground[blink] = (foreground[blink]+1) % 2 ))
+                fi
+                ;;
             $'\t' ) 
                 if [ "$curcol" == "foreground" ]; then
                     curcol="background"
@@ -660,58 +641,38 @@ edit_color()
             * ) process_color_keypress "$curcol" "$keyp" ;;
         esac
     done
+
     
+    # The the name-reffed color variable name, if specified.
+    if [ "$#" -gt 0 ]; then
+        local -n outcolor="$1"
+        outcolor=$( generate_color_string_with_maps "foreground" "background" )
+    fi
+
     return 0
 }
 
 
-# Called by get_ls_colors(), this function displays one color
-# by name and ANSI color string.
-# Args:
-#    (string)  name of array of key names
-#    (string)  name of associated array mapping key names to color strings
-show_ls_colors()
-{
-    local kname="$1"
-    local mname="$2"
-
-    local -n keys="$kname"
-    local -n map="$mname"
-
-    local key value
-
-    for key in "${keys[@]}"; do
-        value="${map[$key]}"
-        echo $'\e['"${value}m$key"$'\e[m'" $value"
-    done
-}
-
-# This function displays all the defined LS_COLORS values.
-get_ls_colors()
-{
-    local -a lsc_keys=()
-    local -A lsc_map=()
-    local -a codef=()
-    local IFS=':'
-    local key
-    local -a entries=( $LS_COLORS )
-    echo "There are ${#entries[@]} colors"
-    for entry in "${entries[@]}"; do
-        IFS='='
-        codef=( $entry )
-        key="${codef[0]}"
-        key="${key/\*\./\a_dot_}"
-
-        lsc_keys+=( "$key" )
-
-        lsc_map["$key"]="${codef[1]}"
-    done
-
-    show_ls_colors "lsc_keys" "lsc_map"
-}
-
-
-# get_ls_colors
-edit_color "31;1;46"     # bold red letters on cyan background
-# edit_color "38;2;100;100;0;46"
-# edit_color "01;38;5;128"
+# A 'return' call is only allowed in:
+#    1. function bodies
+#    2. sourced scripts
+#
+# `return 0` fails if this script called directly (ie it's not sourced).
+# Redirect error message to /dev/null to avoid confusing the user.
+# Put the statement in a subshell so the script won't exit.
+#
+# In this case, we're running some code if this source file
+# is executed directly (not sourced).
+if ! ( return 0 2>/dev/null ); then
+    if [ $# -gt 0 ]; then
+        declare colarg="$1"
+        if edit_color colarg; then
+            reset_screen
+            echo "\\e[${colarg}m"
+        fi
+    else
+        echo "Use this program by entering a color string:"
+        echo "./cocolors \"31;1\""
+        edit_color "31;1;46"     # bold red letters on cyan background
+    fi
+fi
