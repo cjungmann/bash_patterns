@@ -82,3 +82,18 @@ get_keypress()
 }
 
 
+# Call `keypress` alone on command line to test keypress results.
+if ! ( return 0 2>/dev/null ); then
+    echo "Keypress test mode.  Type any key to see the emitted character string."
+    echo "Type 'q' to quit."
+    declare keyp
+    while [ 1 -eq 1 ]; do
+        get_keypress "keyp"
+        if [ "$keyp" == 'q' ]; then
+            exit
+        else
+            echo "keypress was ${keyp///\\e}"
+        fi
+    done
+fi
+
