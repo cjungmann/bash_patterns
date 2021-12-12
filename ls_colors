@@ -31,6 +31,20 @@ make_example_files()
     mkfifo fifo_pipe
 }
 
+edit_ls_color()
+{
+    local -n keys="$1"
+    local -n map="$2"
+    local selected="$3"
+
+    local key="${keys[$selected]}"
+    local value="${map[$key]}"
+
+    if edit_color "value"; then
+        map[$key]="$value"
+    fi
+}
+
 
 # Called by get_ls_colors(), this function displays one color
 # by name and ANSI color string.
@@ -58,13 +72,12 @@ edit_ls_colors()
             value="${map[$key]}"
 
             if [ "$ndx" -eq "$selected" ]; then
-                echo "Hilighting $key" >&2
-                echo -n $'\e[7m'
+                echo -n ">>>"
+            else
+                echo -n "   "
             fi
-
             echo $'\e['"${value}m$key"$'\e[m'" $value"
         done
-        
 
         get_keypress "keyp"
         case "$keyp" in
@@ -74,6 +87,7 @@ edit_ls_colors()
             "$KP_DOWN_ARROW")
                 if [ "$(( selected+1 ))" -lt "$limit" ]; then (( ++selected )); fi
                 ;;
+            $'\n' ) edit_ls_color "$1" "$2" "$selected" ;;
             "q" ) done=1 ;;
         esac
     done
