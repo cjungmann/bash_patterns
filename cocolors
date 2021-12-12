@@ -188,15 +188,15 @@ display_framed_demo()
 # generate_color_string_with_maps()                                 #
 #####################################################################
 
-
 transform_color_map_with_index()
 {
     local -n map="$1"
     local -i index="$2"
 
+    map[index]="$index"
+
     if [ "$index" -lt 16 ]; then
         map[type]=2
-        map[index]="$index"
     elif [ "$index" -lt 232 ]; then
         map[type]=3
         (( index -= 16 ))
@@ -205,7 +205,6 @@ transform_color_map_with_index()
         map[red]=$(( index / 36 ))
     else
         map[type]=1
-        map[index]="$index"
     fi
 }
 
@@ -240,11 +239,11 @@ transform_color_maps_with_string()
         curmap_name=''
         color_units=0
         part="${parts[$index]}"
-        if [ "$part" -eq 5 ]; then
-            cf[blink]=1
-            cf[disabled]=0
-        elif [ "$part" -eq 1 ]; then
+        if [ "$part" -eq 1 ]; then
             cf[bold]=1
+            cf[disabled]=0
+        elif [ "$part" -eq 5 ]; then
+            cf[blink]=1
             cf[disabled]=0
         elif [ $(( part / 10 )) -eq 3 ]; then
             curmap_name="$1"
@@ -317,10 +316,11 @@ generate_color_string_with_map()
                 parts+=( "${cm[red]}" "${cm[green]}" "${cm[blue]}" )
             else
                 parts+=( 5 )
+                # parts+=( "$color_index" )
                 case "$cm_type" in
-                    1 ) parts+=( $(( color_index +  232 )) ) ;; # grey-indexed
-                    2 ) parts+=( "$color_index" ) ;;            # base-indexed
-                    3 ) parts+=( $(( color_index + 16 )) ) ;;   # cube-indexed
+                    1 ) parts+=( $(( color_index + 232 )) ) ;;          # grey-indexed
+                    2 ) parts+=( "$color_index" ) ;;                    # base-indexed
+                    3 ) parts+=( $( get_cube_index_from_rgb "$1" ) ) ;; # cube-indexed
                 esac
             fi
         fi
@@ -447,6 +447,7 @@ display_instructions()
 # map values.  The functions in this set are:           #
 # get_max_index_by_type()                               #
 # toggle_nameref_element()                              #
+# get_cube_index_from_rgb()                             #
 # adjust_color_map_elements()                           #
 # cycle_type_element()                                  #
 # index_limited_adjust()                                #
@@ -475,6 +476,14 @@ toggle_nameref_element()
     local -n ref="$1"
     ref[$2]=$(( (ref["$2"] + 1) % 2 ))
 }
+
+# Calculate the cubed-index value from map's RGB values
+get_cube_index_from_rgb()
+{
+    local -n ci="$1"
+    echo $(( 16 + ci[blue] + ci[green]*6 + ci[red]*36 ))
+}
+
 
 # Unrealized function that should convert color components between
 # color types.  It should handle converting from indexed colors to
@@ -506,7 +515,9 @@ cycle_type_element()
 {
     local -n ref="$1"
     local -i val="${ref[type]}"
+
     ref[type]=$(( (ref[type] + 1) % TYPES_COUNT ))
+    ref[index]=0
 
     adjust_color_map_elements "$1"
 }
@@ -568,10 +579,9 @@ process_color_keypress()
             b|B ) index_limited_adjust $1 "blue"  "$max_col" "$keyp" ;;
             * ) 
         esac
-        cmap[index]=$(( ("${cmap[red]}" * 36) + ("${cmap[green]}" * 6) + "${cmap[blue]}" ))
-      fi
+        cmap[index]=$( get_cube_index_from_rgb "$1" )
+    fi
 }
-
 
 # This function displays an editable dialog for changing a color
 # according to ANSI color codes.
@@ -620,12 +630,13 @@ edit_color()
 
         get_keypress "keyp"
         case "$keyp" in
+            $'\e' | "q" ) return 1 ;;
+            $'\n' ) done=1 ;;
             "?" ) (( help_flag = (help_flag+1) % 2 )) ;;
-            "q" ) return 1 ;;
+
             c|C ) cycle_type_element $curcol ;;
             s|S ) (( ansi_flag = (ansi_flag+1) % 2 )) ;;
             d|D ) toggle_nameref_element $curcol "disabled" ;;
-            $'\n' ) done=1 ;;
             t|T )
                 if is_foreground "$curcol"; then
                     (( foreground[blink] = (foreground[blink]+1) % 2 ))
