@@ -79,6 +79,9 @@ The included scripts are:
   how to use BASH arrays, associative arrays, and named
   variables.
 
+- [**list_selector**][9] provides a paging scrollable list from
+  which a user may select a single item.
+
 - [**console_colors**][7] should eventually be a script that
   allows the user to generate console colors and export them to
   an **LS_COLORS**-compatible environment statement.
@@ -95,3 +98,4 @@ The included scripts are:
 [6]: <README_list_toggler.md>                           "list toggler"
 [7]: <README_cocolors.md>                               "console colors"
 [8]: <README_palettes.md>                               "palette display"
+[9]: <README_list_selector.md>                          "list selector"
