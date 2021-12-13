@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+
+source "keypress"
+
+reset_screen() { echo -n "[2J[1;1H"; }
+
+KEYPRESS_UP=$'\e[A'
+KEYPRESS_DN=$'\e[B'
+KEYPRESS_PGUP=$'\e[5~'
+KEYPRESS_PGDN=$'\e[6~'
+
+# Calculates the index of the first element to be displayed
+# in the subset of the total array of elements.
+# 
+# Args:
+#   (integer):    selected element index (out of complete array)
+#   (integer):    current top (first element displayed)
+#   (integer):    number of elements in full array
+#   (integer):    maximum number of elements to display
+#   
+# The value for $1 (selection) must be confirmed to be in range.
+# It's more efficient to check when setting the value, and
+# then we won't check for validity here.
+calculate_top()
+{
+    local -i selection="$1"
+    local -i top="$2"
+    local -i count="$3"
+    local -i window="$4"
+
+    local -i limit=$(( top + window ))
+
+    local -i new_top="$top"
+
+    if [ "$selection" -lt "$top" ]; then
+        new_top="$selection"
+    elif [ "$selection" -ge "$limit" ]; then
+        local -i trial_top=$(( selection - window + 1 ))
+        if [ "$trial_top" -lt 0 ]; then
+            new_top=0
+        else
+            new_top="$trial_top"
+        fi
+    fi
+
+    echo "$new_top"
+}
+
+# Calculates the number of elements to print for a given top index.
+# Perhaps most times this will be the same as *count* ($2), but
+# when scrolled down, there may be fewer than *count*, which this
+# function calculates.
+#
+# Args:
+#   (integer):   current top (first element displayed)
+#   (integer):   number of elements in complete array
+#   (integer):   maximum number of elements to display
+calculate_limit()
+{
+    local -i top="$1"
+    local -i count="$2"
+    local -i window="$3"
+
+    local -i limit=$(( top + window ))
+    if [ "$count" -lt "$limit" ]; then
+        limit="$count"
+    fi
+
+    echo "$limit"
+}
+
+
+# Default generic function used by select_from_list() to
+# print each displayed list element.  
+# Args:
+#    (string):  name of triggering array
+#    (integer): index of array element to be processed
+#    (integer): selection flag, 0 if selected, non-zero if not selected
+generic_list_print_item()
+{
+    local -n gp_list="$1"
+    local -i index="$2"
+    local -i selected="${3:=0}"
+
+    if [ "$selected" -eq 0 ]; then
+        echo -n "[32;1m"
+    fi
+
+    echo -n "generic_list_print_item: ${gp_list[$index]}"
+    echo "[m"
+}
+
+# Displays a list of array elements in which the user can select
+# one of the elements by up- or down-arrow to move by one, or
+# PgUp or PgDon to move up or down by a screen-full of elements.
+# Escape or 'q' aborts, returning 1, ENTER echos the selection
+# and return 0 (evaluates to TRUE for *test*).
+select_from_list()
+{
+    local -n sf_list="$1"
+    local -i line_count="${2:-10}"
+    local print_item="${3:-generic_list_print_item}"
+
+    local -i count="${#sf_list[@]}"
+
+    # $1 is the SECOND element of $@, so extra arguments start at index 4:
+    local -a extra_arguments=( "${@:4}" )
+
+    local -i ndx_top=0
+    local -i ndx_selected=0
+
+    local key keyp
+    local -i ndx
+
+    local -i done=0
+
+    while [ "$done" -eq 0 ]; do
+        reset_screen
+
+        # Setup starting point and limits
+        ndx_top=$( calculate_top "$ndx_selected" "$ndx_top" "$count" "$line_count" )
+        limit=$( calculate_limit "$ndx_top" "$count" "$line_count" )
+
+        for (( ndx=ndx_top; ndx<limit; ++ndx )); do
+            "$print_item" "$1" "$ndx" $(( ndx_selected - ndx )) "${extra_arguments[@]}"
+        done
+
+        get_keypress "keyp"
+        case "$keyp" in
+            'q' | $'\e' )
+                return 1
+                ;;
+
+            $'\n' )
+                echo "$ndx_selected"
+                return 0
+                ;;
+
+            "$KEYPRESS_PGUP" )
+                (( ndx_selected -= (line_count-1) ))
+                if [ "$ndx_selected" -lt 0 ]; then
+                    ndx_selected=0
+                fi
+                ;;
+
+            "$KEYPRESS_PGDN" )
+                (( ndx_selected += (line_count-1) ))
+                if [ "$ndx_selected" -gt "$count" ]; then
+                    ndx_selected=$(( count-1 ))
+                fi
+                ;;
+
+            "$KEYPRESS_UP" )
+                if [ "$ndx_selected" -gt 0 ]; then
+                    (( --ndx_selected ))
+                fi
+                ;;
+
+            "$KEYPRESS_DN" )
+                if [ $(( ndx_selected+1 )) -lt "$count" ]; then
+                    (( ++ndx_selected ))
+                fi
+                ;;
+        esac
+    done
+}

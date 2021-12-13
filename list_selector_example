@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+source list_selector
+
+
+make_simple_number_list()
+{
+    local -a KEYS=(
+        zero one  two   three  four  five  six  seven  eight  nine
+        ten  eleven  twelve  thirteen  fourteen
+        fifteen  sixteen  seventeen  eighteen nineteen
+        twenty twenty-one  twenty-two   twenty-three  twenty-four
+        twenty-five twenty-six  twenty-seven  twenty-eight  twenty-nine
+        thirty thirty-one  thirty-two   thirty-three  thirty-four
+        thirty-five  thirty-six  thirty-seven  thirty-eight  thirty-nine
+        forty forty-one  forty-two   forty-three  forty-four
+        orty-five  forty-six  forty-seven  forty-eight  forty-nine
+        fifty
+    )
+    select_from_list "KEYS" 10
+}
+
+
+################
+#     Main     #
+################
+
+
+
+prepare_list()
+{
+   local -n keys="$1"
+   local -n map="$2"
+   local IFS=':'
+   local -a raw=( $LS_COLORS )
+
+   local item key value
+
+   IFS=$'='
+   for item in "${raw[@]}"; do
+       entry=( $item )
+       key="${entry[0]}"
+       value="${entry[1]}"
+       keys+=( $key )
+       map[$key]="$value"
+   done
+}
+
+# Custom *list_print_item* function.  This function is an example
+# of extra parameters passed to *select_from_list* being passed on
+# to the *list_print_item* function for custom rendering of display
+# lines.
+# Required Args:
+#   (string):   name of array of keys
+#   (integer):  index of array's element that is to be displayed
+#   (integer):  selection flag, 0 if selected, non-zero if not selected
+# Ad hoc Arg:
+#   (string):   name of associative array of file types and display colors
+ls_color_list_print_item()
+{
+    local -n larray="$1"
+    local -i index="$2"
+    local -i selected="$3"
+
+    local -n lmap="$4"
+
+    local key="${larray[$index]}"
+    local value="${lmap[$key]}"
+
+    if [ "$selected" -eq 0 ]; then
+        echo -n "[32;1m   "
+    else
+        echo -n "   "
+    fi
+
+    printf "%s: %s" "$key" "$value"
+
+    echo "[m"
+}
+
+
+
+
+
+make_ls_colors_list()
+{
+    local -a LS_KEYS
+    local -A LS_MAP
+
+    prepare_list "LS_KEYS" "LS_MAP"
+    select_from_list "LS_KEYS" 20 "ls_color_list_print_item" "LS_MAP"
+}
+
+
