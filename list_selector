@@ -15,7 +15,6 @@ KEYPRESS_PGDN=$'\e[6~'
 # Args:
 #   (integer):    selected element index (out of complete array)
 #   (integer):    current top (first element displayed)
-#   (integer):    number of elements in full array
 #   (integer):    maximum number of elements to display
 #   
 # The value for $1 (selection) must be confirmed to be in range.
@@ -23,27 +22,29 @@ KEYPRESS_PGDN=$'\e[6~'
 # then we won't check for validity here.
 calculate_top()
 {
-    local -i selection="$1"
-    local -i top="$2"
-    local -i count="$3"
-    local -i window="$4"
+    local -i ct_selection="$1"
+    local -i ct_top="$2"
+    local -i ct_window="$3"
 
-    local -i limit=$(( top + window ))
+    local -i ct_last_index=$(( ct_top + ct_window - 1 ))
+    local -i ct_new_top
 
-    local -i new_top="$top"
-
-    if [ "$selection" -lt "$top" ]; then
-        new_top="$selection"
-    elif [ "$selection" -ge "$limit" ]; then
-        local -i trial_top=$(( selection - window + 1 ))
-        if [ "$trial_top" -lt 0 ]; then
-            new_top=0
+    if [ "$ct_selection" -ge "$ct_top" ] && [ "$ct_selection" -lt "$ct_last_index" ]; then
+        ct_new_top="$ct_top"
+    elif [ "$ct_selection" -lt "$ct_top" ]; then
+        ct_new_top="$ct_selection"
+    elif [ "$ct_selection" -gt "$ct_last_index" ]; then
+        local -i ct_trial_top=$(( ct_selection - ct_window + 1 ))
+        if [ "$ct_trial_top" -lt 0 ]; then
+            ct_new_top=0
         else
-            new_top="$trial_top"
+            ct_new_top="$ct_trial_top"
         fi
+    else
+        ct_new_top="$ct_top"
     fi
 
-    echo "$new_top"
+    echo "$ct_new_top"
 }
 
 # Calculates the number of elements to print for a given top index.
@@ -55,38 +56,44 @@ calculate_top()
 #   (integer):   current top (first element displayed)
 #   (integer):   number of elements in complete array
 #   (integer):   maximum number of elements to display
-calculate_limit()
+#
+# Output: integer value of last index value
+calculate_last_index()
 {
-    local -i top="$1"
-    local -i count="$2"
-    local -i window="$3"
+    local -i cl_top="$1"
+    local -i cl_count="$2"
+    local -i cl_window="$3"
 
-    local -i limit=$(( top + window ))
-    if [ "$count" -lt "$limit" ]; then
-        limit="$count"
+    local -i cl_last_index=$(( cl_top + cl_window - 1  ))
+
+    if [ "$cl_count" -lt "$cl_last_index" ]; then
+        cl_last_index="$cl_count"
     fi
 
-    echo "$limit"
+    echo "$cl_last_index"
 }
 
 
 # Default generic function used by select_from_list() to
 # print each displayed list element.  
 # Args:
-#    (string):  name of triggering array
-#    (integer): index of array element to be processed
-#    (integer): selection flag, 0 if selected, non-zero if not selected
+#   (string):  name of triggering array
+#   (integer): index of array element to be processed
+#   (integer): selection flag, 0 if selected, non-zero if not selected
+#
+# Output
+#   A single display line
 generic_list_print_item()
 {
     local -n gp_list="$1"
-    local -i index="$2"
-    local -i selected="${3:=0}"
+    local -i gp_index="$2"
+    local -i gp_selected="${3:=0}"
 
-    if [ "$selected" -eq 0 ]; then
+    if [ "$gp_selected" -eq 0 ]; then
         echo -n "[32;1m"
     fi
 
-    echo -n "generic_list_print_item: ${gp_list[$index]}"
+    echo -n "generic_list_print_item: ${gp_list[$gp_index]}"
     echo "[m"
 }
 
@@ -95,72 +102,105 @@ generic_list_print_item()
 # PgUp or PgDon to move up or down by a screen-full of elements.
 # Escape or 'q' aborts, returning 1, ENTER echos the selection
 # and return 0 (evaluates to TRUE for *test*).
+#
+# Args
+#   (string):   name of variable into which the result will be stored
+#   (string):   name of array of keys
+#   (integer);  optional: number of elements to display at once (default 10)
+#   (string):   optional: name of function that prints a list element
+#
+#   Additional arguments will be bundled to a new array and passed
+#   to the printer function.
+#   
+# Output
+#   If selection made, the selected index will be saved to the variable
+#   referenced by the $1 argument.
 select_from_list()
 {
-    local -n sf_list="$1"
-    local -i line_count="${2:-10}"
-    local print_item="${3:-generic_list_print_item}"
+    local -n return_reference="$1"
+    return_reference=-1
 
-    local -i count="${#sf_list[@]}"
+    local sfl_name_of_array="$2"
+    local -n sf_list="$sfl_name_of_array"
+    local -i sfl_display_lines="${3:-10}"
+    local sfl_item_printer="${4:-generic_list_print_item}"
 
-    # $1 is the SECOND element of $@, so extra arguments start at index 4:
-    local -a extra_arguments=( "${@:4}" )
+    local -i sfl_items_count="${#sf_list[@]}"
 
-    local -i ndx_top=0
-    local -i ndx_selected=0
+    # $1 is the SECOND element of $@, so extra arguments start at index 5:
+    local -a sfl_extra_arguments=( "${@:5}" )
 
-    local key keyp
-    local -i ndx
+    local -i sfl_ndx_top=0
+    local -i sfl_ndx_selected=0
+    local -i sfl_last_index
 
-    local -i done=0
+    local sfl_keyp
+    local -i sfl_ndx
 
-    while [ "$done" -eq 0 ]; do
+    while : ; do
         reset_screen
 
         # Setup starting point and limits
-        ndx_top=$( calculate_top "$ndx_selected" "$ndx_top" "$count" "$line_count" )
-        limit=$( calculate_limit "$ndx_top" "$count" "$line_count" )
+        sfl_ndx_top=$( calculate_top "$sfl_ndx_selected" "$sfl_ndx_top" "$sfl_display_lines" )
+        sfl_last_index=$( calculate_last_index "$sfl_ndx_top" "$sfl_items_count" "$sfl_display_lines" )
 
-        for (( ndx=ndx_top; ndx<limit; ++ndx )); do
-            "$print_item" "$1" "$ndx" $(( ndx_selected - ndx )) "${extra_arguments[@]}"
+        for (( sfl_ndx=sfl_ndx_top; sfl_ndx<=sfl_last_index; ++sfl_ndx )); do
+            local -a sfl_args=(
+                "$sfl_name_of_array"
+                "$sfl_ndx"
+                $(( sfl_ndx_selected - sfl_ndx ))
+                "${sfl_extra_arguments[@]}"
+            )
+
+            "$sfl_item_printer" "${sfl_args[@]}"
         done
 
-        get_keypress "keyp"
-        case "$keyp" in
+        get_keypress "sfl_keyp"
+        case "$sfl_keyp" in
             'q' | $'\e' )
                 return 1
                 ;;
 
             $'\n' )
-                echo "$ndx_selected"
-                return 0
+                break
                 ;;
 
             "$KEYPRESS_PGUP" )
-                (( ndx_selected -= (line_count-1) ))
-                if [ "$ndx_selected" -lt 0 ]; then
-                    ndx_selected=0
+                if [ "$sfl_ndx_selected" -gt "$sfl_ndx_top" ]; then
+                    sfl_ndx_selected="$sfl_ndx_top"
+                else
+                    (( sfl_ndx_selected -= sfl_display_lines ))
+                    if [ "$sfl_ndx_selected" -lt 0 ]; then
+                        sfl_ndx_selected=0
+                    fi
                 fi
                 ;;
 
             "$KEYPRESS_PGDN" )
-                (( ndx_selected += (line_count-1) ))
-                if [ "$ndx_selected" -gt "$count" ]; then
-                    ndx_selected=$(( count-1 ))
+                if [ "$sfl_ndx_selected" -lt "$sfl_last_index" ]; then
+                    sfl_ndx_selected="$sfl_last_index"
+                else
+                    (( sfl_ndx_selected += sfl_display_lines ))
+                    if [ "$sfl_ndx_selected" -gt "$sfl_items_count" ]; then
+                        sfl_ndx_selected=$(( sfl_items_count-1 ))
+                    fi
                 fi
                 ;;
 
             "$KEYPRESS_UP" )
-                if [ "$ndx_selected" -gt 0 ]; then
-                    (( --ndx_selected ))
+                if [ "$sfl_ndx_selected" -gt 0 ]; then
+                    (( --sfl_ndx_selected ))
                 fi
                 ;;
 
             "$KEYPRESS_DN" )
-                if [ $(( ndx_selected+1 )) -lt "$count" ]; then
-                    (( ++ndx_selected ))
+                if [ $(( sfl_ndx_selected+1 )) -lt "$sfl_items_count" ]; then
+                    (( ++sfl_ndx_selected ))
                 fi
                 ;;
         esac
     done
+
+    return_reference="$sfl_ndx_selected"
+    return 0
 }
