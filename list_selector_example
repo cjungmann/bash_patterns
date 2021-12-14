@@ -2,31 +2,44 @@
 
 source list_selector
 
+# Simplest example: select one item from an array,
+# function select_from_list() writes the selection
+# index in the variable whose name is passed as the
+# first parameter.
+
+declare -a KEYS=(
+    zero one  two   three  four  five  six  seven  eight  nine
+    ten  eleven  twelve  thirteen  fourteen
+    fifteen  sixteen  seventeen  eighteen nineteen
+    twenty twenty-one  twenty-two   twenty-three  twenty-four
+    twenty-five twenty-six  twenty-seven  twenty-eight  twenty-nine
+    thirty thirty-one  thirty-two   thirty-three  thirty-four
+    thirty-five  thirty-six  thirty-seven  thirty-eight  thirty-nine
+    forty forty-one  forty-two   forty-three  forty-four
+    forty-five  forty-six  forty-seven  forty-eight  forty-nine
+    fifty
+)
 
 make_simple_number_list()
 {
-    local -a KEYS=(
-        zero one  two   three  four  five  six  seven  eight  nine
-        ten  eleven  twelve  thirteen  fourteen
-        fifteen  sixteen  seventeen  eighteen nineteen
-        twenty twenty-one  twenty-two   twenty-three  twenty-four
-        twenty-five twenty-six  twenty-seven  twenty-eight  twenty-nine
-        thirty thirty-one  thirty-two   thirty-three  thirty-four
-        thirty-five  thirty-six  thirty-seven  thirty-eight  thirty-nine
-        forty forty-one  forty-two   forty-three  forty-four
-        orty-five  forty-six  forty-seven  forty-eight  forty-nine
-        fifty
-    )
-    select_from_list "KEYS" 10
+    local -i ndx
+    if select_from_list "ndx" "KEYS" 10; then
+        echo "You selected index $ndx"
+    else
+        echo "You neglected to select an item"
+    fi
 }
 
 
-################
-#     Main     #
-################
 
+# Example with customized line displays.
 
-
+# Collect information from environment variable LS_COLORS,
+# creating an item array (keys) and an associative array
+# mapping the key to a color string.
+# Args
+#    (string):    name of items array
+#    (string):    name of LS_COLORS map
 prepare_list()
 {
    local -n keys="$1"
@@ -78,17 +91,31 @@ ls_color_list_print_item()
     echo "[m"
 }
 
-
-
-
-
+# Run the LS_COLORS example.  No arguments
 make_ls_colors_list()
 {
+    local -i ndx
     local -a LS_KEYS
     local -A LS_MAP
 
+    local -a args=(
+        "ndx"                       # name of variable in which the result will be stored
+        "LS_KEYS"                   # name of array to hold key names
+        20                          # number of lines in scroll "window"
+        "ls_color_list_print_item"  # optional: replacement list_print_item function
+        "LS_MAP"                    # extra parameter passed to print function
+    )
+
     prepare_list "LS_KEYS" "LS_MAP"
-    select_from_list "LS_KEYS" 20 "ls_color_list_print_item" "LS_MAP"
+    while [ 1 -eq 1 ]; do
+        if select_from_list "${args[@]}"; then
+            echo "You selected position $ndx,  key ${LS_KEYS[$ndx]}, value ${LS_MAP[${LS_KEYS[$ndx]}]}"
+            break
+        else
+            echo "Aborted"
+            break
+        fi
+    done
 }
 
 
