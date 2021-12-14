@@ -44,24 +44,24 @@ $ dircolors -p > ls_colors.txt
 The **LS_COLORS** value includes many cryptic two-letter codes.
 The two-letter codes are explained in the *dircolors -p*
 
--- **rs**  reset: reset to "normal" color
--- **di**  directory
--- **ln**  link
--- **mh**  multi-hard-link
--- **pi**  (FIFO) pipe
--- **so**  socket
--- **do**  door (?)
--- **bd**  block device driver
--- **cd**  character device driver
--- **or**  orphan, symlink to nonexistent or non-'stat'able file
--- **mi**  missing file
--- **su**  setuid file (mode u+s)(?)
--- **sg**  setgid file (mode g+s)(?)
--- **ca**  capability (file with capability, but not executable?)
--- **tw**  sticky, other-writable (mode +t o+w)
--- **ow**  other-writable, non-sticky, other-writable (mode o+w)
--- **st**  sticky (directory with sticky-bit set (+t) but not other-writable (mode o-w)
--- **ex**  executable
+- **rs**  reset: reset to "normal" color
+- **di**  directory
+- **ln**  link
+- **mh**  multi-hard-link
+- **pi**  (FIFO) pipe
+- **so**  socket
+- **do**  door (?)
+- **bd**  block device driver
+- **cd**  character device driver
+- **or**  orphan, symlink to nonexistent or non-'stat'able file
+- **mi**  missing file
+- **su**  setuid file (mode u+s)(?)
+- **sg**  setgid file (mode g+s)(?)
+- **ca**  capability (file with capability, but not executable?)
+- **tw**  sticky, other-writable (mode +t o+w)
+- **ow**  other-writable, non-sticky, other-writable (mode o+w)
+- **st**  sticky (directory with sticky-bit set (+t) but not other-writable (mode o-w)
+- **ex**  executable
 
 ## Selecting Colors
 
