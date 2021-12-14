@@ -92,3 +92,8 @@ make_ls_colors_list()
 }
 
 
+# # List of numbers to test scrolling and selection:
+# make_simple_number_list
+
+# Make a list from an environment variable, using non-trivial options
+make_ls_colors_list
