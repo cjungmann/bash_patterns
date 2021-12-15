@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# Ignore 'used as array ... assigned a string' caused by namerefs.
+# Nameref variables extensively used in this script.
+# shellcheck disable=SC2178
+
+# Ignore unquoted elements to initialize arrays
+# shellcheck disable=SC2207
+
 # function prefixes:
 #    display_xxx:  output is user-readable
 #    render_xxx:   output is abstract view
@@ -164,8 +171,8 @@ generate_vline()
 #  (integer); number of character positions to right-shift the frame
 display_framed_demo()
 {
-    local con=$1
-    local coff=$2
+    local con="$1"
+    local coff="$2"
 
     local text="$3"
     local -i vmarg="${4:=1}"
@@ -195,18 +202,18 @@ transform_color_map_with_index()
     local -n map="$1"
     local -i index="$2"
 
-    map[index]="$index"
+    map["index"]="$index"
 
     if [ "$index" -lt 16 ]; then
-        map[type]=2
+        map["type"]=2
     elif [ "$index" -lt 232 ]; then
-        map[type]=3
+        map["type"]=3
         (( index -= 16 ))
-        map[blue]=$(( index % 6 ))
-        map[green]=$(( (index / 6) % 6 ))
-        map[red]=$(( index / 36 ))
+        map["blue"]=$(( index % 6 ))
+        map["green"]=$(( (index / 6) % 6 ))
+        map["red"]=$(( index / 36 ))
     else
-        map[type]=1
+        map["type"]=1
     fi
 }
 
@@ -219,6 +226,8 @@ transform_color_map_with_index()
 #
 # The variables to which $1 and $2 refer will contain the
 # appropriate values according to the $3 color string.
+# shellcheck disable=SC2034   # nameref variables may look unused
+# shellcheck disable=SC2206   # ignore splitting/globbing warning for array
 transform_color_maps_with_string()
 {
     local -n cf="$1"
@@ -226,8 +235,8 @@ transform_color_maps_with_string()
     local -n cb="$2"
     set_color_map_init "$2"
 
-    cf[disabled]=1
-    cb[disabled]=1
+    cf["disabled"]=1
+    cb["disabled"]=1
     
     local IFS=';'
     local -a parts=( $3 )
@@ -242,11 +251,11 @@ transform_color_maps_with_string()
         color_units=0
         part="${parts[$index]}"
         if [ "$part" -eq 1 ]; then
-            cf[bold]=1
-            cf[disabled]=0
+            cf["bold"]=1
+            cf["disabled"]=0
         elif [ "$part" -eq 5 ]; then
-            cf[blink]=1
-            cf[disabled]=0
+            cf["blink"]=1
+            cf["disabled"]=0
         elif [ $(( part / 10 )) -eq 3 ]; then
             curmap_name="$1"
         elif [ $(( part / 10 )) -eq 4 ]; then
@@ -255,23 +264,23 @@ transform_color_maps_with_string()
 
         if [ "$curmap_name" ]; then
             local -n curmap="$curmap_name"
-            curmap[disabled]=0
+            curmap["disabled"]=0
             color_units=$(( part % 10 ))
             if [ "$color_units" -eq 8 ]; then
                 local ctype="${parts[$(( ++index))]}"
                 case "$ctype" in
-                    2 ) curmap[type]=4
-                        curmap[red]="${parts[$(( ++index ))]}"
-                        curmap[green]="${parts[$(( ++index ))]}"
-                        curmap[blue]="${parts[$(( ++index ))]}"
+                    2 ) curmap["type"]=4
+                        curmap["red"]="${parts[$(( ++index ))]}"
+                        curmap["green"]="${parts[$(( ++index ))]}"
+                        curmap["blue"]="${parts[$(( ++index ))]}"
                         ;;
 
                     5 ) transform_color_map_with_index "$curmap_name" "${parts[$(( ++index ))]}"
                         ;;
                 esac
             elif [ "$color_units" -lt 8 ]; then
-                curmap[type]=0
-                curmap[index]="$color_units"
+                curmap["type"]=0
+                curmap["index"]="$color_units"
             fi
         fi
     done
@@ -283,15 +292,15 @@ transform_color_maps_with_string()
 generate_color_string_with_map()
 {
     local -n cm="$1"
-    if [ "${cm[disabled]}" -ne 1 ]; then
-        local -i color_index="${cm[index]}"
-        local -i cm_type="${cm[type]}"
+    if [ "${cm['disabled']}" -ne 1 ]; then
+        local -i color_index="${cm['index']}"
+        local -i cm_type="${cm['type']}"
 
         # Array of parameters to packed for final result
         local -a parts=()
 
         # Putting blink flag first seems to work best (for now):
-        if [ "${cm[blink]}" -eq 1 ]; then
+        if [ "${cm['blink']}" -eq 1 ]; then
             parts+=( 5 )
         fi
 
@@ -305,7 +314,7 @@ generate_color_string_with_map()
         fi
 
         if is_color_value "$cm_type"; then
-            if [ "${cm[bold]}" -ne 0 ]; then
+            if [ "${cm['bold']}" -ne 0 ]; then
                 parts+=( 1 )
             fi
             parts+=( $(( color_index + deftype )) )
@@ -315,10 +324,9 @@ generate_color_string_with_map()
 
             if [ "$cm_type" -eq 4 ]; then
                 parts+=( 2 )
-                parts+=( "${cm[red]}" "${cm[green]}" "${cm[blue]}" )
+                parts+=( "${cm['red']}" "${cm['green']}" "${cm['blue']}" )
             else
                 parts+=( 5 )
-                # parts+=( "$color_index" )
                 case "$cm_type" in
                     1 ) parts+=( $(( color_index + 232 )) ) ;;          # grey-indexed
                     2 ) parts+=( "$color_index" ) ;;                    # base-indexed
@@ -340,11 +348,12 @@ generate_color_string_with_map()
 #    (string):   name of background color map
 generate_color_string_with_maps()
 {
+    local IFS=$'\n'
     local -a parts=(
         $( generate_color_string_with_map "$1" )
         $( generate_color_string_with_map "$2" )
     )
-    local IFS=";"
+    IFS=";"
     echo "${parts[*]}"
 }
 
@@ -374,29 +383,29 @@ display_color_values()
 {
     local -n c="$1"
 
-    if [ "${c[disabled]}" -eq 1 ]; then
+    if [ "${c['disabled']}" -eq 1 ]; then
         echo "disabled: true"
     else 
-        local -i index="${c[type]}"
+        local -i index="${c['type']}"
         local tname="${COL_TYPES[$index]}"
 
         echo "    type: $tname"
         echo "disabled: false"
 
         if [ "$index" -lt 3 ]; then
-            echo "   index: ${c[index]}"
+            echo "   index: ${c['index']}"
         else
-            echo "     red: ${c[red]}"
-            echo "   green: ${c[green]}"
-            echo "    blue: ${c[blue]}"
+            echo "     red: ${c['red']}"
+            echo "   green: ${c['green']}"
+            echo "    blue: ${c['blue']}"
         fi
 
         if [ "$index" -eq 0 ] && is_foreground "$1"; then
-            echo "    bold: ${c[bold]}"
+            echo "    bold: ${c['bold']}"
         fi
 
         echo -n "blinking: "
-        if [ "${c[blink]}" -eq 0 ]; then echo "false"; else echo "true"; fi
+        if [ "${c['blink']}" -eq 0 ]; then echo "false"; else echo "true"; fi
     fi
 }
 
@@ -420,7 +429,7 @@ display_color_status()
 display_instructions()
 {
     local -n cmap="$1"
-    local -i type="${cmap[type]}"
+    local -i type="${cmap['type']}"
 
     if [ "$type" -lt 3 ]; then
         echo "i to increase the index"
@@ -483,7 +492,7 @@ toggle_nameref_element()
 get_cube_index_from_rgb()
 {
     local -n ci="$1"
-    echo $(( 16 + ci[blue] + ci[green]*6 + ci[red]*36 ))
+    echo $(( 16 + ci['blue'] + ci['green']*6 + ci['red']*36 ))
 }
 
 
@@ -496,13 +505,13 @@ get_cube_index_from_rgb()
 adjust_color_map_elements()
 {
     local -n ref="$1"
-    local -i type="${ref[type]}"
+    local -i type="${ref['type']}"
     local -i index
     case "$type" in
         0)  ;; # had been rgb 
         1)   # had been rgb, average values
-            index=$(( (ref[red] + ref[green] + ref[blue]) / 3 ))
-            (( ref[red]=0; ref[green]=0; ref[blue]=0 ))
+            index=$(( (ref['red'] + ref['green'] + ref['blue']) / 3 ))
+            (( ref['red']=0, ref['green']=0, ref['blue']=0 ))
             ;;
         # 1) no change between two 1-16-indexed types
         2) ;;
@@ -516,10 +525,8 @@ adjust_color_map_elements()
 cycle_type_element()
 {
     local -n ref="$1"
-    local -i val="${ref[type]}"
-
-    ref[type]=$(( (ref[type] + 1) % TYPES_COUNT ))
-    ref[index]=0
+    ref['type']=$(( (ref['type'] + 1) % TYPES_COUNT ))
+    ref['index']=0
 
     adjust_color_map_elements "$1"
 }
@@ -531,19 +538,21 @@ cycle_type_element()
 #    (string):    name of map index we're working on
 #    (integer):   maximum value allowed for the component
 #    (string):    keypress string driving this interaction
+#    (integer):   optional increment amount.  Default=1
 index_limited_adjust()
 {
     local -n c="$1"
     local iname="$2"
     local -i max_val="$3"
     local keyp="$4"
+    local -i increment="${5:-1}"
 
     local -i cur_val="${c[$iname]}"
 
     if [ "$keyp" == "${keyp^^}" ]; then
-        if [ "$cur_val" -gt 0 ]; then (( c[$iname]-- )); fi
+        if [ "$cur_val" -gt 0 ]; then (( c["$iname"]-=increment )); fi
     else
-        if [ "$cur_val" -lt "$max_val" ]; then (( c[$iname]++ )); fi
+        if [ "$cur_val" -lt "$max_val" ]; then (( c["$iname"]+=increment )); fi
     fi
 }
 
@@ -562,9 +571,13 @@ index_limited_adjust()
 process_color_keypress()
 {
     local -n cmap="$1"
-    local -i type="${cmap[type]}"
-    local max_col=$( get_max_index_by_type "$1" )
+    local -i type="${cmap['type']}"
     local keyp="$2"
+    local max_col
+
+    
+    if ! max_col=$( get_max_index_by_type "$1" ); then exit; fi
+
     if [ "$type" -lt 3 ]; then
         case "$keyp" in
             b|B )
@@ -572,13 +585,13 @@ process_color_keypress()
                     toggle_nameref_element "$1" "bold"
                 fi
                 ;;
-            i|I ) index_limited_adjust $1 "index" "$max_col" "$keyp" ;;
+            i|I ) index_limited_adjust "$1" "index" "$max_col" "$keyp" ;;
         esac
     else
         case "$keyp" in
-            r|R ) index_limited_adjust $1 "red"   "$max_col" "$keyp" ;;
-            g|G ) index_limited_adjust $1 "green" "$max_col" "$keyp" ;;
-            b|B ) index_limited_adjust $1 "blue"  "$max_col" "$keyp" ;;
+            r|R ) index_limited_adjust "$1" "red"   "$max_col" "$keyp" ;;
+            g|G ) index_limited_adjust "$1" "green" "$max_col" "$keyp" ;;
+            b|B ) index_limited_adjust "$1" "blue"  "$max_col" "$keyp" ;;
             * ) 
         esac
         cmap[index]=$( get_cube_index_from_rgb "$1" )
@@ -587,13 +600,15 @@ process_color_keypress()
 
 # This function displays an editable dialog for changing a color
 # according to ANSI color codes.
+#
+# shellcheck disable=SC2034   # foreground and background arrays not used locally
 edit_color()
 {
     local -A foreground background
     set_color_map_init "foreground"
 
     set_color_map_init "background"
-    background[disabled]=1
+    background['disabled']=1
 
     # Initialize with color, if name of color variable is specified:
     if [ "$#" -gt 0 ]; then
@@ -641,7 +656,7 @@ edit_color()
             d|D ) toggle_nameref_element $curcol "disabled" ;;
             t|T )
                 if is_foreground "$curcol"; then
-                    (( foreground[blink] = (foreground[blink]+1) % 2 ))
+                    (( foreground['blink'] = (foreground['blink']+1) % 2 ))
                 fi
                 ;;
             $'\t' ) 
@@ -657,6 +672,7 @@ edit_color()
 
     
     # The the name-reffed color variable name, if specified.
+    # shellcheck disable=SC2034
     if [ "$#" -gt 0 ]; then
         local -n outcolor="$1"
         outcolor=$( generate_color_string_with_maps "foreground" "background" )
@@ -681,13 +697,12 @@ if ! ( return 0 2>/dev/null ); then
 
     if [ $# -gt 0 ]; then
         declare colarg="$1"
-        if edit_color colarg; then
+        if edit_color "colarg"; then
             reset_screen
             echo "\\e[${colarg}m"
         fi
     else
         echo "Use this program by entering a color string:"
         echo "./cocolors \"31;1\""
-        edit_color "31;1;46"     # bold red letters on cyan background
     fi
 fi
