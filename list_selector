@@ -117,8 +117,7 @@ generic_list_print_item()
 #   referenced by the $1 argument.
 select_from_list()
 {
-    local -n return_reference="$1"
-    return_reference=-1
+    local -n sfl_ndx_selected="$1"
 
     local sfl_name_of_array="$2"
     local -n sf_list="$sfl_name_of_array"
@@ -131,7 +130,6 @@ select_from_list()
     local -a sfl_extra_arguments=( "${@:5}" )
 
     local -i sfl_ndx_top=0
-    local -i sfl_ndx_selected=0
     local -i sfl_last_index
 
     local sfl_keyp
@@ -162,7 +160,7 @@ select_from_list()
                 ;;
 
             $'\n' )
-                break
+                return 0
                 ;;
 
             "$KEYPRESS_PGUP" )
@@ -200,7 +198,4 @@ select_from_list()
                 ;;
         esac
     done
-
-    return_reference="$sfl_ndx_selected"
-    return 0
 }
