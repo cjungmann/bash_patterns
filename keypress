@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2046,SC2059  # quiet printf scolding
+char_from_val() { local -i val="$1"; printf $(printf "\\%03o" "$val"); }
 val_from_char() { local chr="$1"; LC_CTYPE=C; printf '%d' "'$chr"; }
-char_from_val() { local -i val="$1"; printf $(printf "\\%03o" $val); }
 
 # Simple implementation of a Yes/No prompt.
 # Waits for either Y or N (either case), returning 0
 # for 'Y' and 1 for 'N'.
+# shellcheck disable=SC2181   # quiet advice about `if cmd;` instead of `if [ $? -eq o ]`
 get_yes_no()
 {
     local keyp
@@ -32,6 +34,7 @@ get_yes_no()
 # the ENTER key problem by using a *nameref* variable in which to return
 # the detected keypress.  The *nameref* version is so much superior, I
 # demoted this function to have the qualifier name (_echo).
+# shellcheck disable=SC2162  # quiet recommendation to use `read -r`
 get_keypress_echo()
 {
     # IFS characters will be invisible to 'read', so:
@@ -77,17 +80,16 @@ get_keypress()
     # escape characters.  Loops until `read` encounters an EOF.
     while read -t 0; do
         read -srN1
-        charlist="${charlist[@]}$REPLY"
+        charlist="${charlist[*]}$REPLY"
     done
 }
-
 
 # Call `keypress` alone on command line to test keypress results.
 if ! ( return 0 2>/dev/null ); then
     echo "Keypress test mode.  Type any key to see the emitted character string."
     echo "Type 'q' to quit."
     declare keyp
-    while [ 1 -eq 1 ]; do
+    while : ; do
         get_keypress "keyp"
         if [ "$keyp" == 'q' ]; then
             exit
