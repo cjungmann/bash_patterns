@@ -7,8 +7,6 @@
 #    compute_xxx:  calcuated (interpreted) value
 #    generate_xxx: build a string from one or more inputs
 
-declare -i MAX_COL=5
-
 declare -a COL_TYPES=(
     "color-value"
     "grey-indexed"
@@ -81,12 +79,13 @@ set_color_map_init()
 # Args
 #    (integer):   number of characters to repeat
 #    (character): character to be repeated
+# shellcheck disable=2155  # ignore 'declare and assign separately' warning
 dupchar()
 {
     local -i len="$1"
     local chr="$2"
-
-    local s=$( printf "%0${len}d" 0 ); echo -n "${s//0/${chr}}"
+    local s=$( printf "%0${len}d" 0 )
+    echo -n "${s//0/${chr}}"
 }
 
 
@@ -107,6 +106,7 @@ dupchar()
 #
 # The output will look like this: +-------+, where the number of dashes
 # matches the first parameter value.
+# shellcheck disable=2155  # ignore 'declare and assign separately' warning
 generate_vborder()
 {
     local buff=$( dupchar "$1" "-" )
@@ -129,6 +129,7 @@ generate_vborder()
 #    (integer, optional, default 4):
 #                number of characters to right-shift the frame
 #
+# shellcheck disable=2155  # ignore 'declare and assign separately' for dupchar
 generate_vline()
 {
     local -i wide="$1"
@@ -144,7 +145,7 @@ generate_vline()
     local pad_spaces=$( dupchar "$padlen" ' ' )
 
     local lbuff=$( dupchar $lspaces ' ' )
-    local rbuff=$( dupchar $(( side - lspaces )) ' ' )
+    local rbuff=$( dupchar $(( wide - lspaces - tlen )) ' ' )
     for (( i=0; i<lines; ++i )); do
         echo "${pad_spaces}|${con}${lbuff}${text}${rbuff}${coff}|"
     done
@@ -676,6 +677,8 @@ edit_color()
 # In this case, we're running some code if this source file
 # is executed directly (not sourced).
 if ! ( return 0 2>/dev/null ); then
+    source keypress
+
     if [ $# -gt 0 ]; then
         declare colarg="$1"
         if edit_color colarg; then
