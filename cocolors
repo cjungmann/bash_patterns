@@ -440,6 +440,11 @@ display_instructions()
     else
         echo "r|g|b to increase color intensity"
         echo "R|G|B to decrease color intensity"
+
+        if [ "$type" -eq 4 ]; then
+            echo "ALT r|g|b to increase by 16"
+            echo "ALT R|G|B to decrease by 16"
+        fi
     fi
 
     if is_foreground "$1"; then
@@ -550,9 +555,15 @@ index_limited_adjust()
     local -i cur_val="${c[$iname]}"
 
     if [ "$keyp" == "${keyp^^}" ]; then
-        if [ "$cur_val" -gt 0 ]; then (( c["$iname"]-=increment )); fi
+        (( c["$iname"] -= increment ))
+        if [ "${c[$iname]}" -lt 0 ]; then
+            c["$iname"]=0
+        fi
     else
-        if [ "$cur_val" -lt "$max_val" ]; then (( c["$iname"]+=increment )); fi
+        (( c["$iname"] += increment ))
+        if [ "${c[$iname]}" -gt "$max_val" ]; then
+            c["$iname"]="$max_val"
+        fi
     fi
 }
 
@@ -574,7 +585,6 @@ process_color_keypress()
     local -i type="${cmap['type']}"
     local keyp="$2"
     local max_col
-
     
     if ! max_col=$( get_max_index_by_type "$1" ); then exit; fi
 
@@ -588,10 +598,15 @@ process_color_keypress()
             i|I ) index_limited_adjust "$1" "index" "$max_col" "$keyp" ;;
         esac
     else
+        local -i incr=1
+        if [ "$type" -eq 4 ] && [ "${keyp:0:1}" == $'\e' ]; then
+            incr=16
+            keyp="${keyp:1}"
+        fi
         case "$keyp" in
-            r|R ) index_limited_adjust "$1" "red"   "$max_col" "$keyp" ;;
-            g|G ) index_limited_adjust "$1" "green" "$max_col" "$keyp" ;;
-            b|B ) index_limited_adjust "$1" "blue"  "$max_col" "$keyp" ;;
+            r|R ) index_limited_adjust "$1" "red"   "$max_col" "$keyp" "$incr" ;;
+            g|G ) index_limited_adjust "$1" "green" "$max_col" "$keyp" "$incr" ;;
+            b|B ) index_limited_adjust "$1" "blue"  "$max_col" "$keyp" "$incr" ;;
             * ) 
         esac
         cmap[index]=$( get_cube_index_from_rgb "$1" )
@@ -641,7 +656,7 @@ edit_color()
         fi
 
         if [ "$help_flag" -eq 1 ]; then
-            display_instructions "curcol"
+            display_instructions "$curcol"
         fi
         echo "Press '?' to toggle instructions."
 
@@ -693,6 +708,7 @@ edit_color()
 # In this case, we're running some code if this source file
 # is executed directly (not sourced).
 if ! ( return 0 2>/dev/null ); then
+    # shellcheck disable=SC1091
     source keypress
 
     if [ $# -gt 0 ]; then
