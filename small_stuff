@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+
+reset_screen() { echo -n "[2J[1;1H"; }
+hide_cursor() { echo -n $'\e[?25l'; }
+show_cursor() { echo -n $'\e[?25h'; }
+
+# Get the current cursor position from the terminal, returning the
+# values in nameref variables
+# Args
+#    (string):   name of columns variable
+#    (string):   name of rows variable
+
+get_cursor_position()
+{
+    local -n gcp_cols="$1"
+    local -n gcp_rows="$2"
+
+    local -a read_args=(
+        -s          # silent mode
+        -dR         # read until 'R' (expecting '\e[n;nR')
+        -p $'\e[6n' # prompt, written to stdout, prompts terminal response
+    )
+
+    read "${read_args[@]}" REPLY
+
+    IFS=';'
+    local -a arr=( ${REPLY#*[} )
+    gcp_rows="${arr[0]}"
+    gcp_cols="${arr[1]}"
+}
+
+# Args
+#    (string):  name of variable for height value
+#    (string):  name of variable for width value
+get_screen_size()
+{
+    local -i ocol orow
+    hide_cursor
+    get_cursor_position "ocol" "orow"
+    printf $'\e[999;999H'
+    get_cursor_position "$1" "$2"
+    printf $'\e['"${orow};${ocol}f"
+    show_cursor
+}
+
+# Function to duplicate a character a given number of times
+# Args
+#    (integer):   number of characters to repeat
+#    (character): character to be repeated
+# shellcheck disable=2155  # ignore 'declare and assign separately' warning
+dupchar() { local s=$( printf "%0${1}d" 0 ); echo -n "${s//0/$2}"; }
+
+
+# The following two functions convert from character to an integer
+# and back.  
+
+# shellcheck disable=SC2046,SC2059  # quiet printf scolding
+char_from_val() { printf $(printf "\\%03o" "$1"); }
+val_from_char() { LC_CTYPE=C; printf '%d' "'$1"; }
+
+
+# Gets 0-based character position in first string of the first
+# occurance of the second string
+# Args
+#   (string):    haystack, string to be searched
+#   (string):    needle, substring to be sought in haystack
+#
+# Returns
+#    echos integer position of needle in haystack
+#    *true* if substring found
+#    *false* if not found
+strstrndx()
+{
+    local sub="${1#*$2}"
+    local -i sublen="${#sub}"
+    if [ "$sublen" -gt 0 ]; then
+        echo $(( "${#1}" - sublen - "${#2}" - 1 ))
+        return 0
+    else
+        echo "-1"
+        return 1
+    fi
+}
+
+# This variable can be changed in a calling script to set a different default.
+# Consult `man console_colors` for color-setting instructions.
+declare SS_HILITE_COLOR="36;1"
+
+# Find and hilite substring in string (if found)
+# Args
+#    (string):   string to print
+#    (string):   substring for which the color should be changed
+#    (string):   optional color string to use when coloring the substring
+hilite_substr()
+{
+    local str="$1"
+    local substr="$2"
+    local color="${3:-$SS_HILITE_COLOR}"
+    local -i pos
+    if pos=$( strstrndx "$str", "$substr" ); then
+        local -i lensub="${#substr}"
+
+        echo -n "${str:0:$((++pos))}"
+        echo -n $'\e['"${color}m${substr}"$'\e[m'
+        echo -n "${str:$((pos+lensub))}"
+    fi
+}
+
+# Print a string, hilighting the character following the first
+# underscore, and adding optionally padding to a requested length.
+# Args
+#    (string):    string to print
+#    (integer):   total characters to print, with spaces filling
+#                 positions unfilled with the string.  Negative
+#                 values will pad to the left.
+#    (string):    ANSI color string (without '\e[' prefix or 'm' suffix,
+#                 they will be added when written out).
+#                 NOTE: quote strings that include semicolons or the
+#                 first semicolon will terminate the string.
+hilite_pad()
+{
+    local str="$1"
+    local -i pad="${2:-0}"
+    local -i len="${#1}"
+    local color="${3:-$SS_HILITE_COLOR}"
+
+    local -i pos
+    if pos=$( strstrndx "$str" '_' ); then
+        (( --len ))
+        if [ "$pad" -lt 0 ]; then
+            dupchar $(( -pad - len )) ' '
+        fi
+        echo -n "${str:0:$((++pos))}"
+        echo -n $'\e7'                # save attributes and cursor position (mainly interested in color)
+        echo -n $'\e['"${color}m"     # hilight color
+        echo -n "${str:$((++pos)):1}" # hilighted character
+        echo -n $'\e8\e[1C'           # restore saved stuff, advance cursor
+        echo -n "${str:$((++pos))}"   # print remainder of string
+    else
+        if [ "$pad" -lt 0 ]; then
+            dupchar $(( -pad - len )) ' '
+        fi
+        echo -n "$str"
+    fi
+
+    if [ "$pad" -gt 0 ]; then
+        dupchar $(( pad - len )) ' '
+    fi
+}
+
+# 'Echo's the first character that follows the first
+# underscore in the string and returns TRUE (0).
+# If there is no underscore+character in the string,
+# the function returns FALSE (!0)
+# Args
+#    (string):    string in which the letter following an underscore
+#                 is sought and echoed.
+get_hilite_char()
+{
+    local str="$1"
+    local -i pos
+    if pos=$( strstrndx "$str" '_' ); then
+        echo "${str:$((pos+2)):1}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+

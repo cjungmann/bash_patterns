@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+
+
+declare LUI_ARROW_UP=$'\e[A'
+declare LUI_ARROW_DN=$'\e[B'
+
+
+
+lui_count_rows()
+{
+    local -n lcr_list="$1"
+    local -i columns="${lcr_list[0]}"
+    local -i els="${#lcr_list[@]}"
+    echo $(( (els-1) / columns ))
+}
+
+lui_get_row()
+{
+    local -n lui_gr_list="$1"
+    local -i columns="${lui_gr_list[0]}"
+    local -i row="${2:-0}"
+
+    local -i ndx=$(( row * columns + 1 ))
+    echo "${lui_gr_list[@]:$ndx:$columns}"
+}
+
+lui_iterate_rows()
+{
+    local -n lui_ir_list="$1"
+    local -i columns="${lui_ir_list[0]}"
+    local user_function="$2"
+    local -i start_row="${3:-0}"
+
+    # to support customization, extra arguments will be passed on to user_function
+    local -a lir_extra_args=( "${@:4}" )
+
+    local -i rows=( $( lui_count_rows "$1" ) )
+    local -i ndx_max=$(( rows * columns ))
+
+    for (( ndx=start*columns+1; ndx < ndx_max; ndx+=columns )); do
+        if ! "$user_function" "${lui_ir_list[@]:$ndx:$columns}" "lir_extra_args"; then
+            break
+        fi
+    done
+}
+
+lui_count_chars()
+{
+    local -n lcc_list="$1"
+    local -i columns="${lcc_list[0]}"
+    local -i column="${2:-0}"
+    local -i maxlen=0
+
+    lcc_reader() { local -i len="${#1}"; if [ "$len" -gt "$maxlen" ]; then maxlen="$len"; fi; }
+    lui_iterate_rows "$1" lcc_reader
+
+    echo "$maxlen"
+}
+
+
+
+
+lui_parse_items()
+{
+    local -n lui_pi_list="$1"
+    local -i columns="$2"
+    local callout="$3"
+
+    local row
+    local -a item=()
+    for row in "${lui_pi_list[@]}"; do
+        item+=( "$row" )
+        if [ "${#item[*]}" -eq "${columns}" ]; then
+            "$callout" "${item[@]}"
+            item=()
+        fi
+    done
+}
+
+lui_max()
+{
+    local -i left="$1" right="$2"
+    if [ "$left" -gt "$right" ]; then
+        echo "$left"
+    else
+        echo "$right"
+    fi
+}
+
+lui_column_maxlen()
+{
+    local -n lui_list="$1"
+    local -i columns="$2"
+    local -i target="${3:-0}"
+
+    local -i maxlen=0
+
+    lui_lcm() { local str="${@:$((target+1)):1}"; maxlen=$( lui_max "$maxlen" "${#str}" ); }
+    lui_parse_items "$1" "$2" "lui_lcm"
+    unset lui_lcm
+
+    echo "$maxlen"
+}
+
+
+lui_default_line_display()
+{
+    local -i line_number="$2"
+    hilite_pad "$1"
+    echo
+}
+
+
+lui_display()
+{
+    local -n lui_list="$1"
+    local -i columns="$2"
+    local -i top="${3:-0}"
+    local -i line_count="${4:-100}"
+    local line_func="${5:-lui_default_line_display}"
+    local -a extra_args=( "${@:6}" )
+
+    local row
+    local -a item=()
+
+    local -i topndx=$(( top * columns ))
+    local -i line_number=-1
+
+    for row in "${lui_list[@]:$topndx}"; do
+        item+=( "$row" )
+        if [ "${#item[@]}" -eq "$columns" ]; then
+            if [ $(( ++line_number )) -ge "$line_count" ]; then
+                break
+            fi
+
+            "$line_func" "${item[@]}" "$line_number" "${extra_args[@]}"
+            item=()
+        fi
+    done
+}
+
+
+lui_run()
+{
+    local -n lui_result="$1"
+    local -n lui_list="$2"
+    local -i columns="$3"
+    local line_func="$4"
+    local judge_func="$5"
+}
+
+# Args
+#   (string):    item to print
+#   (integer):   current line number (out of entire list)
+#   (integer):   spaces to occupy with print
+#   (integer):   column padded width
+lui_menu_line_print()
+{
+    local -i line_number="$2"
+    local -i selected_line="$3"
+    local -i padding="${4:-0}"
+    if [ "$line_number" == "$selected_line" ]; then
+        echo -n $'\e[43m'
+    fi
+    hilite_pad "$1" "$padding"
+    echo $'\e[m'
+}
+
+
+lui_menu()
+{
+    local -n lui_selected="$1"
+    local -n lui_list="$2"
+    local -i columns="$3"
+
+    local -i topndx=0 maxndx=$(( ("${#lui_list[@]}" / columns) - 1 ))
+    local -i colwide topel
+    local keyp
+
+    lui_result=""
+    colwide=$( lui_column_maxlen "$2" "$3" 0 )
+
+    while : ; do
+        reset_screen
+        lui_display "$2" "$columns" "" "" lui_menu_line_print "$lui_selected" "$colwide"
+
+        if get_keypress keyp; then
+            case "$keyp" in
+                $'\e'|'q' ) break ;;
+                $'\n' ) break ;;
+                "$LUI_ARROW_UP" )
+                    if [ $(( --lui_selected )) -lt 0 ]; then
+                        lui_selected=0
+                    fi
+                    ;;
+                "$LUI_ARROW_DN" )
+                    if [ $(( ++lui_selected )) -gt "$maxndx" ]; then
+                        lui_selected="$maxndx"
+                    fi
+                    ;;
+            esac
+        fi
+    done
+}
+
+
+
+
+if ! ( return 0 2>/dev/null ); then
+    source keypress
+    source small_stuff
+
+    declare -a MYLIST=(
+        2
+        _alphabet         collection\ of\ letters
+        u_buntu           operating\ system
+        a_ccurate         description\ of\ correctness
+        up_date           temporal\ repair
+        supercalifra_gilisticexpialadocious exclamation
+    )
+
+    row_display()
+    {
+        local name="$1"
+        local -n extra="${@: -1}"
+        echo "$name is a $2"
+    }
+
+    lui_iterate_rows "MYLIST" "row_display"
+
+    echo
+    echo -n "This is the maximum length of column 0: "
+
+    lui_count_chars "MYLIST"
+    echo
+
+fi
