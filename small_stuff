@@ -120,7 +120,7 @@ hilite_substr()
 hilite_pad()
 {
     local str="$1"
-    local -i pad="${2:-0}"
+    local -i pad="$2"
     local -i len="${#1}"
     local color="${3:-$SS_HILITE_COLOR}"
 
