@@ -71,15 +71,16 @@ val_from_char() { LC_CTYPE=C; printf '%d' "'$1"; }
 #    *false* if not found
 strstrndx()
 {
+    local -i len1="${#1}"
     local sub="${1#*$2}"
     local -i sublen="${#sub}"
-    if [ "$sublen" -gt 0 ]; then
-        echo $(( "${#1}" - sublen - "${#2}" - 1 ))
-        return 0
-    else
-        echo "-1"
+    if [ "$len1" -eq "$sublen" ]; then
+        echo -1
         return 1
     fi
+
+    echo $(( len1 - sublen - "${#2}" ))
+    return 0
 }
 
 # This variable can be changed in a calling script to set a different default.
@@ -100,7 +101,7 @@ hilite_substr()
     if pos=$( strstrndx "$str", "$substr" ); then
         local -i lensub="${#substr}"
 
-        echo -n "${str:0:$((++pos))}"
+        echo -n "${str:0:$((pos))}"
         echo -n $'\e['"${color}m${substr}"$'\e[m'
         echo -n "${str:$((pos+lensub))}"
     fi
@@ -121,6 +122,7 @@ hilite_pad()
 {
     local str="$1"
     local -i pad="$2"
+    local -i absolute_pad="${pad#-}"
     local -i len="${#1}"
     local color="${3:-$SS_HILITE_COLOR}"
 
@@ -128,9 +130,9 @@ hilite_pad()
     if pos=$( strstrndx "$str" '_' ); then
         (( --len ))
         if [ "$pad" -lt 0 ]; then
-            dupchar $(( -pad - len )) ' '
+            dupchar $(( absolute_pad - len )) ' '
         fi
-        echo -n "${str:0:$((++pos))}"
+        echo -n "${str:0:$((pos))}"
         echo -n $'\e7'                # save attributes and cursor position (mainly interested in color)
         echo -n $'\e['"${color}m"     # hilight color
         echo -n "${str:$((++pos)):1}" # hilighted character
@@ -138,13 +140,13 @@ hilite_pad()
         echo -n "${str:$((++pos))}"   # print remainder of string
     else
         if [ "$pad" -lt 0 ]; then
-            dupchar $(( -pad - len )) ' '
+            dupchar $(( absolute_pad - len )) ' '
         fi
         echo -n "$str"
     fi
 
     if [ "$pad" -gt 0 ]; then
-        dupchar $(( pad - len )) ' '
+        dupchar $(( absolute_pad - len )) ' '
     fi
 }
 

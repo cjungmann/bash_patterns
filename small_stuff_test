@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+source small_stuff
+
+declare -a HL_TEST=(
+    "one"         "_"    "na"
+    "_one"        "_"    0
+    "o_ne"        "_"    1
+    "tw_enty-one" "_"    2
+    "tw_enty_one" "_"    2
+    "home game"   "home" 0
+)
+
+declare ACOL=$'\e[48;5;236m'
+
+test_strstrndx()
+{
+    local -a test
+    local -i pos
+    local result
+
+    echo
+    echo "Testing 'strstrndx' function, echos position, returns true or false"
+
+    for el in "${HL_TEST[@]}"; do
+        test+=( "$el" )
+        if [ "${#test[@]}" -eq 3 ]; then
+            echo -n "Test, seeking '${test[1]} in '${test[0]}', expecting ${test[2]} "
+            if pos=$( strstrndx "${test[0]}" "${test[1]}" ); then
+                result="$pos"
+            else
+                result="na"
+            fi
+
+            if [ "$result" == "${test[2]}" ]; then
+                echo $'\e[42mPassed!\e[m'
+            else 
+                echo $'\e'"[41mFailed!  It was ${result}."$'\e[m'
+            fi
+
+            test=()
+        fi
+    done
+}
+
+test_hilite_substr()
+{
+    local -a test
+
+    echo
+    echo "Testing 'hilite_substr' function.  Hilites substring, if found"
+
+    for el in "${HL_TEST[@]}"; do
+        test+=( "$el" )
+        if [ "${#test[@]}" -eq 3 ]; then
+            echo -n "Test: hiliting '${test[1]} in '${test[0]}'  $ACOL"
+            hilite_substr "${test[0]}" "${test[1]}"
+            echo $'\e[m'
+            test=()
+        fi
+    done
+}
+
+test_hilite_pad()
+{
+    local -a test
+
+    echo
+    echo "Testing 'hilite_pad' function.  Skips first underscore and hilites character after underscore, if found."
+
+    for el in "${HL_TEST[@]}"; do
+        test+=( "$el" )
+        if [ "${#test[@]}" -eq 3 ]; then
+            echo -n "Test hiliting letter after '${test[1]} in '${test[0]}'   $ACOL"
+            hilite_pad "${test[0]}" 15
+            echo $'\e[m'
+            test=()
+        fi
+    done
+}
+
+
+test_strstrndx
+test_hilite_substr
+test_hilite_pad
