@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+source list_ui
+source keypress
+source small_stuff
+
+declare -a MYLIST=(
+    2
+    0
+    _alphabet         collection\ of\ letters
+    u_buntu           operating\ system
+    a_ccurate         description\ of\ correctness
+    up_date           temporal\ repair
+    supercalifra_gilisticexpialadocious exclamation
+)
+lui_list_init "MYLIST"
+
+declare -a LONGLIST=(
+    1 0
+    "one" "two" "three" "four" "five" "six" "seven" "eight" "nine"
+
+    "ten" "eleven" "twelve" "thirteen" "fourteen"
+    "fifteen" "sixteen" "seventeen" "eighteen" "nineteen"
+
+    "twenty" "twenty-one" "twenty-two" "twenty-three" "twenty-four"
+    "twenty-five" "twenty-six" "twenty-seven" "twenty-eight" "twenty-nine"
+
+    "thirty" "thirty-one" "thirty-two" "thirty-three" "thirty-four"
+    "thirty-five" "thirty-six" "thirty-seven" "thirty-eight" "thirty-nine"
+    
+    "forty" "forty-one" "forty-two" "forty-three" "forty-four"
+    "forty-five" "forty-six" "forty-seven" "forty-eight" "forty-nine"
+
+    "fifty"
+)
+lui_list_init "LONGLIST"
+
+    
+test_simple()
+{
+    local -i padding=$( lui_list_max_len_by_column "MYLIST" 0 )
+    echo "Padding is $padding"
+    local -a lrow
+    local -i rows
+    lui_list_row_count "rows" "MYLIST"
+    for (( ndx=0; ndx<rows; ++ndx )); do
+        lui_list_copy_row "lrow" "MYLIST" "$ndx"
+        echo -n $'\e[45m'
+        hilite_pad "${lrow[0]}" "$padding"
+        echo $'\e[m'
+    done
+}
+
+
+test_simple
+read -n1
+
+lui_list_menu "LONGLIST"
