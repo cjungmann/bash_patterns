@@ -1,237 +1,251 @@
 #!/usr/bin/env bash
 
+# The contents of this file work with a _lui_list_.  A lui_list is
+# an array of data organized as a mini table.  The first element of
+# a lui_list is the column count, the number of elements per 'row'
+# of the lui_list table.  The second element is the row count, and
+# it should be set with the lui_list_init() function.
 
-declare LUI_ARROW_UP=$'\e[A'
-declare LUI_ARROW_DN=$'\e[B'
+# shellcheck disable=SC2178
+# shellcheck disable=SC2034   # disable unused variable warning for nameref variable _rc_ 
 
+declare LUI_KEY_UP=$'\e[A'
+declare LUI_KEY_DN=$'\e[B'
+declare LUI_KEY_PGUP=$'\e[5~'
+declare LUI_KEY_PGDN=$'\e[6~'
 
-
-lui_count_rows()
+# Sets the row-count element (list[1]) by calculating the number
+# of rows.  A suspicious element count (not evenly-dividable by
+# the column count) triggers a warning and exit.
+# Args
+#    (string):   name of a properly formatted list
+lui_list_init()
 {
-    local -n lcr_list="$1"
-    local -i columns="${lcr_list[0]}"
-    local -i els="${#lcr_list[@]}"
-    echo $(( (els-1) / columns ))
+    local -n luii_list="$1"
+    local -i columns="${luii_list[0]}"
+
+    local -i count_els="${#luii_list[@]}"
+    if [ $(( (count_els - 2) % columns )) -ne 0 ]; then
+        echo "corrupted list, bad elements ratio." >&2
+        exit
+    fi
+    
+    luii_list[1]=$(( ( count_els - 2 ) / columns ))
+    return 0
 }
 
-lui_get_row()
-{
-    local -n lui_gr_list="$1"
-    local -i columns="${lui_gr_list[0]}"
-    local -i row="${2:-0}"
+# Next two functions put result in nameref-ed first argument
+lui_list_column_count() { local -n rc="$1"; local -n luil_list="$2"; rc="${luil_list[0]}"; }
+lui_list_row_count()    { local -n rc="$1"; local -n luil_list="$2"; rc="${luil_list[1]}"; }
 
-    local -i ndx=$(( row * columns + 1 ))
-    echo "${lui_gr_list[@]:$ndx:$columns}"
+# Test if requested row number exists in a lui_list
+# Args
+#    (string):   name of lui list
+#    (integer):  row number requested
+#
+# Returns true (0) if in range, non-zero if out of range
+lui_list_row_in_range()
+{
+    local -n luii_list="$1"
+    local -i requested_row="$2"
+    local -i rows="${luii_list[1]}"
+
+    [ "$requested_row" -ge 0 ] && [ "$requested_row" -lt "$rows" ]
 }
 
-lui_iterate_rows()
+# Sends successive rows to a callback function.  The callback function
+# should return 0 (true) to continue, false (non-zero) to force early
+# termination.
+# 
+# Args
+#    (string):   name of lui_list array
+#    (string):   name of callback function
+lui_list_iterate()
 {
-    local -n lui_ir_list="$1"
-    local -i columns="${lui_ir_list[0]}"
-    local user_function="$2"
-    local -i start_row="${3:-0}"
+    local -i rows columns
+    lui_list_row_count "rows" "$1"
+    lui_list_column_count "columns" "$1"
 
-    # to support customization, extra arguments will be passed on to user_function
-    local -a lir_extra_args=( "${@:4}" )
+    local -n luili_list="$1"
+    local luili_callback="$2"
 
-    local -i rows=( $( lui_count_rows "$1" ) )
-    local -i ndx_max=$(( rows * columns ))
-
-    for (( ndx=start*columns+1; ndx < ndx_max; ndx+=columns )); do
-        if ! "$user_function" "${lui_ir_list[@]:$ndx:$columns}" "lir_extra_args"; then
+    for (( ndx=2, row=0; row<rows; ++row, ndx+=columns )); do
+        if ! "$luili_callback" "${luili_list[@]:$ndx:$columns}"; then
             break
         fi
     done
 }
 
-lui_count_chars()
-{
-    local -n lcc_list="$1"
-    local -i columns="${lcc_list[0]}"
-    local -i column="${2:-0}"
-    local -i maxlen=0
-
-    lcc_reader() { local -i len="${#1}"; if [ "$len" -gt "$maxlen" ]; then maxlen="$len"; fi; }
-    lui_iterate_rows "$1" lcc_reader
-
-    echo "$maxlen"
-}
-
-
-
-
-lui_parse_items()
-{
-    local -n lui_pi_list="$1"
-    local -i columns="$2"
-    local callout="$3"
-
-    local row
-    local -a item=()
-    for row in "${lui_pi_list[@]}"; do
-        item+=( "$row" )
-        if [ "${#item[*]}" -eq "${columns}" ]; then
-            "$callout" "${item[@]}"
-            item=()
-        fi
-    done
-}
-
-lui_max()
-{
-    local -i left="$1" right="$2"
-    if [ "$left" -gt "$right" ]; then
-        echo "$left"
-    else
-        echo "$right"
-    fi
-}
-
-lui_column_maxlen()
-{
-    local -n lui_list="$1"
-    local -i columns="$2"
-    local -i target="${3:-0}"
-
-    local -i maxlen=0
-
-    lui_lcm() { local str="${@:$((target+1)):1}"; maxlen=$( lui_max "$maxlen" "${#str}" ); }
-    lui_parse_items "$1" "$2" "lui_lcm"
-    unset lui_lcm
-
-    echo "$maxlen"
-}
-
-
-lui_default_line_display()
-{
-    local -i line_number="$2"
-    hilite_pad "$1"
-    echo
-}
-
-
-lui_display()
-{
-    local -n lui_list="$1"
-    local -i columns="$2"
-    local -i top="${3:-0}"
-    local -i line_count="${4:-100}"
-    local line_func="${5:-lui_default_line_display}"
-    local -a extra_args=( "${@:6}" )
-
-    local row
-    local -a item=()
-
-    local -i topndx=$(( top * columns ))
-    local -i line_number=-1
-
-    for row in "${lui_list[@]:$topndx}"; do
-        item+=( "$row" )
-        if [ "${#item[@]}" -eq "$columns" ]; then
-            if [ $(( ++line_number )) -ge "$line_count" ]; then
-                break
-            fi
-
-            "$line_func" "${item[@]}" "$line_number" "${extra_args[@]}"
-            item=()
-        fi
-    done
-}
-
-
-lui_run()
-{
-    local -n lui_result="$1"
-    local -n lui_list="$2"
-    local -i columns="$3"
-    local line_func="$4"
-    local judge_func="$5"
-}
-
+# Get a row from a lui_list array.  Returns 0 (true) if the row
+# was successfully returned, non-zero (false) if out-of-range and
+# no row data is being returned.
 # Args
-#   (string):    item to print
-#   (integer):   current line number (out of entire list)
-#   (integer):   spaces to occupy with print
-#   (integer):   column padded width
-lui_menu_line_print()
+#    (string):   name of array in which the row is to be copied
+#    (string):   name of lui_list array
+#    (integer):  row number to be returned
+lui_list_copy_row()
 {
-    local -i line_number="$2"
-    local -i selected_line="$3"
-    local -i padding="${4:-0}"
-    if [ "$line_number" == "$selected_line" ]; then
-        echo -n $'\e[43m'
+    if lui_list_row_in_range "$2" "$3"; then
+        local -n target_row="$1"
+        local -n luii_list="$2"
+        local -i requested_row="$3"
+
+        local -i columns="${luii_list[0]}"
+        local -i rows="${luii_list[1]}"
+
+        local -i ndx=$(( 2 + ( requested_row * columns ) ))
+        target_row=( "${luii_list[@]:$ndx:$columns}" )
+        return 0
     fi
-    hilite_pad "$1" "$padding"
+
+    return 1
+}
+
+# Clumsy name for a function that returns the characters in the longest
+# string in the given column for the given lui_list.
+# Args
+#    (string):  name of lui_list array
+#    (integer): 0-based column number of column of interest
+lui_list_max_len_by_column()
+{
+    local -i maxlen=0
+    local -i requested_column="$2"
+    max_len_callback()
+    {
+        # shellcheck disable=SC2124
+        local val="${@:$(( requested_column+1 )):1}"
+        local -i len="${#val}"
+        if [ "$len" -gt "$maxlen" ]; then
+            maxlen="$len"
+        fi
+    }
+
+    lui_list_iterate "$1" "max_len_callback"
+    unset max_len_callback
+
+    echo "$maxlen"
+}
+
+lui_list_menu_display_line()
+{
+    local -i hilite="$1"
+    local -i padding="$2"
+    local -a els=( "${@:3}" )
+
+    if [ "$hilite" -ne 0 ]; then
+        echo -n $'\e[44m'
+    fi
+    hilite_pad "${els[0]}" "$padding"
     echo $'\e[m'
 }
 
-
-lui_menu()
+lui_list_key_move_selection()
 {
-    local -n lui_selected="$1"
-    local -n lui_list="$2"
-    local -i columns="$3"
+    local keyp="$1"
+    local -i selected="$2"
+    local -i row_count="$3"
+    local -i line_count="$4"
+    local -i top_row="$5"
+    local -i bottom_row="$6"
 
-    local -i topndx=0 maxndx=$(( ("${#lui_list[@]}" / columns) - 1 ))
-    local -i colwide topel
-    local keyp
+    local -i old_selected="$2"
 
-    lui_result=""
-    colwide=$( lui_column_maxlen "$2" "$3" 0 )
+    case "$keyp" in
+        "$LUI_KEY_DN" )
+            (( ++selected ))
+            if [ "$selected" -ge "$row_count"  ]; then
+                selected=$(( row_count-1 ))
+            fi
+            ;;
+        "$LUI_KEY_UP" )
+            (( --selected ))
+            if [ "$selected" -lt 0 ]; then
+                selected=0
+            fi
+            ;;
+        "$LUI_KEY_PGUP" )
+            if [ "$selected" -eq "$top_row" ]; then
+                selected=$(( selected - line_count ))
+            else
+                selected="$top_row"
+            fi
+            if [ "$selected" -lt 0 ]; then
+                selected=0
+            fi
+            ;;
+        "$LUI_KEY_PGDN" )
+            if [ "$selected" -eq "$bottom_row" ]; then
+                selected=$(( selected + line_count ))
+            else
+                selected="$bottom_row"
+            fi
+            if [ "$selected" -ge "$row_count" ]; then
+                selected=$(( row_count - 1 ))
+            fi
+            ;;
+    esac
 
+    echo "$selected"
+    [ "$selected" -ne "$old_selected" ]
+}
+
+lui_list_menu()
+{
+    local lui_list_name="$1"
+    local line_displayer="${2:-lui_list_menu_display_line}"
+    local -i line_count="${3:-10}"
+
+    local -i row_count
+    lui_list_row_count "row_count" "$lui_list_name"
+
+    local -i padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
+
+    local -i selected=0
+    local -i top_row bottom_row
+    local -a row
+
+    top_row=1 # triggers first condition to preempt elif with uninitialized $bottom_row
     while : ; do
+        if [ "$selected" -lt "$top_row" ]; then
+            top_row="$selected"
+        elif [ "$selected" -gt "$bottom_row" ]; then
+            top_row=$(( selected - line_count + 1 ))
+        fi
+        
+        bottom_row=$(( top_row + line_count - 1 ))
+        
         reset_screen
-        lui_display "$2" "$columns" "" "" lui_menu_line_print "$lui_selected" "$colwide"
+        hide_cursor
+        for (( count=0, row_ndx=top_row; count<line_count; ++count, ++row_ndx )); do
+            row=()
+            if [ "$row_ndx" -lt "$row_count" ]; then
+                [ "$row_ndx" -ne "$selected" ]
+                hilited="$?"
+                # shellcheck disable=SC2207
+                lui_list_copy_row "row" "$lui_list_name" "$row_ndx"
+                "$line_displayer" "$hilited" "$padding" "${row[@]}"
+            else
+                hilite_pad " " "$padding"
+                echo
+            fi
+        done
+        show_cursor
 
-        if get_keypress keyp; then
+        local keyp
+
+        if get_keypress "keyp"; then
             case "$keyp" in
-                $'\e'|'q' ) break ;;
-                $'\n' ) break ;;
-                "$LUI_ARROW_UP" )
-                    if [ $(( --lui_selected )) -lt 0 ]; then
-                        lui_selected=0
-                    fi
-                    ;;
-                "$LUI_ARROW_DN" )
-                    if [ $(( ++lui_selected )) -gt "$maxndx" ]; then
-                        lui_selected="$maxndx"
-                    fi
+                $'\e'|'q' ) return 1 ;;
+                $'\n'     ) return 0 ;;
+                * )
+                    move_args=("$keyp" "$selected"
+                        "$row_count" "$line_count"
+                        "$top_row" "$bottom_row" )
+                    local -i old_selected=$selected
+                    selected=$( lui_list_key_move_selection "${move_args[@]}" )
                     ;;
             esac
         fi
     done
 }
 
-
-
-
-if ! ( return 0 2>/dev/null ); then
-    source keypress
-    source small_stuff
-
-    declare -a MYLIST=(
-        2
-        _alphabet         collection\ of\ letters
-        u_buntu           operating\ system
-        a_ccurate         description\ of\ correctness
-        up_date           temporal\ repair
-        supercalifra_gilisticexpialadocious exclamation
-    )
-
-    row_display()
-    {
-        local name="$1"
-        local -n extra="${@: -1}"
-        echo "$name is a $2"
-    }
-
-    lui_iterate_rows "MYLIST" "row_display"
-
-    echo
-    echo -n "This is the maximum length of column 0: "
-
-    lui_count_chars "MYLIST"
-    echo
-
-fi
