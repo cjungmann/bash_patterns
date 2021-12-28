@@ -7,7 +7,7 @@
 # it should be set with the lui_list_init() function.
 
 # shellcheck disable=SC2178
-# shellcheck disable=SC2034   # disable unused variable warning for nameref variable _rc_ 
+# shellcheck disable=SC2034   # disable unused variable warning for nameref variable _rc_
 
 declare LUI_KEY_UP=$'\e[A'
 declare LUI_KEY_DN=$'\e[B'
@@ -29,7 +29,7 @@ lui_list_init()
         echo "corrupted list, bad elements ratio." >&2
         exit
     fi
-    
+ 
     luii_list[1]=$(( ( count_els - 2 ) / columns ))
     return 0
 }
@@ -146,7 +146,8 @@ lui_list_key_move_selection()
     local -i row_count="$3"
     local -i line_count="$4"
     local -i top_row="$5"
-    local -i bottom_row="$6"
+
+    local -i bottom_row=$(( top_row + line_count - 1 ))
 
     local -i old_selected="$2"
 
@@ -201,19 +202,17 @@ lui_list_menu()
     local -i padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
 
     local -i selected=0
-    local -i top_row bottom_row
+    local -i top_row
     local -a row
 
-    top_row=1 # triggers first condition to preempt elif with uninitialized $bottom_row
+    top_row=1
     while : ; do
         if [ "$selected" -lt "$top_row" ]; then
             top_row="$selected"
-        elif [ "$selected" -gt "$bottom_row" ]; then
+        elif [ "$selected" -gt $(( top_row + line_count - 1 )) ]; then
             top_row=$(( selected - line_count + 1 ))
         fi
-        
-        bottom_row=$(( top_row + line_count - 1 ))
-        
+
         reset_screen
         hide_cursor
         for (( count=0, row_ndx=top_row; count<line_count; ++count, ++row_ndx )); do
@@ -221,7 +220,6 @@ lui_list_menu()
             if [ "$row_ndx" -lt "$row_count" ]; then
                 [ "$row_ndx" -ne "$selected" ]
                 hilited="$?"
-                # shellcheck disable=SC2207
                 lui_list_copy_row "row" "$lui_list_name" "$row_ndx"
                 "$line_displayer" "$hilited" "$padding" "${row[@]}"
             else
@@ -238,11 +236,13 @@ lui_list_menu()
                 $'\e'|'q' ) return 1 ;;
                 $'\n'     ) return 0 ;;
                 * )
-                    move_args=("$keyp" "$selected"
-                        "$row_count" "$line_count"
-                        "$top_row" "$bottom_row" )
                     local -i old_selected=$selected
-                    selected=$( lui_list_key_move_selection "${move_args[@]}" )
+                    selected=$( lui_list_key_move_selection \
+                                "$keyp" \
+                                "$selected" \
+                                "$row_count" \
+                                "$line_count" \
+                                "$top_row" )
                     ;;
             esac
         fi
