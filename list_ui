@@ -143,9 +143,9 @@ lui_list_key_move_selection()
 {
     local keyp="$1"
     local -i selected="$2"
-    local -i row_count="$3"
+    local -i top_row="$3"
     local -i line_count="$4"
-    local -i top_row="$5"
+    local -i row_count="$5"
 
     local -i bottom_row=$(( top_row + line_count - 1 ))
 
@@ -190,43 +190,76 @@ lui_list_key_move_selection()
     [ "$selected" -ne "$old_selected" ]
 }
 
-lui_list_menu()
+lui_list_calc_top_row()
+{
+    local -i selected="$1"
+    local -i top_row="$2"
+    local -i line_count="$3"
+    if [ "$selected" -lt "$top_row" ]; then
+        echo "$selected"
+    elif [ "$selected" -gt $(( top_row + line_count - 1 )) ]; then
+        echo $(( selected - line_count + 1 ))
+    else
+        echo "$top_row"
+    fi
+}
+
+lui_list_show_lines()
 {
     local lui_list_name="$1"
-    local line_displayer="${2:-lui_list_menu_display_line}"
-    local -i line_count="${3:-10}"
+    local -i selected="$2"
+    local -i top_row="$3"
+    local -i line_count="$4"
+    local line_displayer="$5"
+    local -i padding="${6:-0}"
+
+    local -a row
+    local -i count=0
+    local -i row_ndx="$top_row"
+    local -i hilited
+
+    for (( ; count < line_count; ++count, ++row_ndx )); do
+        row=()
+        if [ "$row_ndx" -lt "$row_count" ]; then
+
+            # Convert boolean result to integer for use by line_displayer:
+            [ "$row_ndx" -ne "$selected" ]
+            hilited="$?"
+
+            lui_list_copy_row "row" "$lui_list_name" "$row_ndx"
+            "$line_displayer" "$hilited" "$padding" "${row[@]}"
+        else
+            hilite_pad " " "$padding"
+            echo
+        fi
+    done
+}
+
+lui_list_task()
+{
+    local -n llt_selected="$1"
+    local lui_list_name="$2"
+    local line_displayer="${3:-lui_list_menu_display_line}"
+    local -i line_count="${4:-10}"
 
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
 
     local -i padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
 
-    local -i selected=0
     local -i top_row
     local -a row
 
     top_row=1
     while : ; do
-        if [ "$selected" -lt "$top_row" ]; then
-            top_row="$selected"
-        elif [ "$selected" -gt $(( top_row + line_count - 1 )) ]; then
-            top_row=$(( selected - line_count + 1 ))
-        fi
+        top_row=$( lui_list_calc_top_row "$llm_selected" "$top_row" "$line_count" )
 
         reset_screen
         hide_cursor
-        for (( count=0, row_ndx=top_row; count<line_count; ++count, ++row_ndx )); do
-            row=()
-            if [ "$row_ndx" -lt "$row_count" ]; then
-                [ "$row_ndx" -ne "$selected" ]
-                hilited="$?"
-                lui_list_copy_row "row" "$lui_list_name" "$row_ndx"
-                "$line_displayer" "$hilited" "$padding" "${row[@]}"
-            else
-                hilite_pad " " "$padding"
-                echo
-            fi
-        done
+
+        lui_list_show_lines "$lui_list_name" "$llm_selected" "$top_row" \
+                             "$line_count" "$line_displayer" "$padding"
+
         show_cursor
 
         local keyp
@@ -236,13 +269,67 @@ lui_list_menu()
                 $'\e'|'q' ) return 1 ;;
                 $'\n'     ) return 0 ;;
                 * )
-                    local -i old_selected=$selected
-                    selected=$( lui_list_key_move_selection \
-                                "$keyp" \
-                                "$selected" \
-                                "$row_count" \
-                                "$line_count" \
-                                "$top_row" )
+                    local -i old_selected=$llm_selected
+                    llm_selected=$( lui_list_key_move_selection \
+                                        "$keyp" \
+                                        "$llm_selected" \
+                                        "$top_row" \
+                                        "$line_count" \
+                                        "$row_count")
+                    ;;
+            esac
+        fi
+    done
+}
+
+lui_list_menu()
+{
+    local -n llm_selected="$1"
+    local lui_list_name="$2"
+    local line_displayer="${3:-lui_list_menu_display_line}"
+    local -i line_count="${4:-10}"
+
+    if [ ! "$llm_selected" ]; then
+        llm_selected=0
+    fi
+    local -i old_selected=$llm_selected
+
+    local -i row_count
+    lui_list_row_count "row_count" "$lui_list_name"
+
+    local -i padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
+    local -i top_row
+
+    top_row=1
+    while : ; do
+        top_row=$( lui_list_calc_top_row "$llm_selected" "$top_row" "$line_count" )
+
+        reset_screen
+        hide_cursor
+
+        lui_list_show_lines "$lui_list_name" "$llm_selected" "$top_row" \
+                             "$line_count" "$line_displayer" "$padding"
+
+        show_cursor
+
+        local keyp
+
+        if get_keypress "keyp"; then
+            case "$keyp" in
+                $'\e'|'q' )
+                    lim_selected="$old_selected"
+                    return 1
+                    ;;
+                $'\n' )
+                    return 0
+                    ;;
+                * )
+                    llm_selected=$( lui_list_key_move_selection \
+                                        "$keyp" \
+                                        "$llm_selected" \
+                                        "$top_row" \
+                                        "$line_count" \
+                                        "$row_count")
                     ;;
             esac
         fi
