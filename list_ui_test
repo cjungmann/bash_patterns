@@ -52,7 +52,10 @@ test_simple()
 }
 
 
-test_simple
-read -n1
+# test_simple
+# read -n1
 
-lui_list_menu "LONGLIST"
+declare -i selected_index
+
+lui_list_menu "selected_index" "LONGLIST"
+echo "You selected index $selected_index"
