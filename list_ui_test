@@ -3,6 +3,7 @@
 source list_ui
 source keypress
 source small_stuff
+source cocolors
 
 declare -a MYLIST=(
     2
@@ -27,7 +28,7 @@ declare -a LONGLIST=(
 
     "thirty" "thirty-one" "thirty-two" "thirty-three" "thirty-four"
     "thirty-five" "thirty-six" "thirty-seven" "thirty-eight" "thirty-nine"
-    
+
     "forty" "forty-one" "forty-two" "forty-three" "forty-four"
     "forty-five" "forty-six" "forty-seven" "forty-eight" "forty-nine"
 
@@ -35,11 +36,33 @@ declare -a LONGLIST=(
 )
 lui_list_init "LONGLIST"
 
-    
-test_simple()
+test_dump_list()
+{
+    local -n tdl_list="$1"
+    local -i cols="${tdl_list[0]}"
+    local -i rows="${tdl_list[1]}"
+    echo "$rows rows of $cols columns."
+
+    local -a row=()
+    local el
+    local -i count=0
+
+    local OIFS="$IFS"
+    local IFS='|'
+    for el in "${tdl_list[@]:2}"; do
+        row+=( "$el" )
+        if [ "${#row[@]}" -eq "$cols" ]; then
+            (( ++count ))
+            echo "row ${count}: ${row[*]}"
+            row=()
+        fi
+    done
+    IFS="$OIFS"
+}
+
+test_padding()
 {
     local -i padding=$( lui_list_max_len_by_column "MYLIST" 0 )
-    echo "Padding is $padding"
     local -a lrow
     local -i rows
     lui_list_row_count "rows" "MYLIST"
@@ -51,11 +74,224 @@ test_simple()
     done
 }
 
+test_simple_menu()
+{
+    local -i selected_index
 
-# test_simple
-# read -n1
+    if lui_list_menu "selected_index" "LONGLIST"; then
+        echo "You selected index $selected_index"
+    else
+        echo "You cancelled the selection."
+    fi
+}
 
-declare -i selected_index
+# Creates a proper lui_list array with the contents of the LS_COLORS
+# environment variable.  The resulting array will include the row
+# count element, so it will not be necessary to call lui_list_init
+# This function can also add empty elements per row, if requested.
+# The resulting
+# Args
+#    (string):    name of in/out array that will contain the lui_list
+#                 array when the function is finished.
+#    (integer);   optional number of elements to add to each row
+create_ls_colors_array()
+{
+    if [ ! "$LS_COLORS" ]; then
+        echo "No LS_COLORS to work with, aborting."
+        exit 1
+    fi
 
-lui_list_menu "selected_index" "LONGLIST"
-echo "You selected index $selected_index"
+    local -n ilca_list="$1"
+
+    local -i columns="${2:-2}"
+    # Prevent irrational column count
+    if [ "$columns" -lt 2 ]; then
+        columns=2
+    fi
+
+    ilca_list=( "$columns" 0 )
+
+    local IFS=':'
+    local -a raw_list=( $LS_COLORS )
+
+    local -a row
+    local item
+    local IFS="="
+    local -i row_count=0
+    for item in "${raw_list[@]}"; do
+        row=( $item )
+        for (( i=2; i<columns; ++i )); do
+            row+=( 0 )
+        done
+
+        (( ++row_count ))
+        ilca_list+=( "${row[@]}" )
+    done
+
+    ilca_list[1]="$row_count"
+}
+
+ls_colors_displayer()
+{
+    local -i hilite="$1"
+    local -i padding="$2"
+    local -a els=( "${@:3}" )
+
+    if (( hilite == 1 )); then
+        echo -n ">>> "
+    else
+        echo -n "    "
+    fi
+    echo $'\e['"${els[1]}m${els[0]}"$'\e[m'
+}
+
+test_ls_colors()
+{
+    local -a list_colors
+    create_ls_colors_array "list_colors" 3
+
+    local -i selection=0
+    if lui_list_task "selection" "list_colors" "ls_colors_displayer" 20; then
+        local -a row
+        if ! lui_list_copy_row "row" "list_colors" "$selection"; then
+            echo "The attempt to access line number $selection caused a failure."
+            exit 1
+        fi
+
+        echo "You selected index $selection, which looks "$'\e['"${row[1]}mlike this"$'\e[m'
+    fi
+}
+
+test_generic_edit_color()
+{
+    local keyp="$1"
+    local list_name="$2"
+    local -i row_number="$3"
+
+    local -a row
+    if lui_list_copy_row "row" "$list_name" "$row_number"; then
+        edit_color "${row[1]}"
+    fi
+    return 0
+}
+
+test_generic_menu()
+{
+    local -a list_menu=( 1 0 File Edit View Tools Help )
+    lui_list_init "list_menu" 1
+
+    local -i selection=0
+    lui_list_generic "selection" "list_menu" "" 8
+    local -i ecode="$?"
+    if [ "$ecode" -eq 0 ]; then
+        echo "You selected '${list_menu[$selection]}'"
+        read -n1 -p "Press any key to contine."
+    fi
+}
+
+test_radio_toggler()
+{
+    # prevent space from being disacarded
+    local OIFS="$IFS"
+    IFS=''
+
+    local keyp="$1"
+    local list_name="$2"
+    local -i row_target="$3"
+
+    IFS="$OIFS"
+
+    local -n trt_list="$list_name"
+    local -i col_count="${trt_list[0]}"
+    local -i flag_column=$(( col_count - 1 ))
+    local -i row_count="${trt_list[1]}"
+    local -i cur_row=0
+    local -i val
+
+    local -a row=()
+    local el
+    for el in "${trt_list[@]:2}"; do
+        row+=( "$el" )
+        if [ "${#row[@]}" -eq "$col_count" ]; then
+            val="${row[$flag_column]}"
+            if [ "$cur_row" -eq "$row_target" ]; then
+                (( row[$flag_column] = (val+1) % 2 ))
+                lui_list_replace_row "$list_name" "row" "$cur_row"
+            elif [ "$val" -ne 0 ]; then
+                (( row[$flag_column] = 0 ))
+                lui_list_replace_row "$list_name" "row" "$cur_row"
+            fi
+            (( ++cur_row ))
+            row=()
+        fi
+    done
+
+    return 0
+}
+
+test_radio_displayer()
+{
+    local -i hilite="$1"
+    local -i padding="$2"
+    local -a els=( "${@:3}" )
+    local -i selected="${els[@]: -1}"
+    if [ "$hilite" -eq 1 ]; then
+        echo -n ">>> "
+    else
+        echo -n "    "
+    fi
+    if [ "$selected" -eq 0 ]; then
+        echo -n "[ ] "
+    else
+        echo -n "[x] "
+    fi
+    echo "${els[0]}"
+}
+
+test_radio_list()
+{
+    local -a fav_colors=( black red green yellow blue magenta cyan white )
+    local -a fav_color_list
+    lui_list_convert "fav_color_list" "fav_colors" 1 2
+
+    test_dump_list "fav_color_list"
+
+    local -a term_keys=(
+        "${LUI_DEFAULT_TERM_KEYS[@]}"
+        "j| :test_radio_toggler"
+    )
+
+    local -i selection=0
+    lui_list_generic "selection" "fav_color_list" "test_radio_displayer" "8" "term_keys"
+
+    test_dump_list "fav_color_list"
+
+}
+
+
+test_generic_custom()
+{
+    local -a list_colors
+    create_ls_colors_array "list_colors" 3
+
+    local -a term_keys=(
+        $'\e'"|q:LUI_ABORT"
+        $'\n'":test_generic_edit_color"
+    )
+
+    local -i selection=0
+    lui_list_generic "selection" "list_colors" "ls_colors_displayer" "8" "term_keys"
+    if [ "$?" -eq 0 ]; then
+        echo "You selected $selection"
+    else
+        echo "You aborted"
+    fi
+}
+
+# test_padding;     read -n1 -p "Any key to continue"
+# test_simple_menu; read -n1 -p "Any key to continue"
+
+# test_generic_menu
+# test_generic_custom
+
+test_radio_list
