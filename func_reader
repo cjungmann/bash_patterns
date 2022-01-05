@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+
+
+show_function()
+{
+    local -n sf_list="$1"
+    local -i ndx="$2"
+    local -i top="$ndx"
+    local line
+    local indent="   "
+
+    for (( i=ndx-1; i>0; --i )); do
+        line="${sf_list[$i]}"
+        if [ "${line:0:1}" == "#" ]; then
+            (( top = i ))
+        else
+            break
+        fi
+    done
+
+    local re='#( (.*))?'
+
+    echo -n $'\e[36;1m'
+    echo -n "${sf_list[$ndx]}"
+    echo $'\e[m'
+    if [ "$top" -eq "$ndx" ]; then
+        echo "${indent}No description for this function."
+    else
+        for (( i=top; i<ndx; ++i )); do
+            line="${sf_list[$i]}"
+            if [[ "$line" =~ $re ]]; then
+                if [ "${#BASH_REMATCH[@]}" -gt 1 ]; then
+                    echo "${indent}${BASH_REMATCH[1]}"
+                else
+                    echo
+                fi
+            fi
+        done
+    fi
+    echo
+}
+
+
+parse()
+{
+    local -n array_name="$1"
+    local file="$2"
+
+    local -a lines=()
+
+    if mapfile -t lines < "$file"; then
+        local line
+        local -i ndx=0
+        for line in "${lines[@]}"; do
+            if [[ "$line" =~ ^[[:alnum:]_]+\(\) ]]; then
+                show_function "lines" "$ndx"
+            fi
+            (( ++ndx ))
+        done
+    else
+        echo "Error reading file '$file'" >&2
+        exit 1
+    fi
+}
+
+##############
+#    Main    #
+##############
+
+if [ "$#" -lt 1 ]; then
+    echo "Usage: func_reader <file_name>"
+    exit 1
+elif ! [ -e "$1" ]; then
+    echo "File '$1' is not a proper file."
+    exit 1
+fi
+
+declare FILE="$1"
+declare -a funclist
+
+parse "funclist" "$FILE"
