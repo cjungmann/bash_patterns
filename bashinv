@@ -73,8 +73,6 @@ parse_definition()
         (( ++ndx ))
     done
 
-    read -n1
-
     local OIFS="$IFS"
     IFS="$DESC_DELIM"
     local desc="${desc_array[*]}"
@@ -260,7 +258,7 @@ main()
 }
 
 if [ "$#" -lt 1 ]; then
-    echo "Usage: func_reader <file_name>"
+    echo "Usage: bashinv <file_name>"
     exit 1
 elif ! [ -e "$1" ]; then
     echo "File '$1' is not a proper file."
