@@ -458,7 +458,8 @@ lui_list_process_key()
 #    (name):       name of function that will display summary lines
 #    (integer):    number of lines to display per 'screenful'
 #    (name):       name of keystroke functions list
-#    (various...): extra arguments that should be passed to keystroke functions
+#    (various...): Optional extra arguments that will be passed to keystroke functions.
+#                  These extra arguments can be exploited by custom widgets.
 lui_list_generic()
 {
     # shellcheck disable=SC2155
