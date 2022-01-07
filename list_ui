@@ -6,6 +6,31 @@
 # of the lui_list table.  The second element is the row count, and
 # it should be set with the lui_list_init() function.
 
+# @def lui_list
+# 
+# A lui_list is a specially-formatted array that is used in the
+# list_ui script to deliver list-based user interface patterns on
+# a console.
+#
+# A lui_list consists of a two-integer prefix, whose values are
+# the number of columns and the number of rows, followed by the
+# data elements.  The data elements will be interpreted as each
+# consecutive set of _columns_ elements is a row.  For example,
+# a two-column lui_list would look like this:
+# 
+# declare -a my_list=(
+#    2                      # columns
+#    0                      # rows (calculated later)
+#    row1_name row1_value
+#    row2_name row2_value
+#    row3_name row3_value
+# )
+#
+# See also: lui_list_init() to update the _rows_ element,
+#           lui_list_convert() to make a lui_list from another array
+
+
+
 # shellcheck disable=SC2178
 # shellcheck disable=SC2034   # disable unused variable warning for nameref variable _rc_
 
@@ -14,7 +39,9 @@ declare LUI_KEY_DN=$'\e[B'
 declare LUI_KEY_PGUP=$'\e[5~'
 declare LUI_KEY_PGDN=$'\e[6~'
 
+# Built-in term-keys function for ESC or 'q'
 LUI_ABORT()  { return 1; }
+# Built-in term-keys function for 'ENTER'
 LUI_SELECT() { return 2; }
 
 declare -a LUI_DEFAULT_TERM_KEYS=(
@@ -22,11 +49,14 @@ declare -a LUI_DEFAULT_TERM_KEYS=(
     $'\n'":LUI_SELECT"
     )
 
+# Checks and updates row count of properly-constructed lui_list.
+# 
 # Sets the row-count element (list[1]) by calculating the number
 # of rows.  A suspicious element count (not evenly-dividable by
 # the column count) triggers a warning and exit.
+# 
 # Args
-#    (string):   name of a properly formatted list
+#    (name):   name of a properly formatted list
 lui_list_init()
 {
     local -n luii_list="$1"
@@ -35,14 +65,23 @@ lui_list_init()
     local -i count_els="${#luii_list[@]}"
     if [ $(( (count_els - 2) % columns )) -ne 0 ]; then
         echo "corrupted list, bad elements ratio." >&2
-        read -n1
-        exit
+        exit 1
     fi
 
     luii_list[1]=$(( ( count_els - 2 ) / columns ))
     return 0
 }
 
+# Prepares properly-configured lui_list from a generic array.
+#
+# Submit an array to configure a properly-configured lui_list
+# in the array named through argument 1.
+#
+# Args
+#    (name):     array in which the derived lui_list will be written
+#    (name):     array from which the lui_list will be created
+#    (integer):  number of columns in the input array
+#    (integer):  number of columns that should be in the output array
 lui_list_convert()
 {
     if [ "$1" == "$2" ]; then
@@ -81,13 +120,24 @@ lui_list_convert()
     llc_list_out[1]="$count"
 }
 
-# Next two functions put result in nameref-ed first argument
+# Return column count value from lui_list
+#
+# Args
+#    (name):    name of variable in which the result is returned
+#    (name):    name of lui_list
 lui_list_column_count() { local -n rc="$1"; local -n luil_list="$2"; rc="${luil_list[0]}"; }
+
+# Return row count value from lui_list
+#
+# Args
+#    (name):    name of variable in which the result is returned
+#    (name):    name of lui_list
 lui_list_row_count()    { local -n rc="$1"; local -n luil_list="$2"; rc="${luil_list[1]}"; }
 
 # Test if requested row number exists in a lui_list
+# 
 # Args
-#    (string):   name of lui list
+#    (name):     name of lui list
 #    (integer):  row number requested
 #
 # Returns true (0) if in range, non-zero if out of range
@@ -103,10 +153,10 @@ lui_list_row_in_range()
 # Sends successive rows to a callback function.  The callback function
 # should return 0 (true) to continue, false (non-zero) to force early
 # termination.
-# 
+#
 # Args
-#    (string):   name of lui_list array
-#    (string):   name of callback function
+#    (name):   name of lui_list array
+#    (name):   name of callback function
 lui_list_iterate()
 {
     local -i rows columns
@@ -126,9 +176,10 @@ lui_list_iterate()
 # Get a row from a lui_list array.  Returns 0 (true) if the row
 # was successfully returned, non-zero (false) if out-of-range and
 # no row data is being returned.
+# 
 # Args
-#    (string):   name of array in which the row is to be copied
-#    (string):   name of lui_list array
+#    (name):     name of array in which the row is to be copied
+#    (name):     name of lui_list array
 #    (integer):  row number to be returned
 lui_list_copy_row()
 {
@@ -153,9 +204,10 @@ lui_list_copy_row()
 # Get a row from a lui_list array.  Returns 0 (true) if the row
 # was successfully returned, non-zero (false) if out-of-range and
 # no row data is being returned.
+# 
 # Args
-#    (string):   name of lui_list array
-#    (string):   name of array from which the row is to be copied
+#    (name):     name of lui_list array
+#    (name):     name of array from which the row is to be copied
 #    (integer):  row number to be replaced
 lui_list_replace_row()
 {
@@ -180,10 +232,11 @@ lui_list_replace_row()
     return 1
 }
 
-# Clumsy name for a function that returns the characters in the longest
-# string in the given column for the given lui_list.
+# Clumsy name for a function that returns the characters in the longest# string
+# in the given column for the given lui_list.
+#
 # Args
-#    (string):  name of lui_list array
+#    (name)  :  name of lui_list array
 #    (integer): 0-based column number of column of interest
 lui_list_max_len_by_column()
 {
@@ -205,7 +258,20 @@ lui_list_max_len_by_column()
     echo "$maxlen"
 }
 
-lui_list_menu_display_line()
+# Model, minimal, default line displayer function.
+#
+# This function is called by lui_list_generic() for each line
+# that is to be displayed.  It is expected that developers will
+# create custom versions of this function for specific uses.
+#
+# The first argument is a flag indicating that the current row
+# is the selected row.
+#
+# Args
+#    (integer):    hilight line if value is non-zero
+#    (integer):    minimum number of characters per line
+#    (various):    all elements of current row follow the second argument
+lui_list_display_line()
 {
     local -i hilite="$1"
     local -i padding="$2"
@@ -218,6 +284,14 @@ lui_list_menu_display_line()
     echo $'\e[m'
 }
 
+# Internal function processes selection keypresses for lui_list_generic().
+#
+# Args
+#    (string):   string representing a keypress
+#    (integer):  index of currently-selected list element
+#    (integer):  index of top/first element displayed on screen
+#    (integer):  maximum number of lines to display
+#    (integer):  number of elements in the lui_list
 lui_list_key_move_selection()
 {
     local keyp="$1"
@@ -270,6 +344,12 @@ lui_list_key_move_selection()
     [ "$matched" -gt 0 ]
 }
 
+# Used by lui_list_generic() to discern the top/first display row.
+#
+# Args
+#    (integer):    index in full list of currently selected item
+#    (integer):    top row before calculation
+#    (integer):    maximum number of items displayed on screen
 lui_list_calc_top_row()
 {
     local -i selected="$1"
@@ -284,6 +364,18 @@ lui_list_calc_top_row()
     fi
 }
 
+# Display a screen-full of list items.
+#
+# This function prints out a screenful of item lines based on various
+# list and index metrics.
+#
+# Args
+#    (name):      name of lui_list that provides content for display
+#    (integer):   index of selected item
+#    (integer):   index of first item to display
+#    (integer):   number of lines to display
+#    (name):      name of function that should be used to display lines
+#    (integer):   minimum number of characters to print per item
 lui_list_show_lines()
 {
     local lui_list_name="$1"
@@ -316,16 +408,28 @@ lui_list_show_lines()
 }
 
 
-
+# Process a key array, calling a function according to matched keys.
+#
+# Args
+#    (string):     string representation of a keypress
+#    (name):       name of a key array
+#    (name):       name of lui_list in use
+#    (integer):    index into the lui_list of the indicated item
+#    (various):    extra arguments passed to lui_list_generic(),
+#                  that is $6 and above
+#
+# Returns 0 if no key matched, 1 to terminate 
 lui_list_process_key()
 {
     local keyp="$1"
     local -n key_arr="$2"
     local list_name="$3"
     local -i row_number="$4"
+    local -a extra_args=( "${@:5}" )
 
     local -a entry keys
     local k IFS key cmd
+    # shellcheck disable=SC2206  # don't warn for unquoted variable array initialization
     for k in "${key_arr[@]}"; do
         IFS=':'; entry=( $k )
         IFS="|"; keys=( ${entry[0]} )
@@ -333,7 +437,7 @@ lui_list_process_key()
 
         for key in "${keys[@]}"; do
             if [ "$key" == "$keyp" ]; then
-                "$cmd" "$keyp" "$list_name" "$row_number"
+                "$cmd" "$keyp" "$list_name" "$row_number" "${extra_args[@]}"
                 return "$?"
             fi
         done
@@ -343,20 +447,33 @@ lui_list_process_key()
     return 0
 }
 
+# Creates lui_list-based UI widgets
+#
+# Nearly any list-based user interaction can be build using this function
+# by providing custom line display and key list definitions.
+#
+# Args
+#    (name):       name of integer variable in which the selected index will be put
+#    (name):       name of lui_list from which the widget will be constructed
+#    (name):       name of function that will display summary lines
+#    (integer):    number of lines to display per 'screenful'
+#    (name):       name of keystroke functions list
+#    (various...): extra arguments that should be passed to keystroke functions
 lui_list_generic()
 {
+    # shellcheck disable=SC2155
     local -n llg_selected="$1"
     local lui_list_name="$2"
-    local line_displayer="${3:-lui_list_menu_display_line}"
+    local line_displayer="${3:-lui_list_display_line}"
     local -i line_count="${4:-10}"
-
     local term_keys_list_name="${5:-LUI_DEFAULT_TERM_KEYS}"
-    local exec_keys_list_name="$6"
+    local -a extra_args=( "${@:6}" )
 
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
 
-    local -i padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
+    local -i padding
+    padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
 
     local -i top_row
     local -a row
@@ -378,7 +495,7 @@ lui_list_generic()
             key_args=( "$keyp" "$llg_selected" "$top_row" "$line_count" "$row_count" )
             if ! llg_selected=$( lui_list_key_move_selection "${key_args[@]}" ); then
                 proc_args=( "$keyp" "$term_keys_list_name" "$lui_list_name" "$llg_selected" )
-                lui_list_process_key "${proc_args[@]}"
+                lui_list_process_key "${proc_args[@]}" "${extra_args[@]}"
                 key_proc_exit="$?"
                 if [ "$key_proc_exit" -gt 1 ]; then
                     return 0
@@ -394,7 +511,7 @@ lui_list_menu()
 {
     local -n llm_selected="$1"
     local lui_list_name="$2"
-    local line_displayer="${3:-lui_list_menu_display_line}"
+    local line_displayer="${3:-lui_list_display_line}"
     local -i line_count="${4:-10}"
 
     if [ ! "$llm_selected" ]; then
@@ -405,8 +522,8 @@ lui_list_menu()
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
 
-    local -i padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
-    local -i top_row
+    local -i top_row padding
+    padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
 
     local keyp
 
