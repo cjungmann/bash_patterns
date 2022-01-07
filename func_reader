@@ -1,72 +1,263 @@
 #!/usr/bin/env bash
 
+source list_ui
+source keypress
+source small_stuff
+
+declare FUNC_COLOR=$'\e[36;1m'
+declare DEF_COLOR=$'\e[34;1m'
+declare END_COLOR=$'\e[m'
+declare RE_COMMENT='#( )?(.*))?'
+declare RE_FUNC='^([[:alnum:]_]+\(\)).*$'
+
+declare WRAP_DISABLE=$'\e[?7l'
+declare WRAP_ENABLE=$'\e[?7h'
+
+declare DESC_DELIM=$'\037'
 
 
-show_function()
+# @def entry_list
+# 
+# The entry_list is the compiled list of functions and definitions
+# that contains information needed to show the contents of the list
+# and to show the description upon an entry's selection.
+#
+# Columns
+#    (string):       entry name
+#    (string):       first description line
+#    (packed_array): string with multiple lines delimited with $DESC_DELIM
+
+
+
+
+# Returns an entry_list row for definition at the indicated line number.
+#
+# Args
+#    (name):      name of array in which the row definition will be stored
+#    (name):      name of array of lines from the target file
+#    (integer):   line number where the definition begins
+parse_definition()
 {
-    local -n sf_list="$1"
-    local -i ndx="$2"
-    local -i top="$ndx"
-    local line
-    local indent="   "
+    local -n out_array="$1"
+    local -n sf_list="$2"
+    local -i line_number="$3"
+    local -i top=$(( line_number+1 ))
 
+    local line="${sf_list[$line_number]}"
+    if ! [[ "$line" =~ ^#\ @def\ (.*)$ ]]; then
+        echo "Couldn't parse definition line '$line'."
+        exit 1
+    fi
+
+    local entry="${BASH_REMATCH[1]}"
+    local -a desc_array=()
+
+    local -i ndx="$top"
+    local line
+    while : ; do
+        line="${sf_list[$ndx]}"
+        if [ "${line:0:1}" != '#' ]; then
+            break
+        else
+            if [[ "$line" =~ $RE_COMMENT ]]; then
+                local desc="${BASH_REMATCH[2]}"
+                if [[ "$desc" =~ ^[[:space:]]*$ ]]; then
+                    if [ "${#desc_array[@]}" -gt 0 ]; then
+                        desc_array+=( "" )
+                    fi
+                else
+                    desc_array+=( "$desc" )
+                fi
+            fi
+        fi
+        (( ++ndx ))
+    done
+
+    read -n1
+
+    local OIFS="$IFS"
+    IFS="$DESC_DELIM"
+    local desc="${desc_array[*]}"
+    IFS="$OIFS"
+
+    out_array=( "$entry" "${desc_array[0]}" "$desc" )
+}
+
+parse_function()
+{
+    local -n out_array="$1"
+    local -n sf_list="$2"
+    local -i ndx="$3"
+
+    local func
+    if [[ "${sf_list[$ndx]}" =~ $RE_FUNC ]]; then
+        func="${BASH_REMATCH[1]}"
+    else
+        func="${sf_list[$ndx]}"
+    fi
+
+    local -a desc_array=()
+    local line
     for (( i=ndx-1; i>0; --i )); do
         line="${sf_list[$i]}"
-        if [ "${line:0:1}" == "#" ]; then
-            (( top = i ))
+        if [[ "$line" =~ $RE_COMMENT ]]; then
+            # Add to array in reverse-order since we're parsing in reverse
+            desc_array=( "${BASH_REMATCH[2]}" "${desc_array[@]}" )
         else
             break
         fi
     done
 
-    local re='#( (.*))?'
+    local OIFS="$IFS"
+    IFS="$DESC_DELIM"
+    local desc="${desc_array[*]}"
+    IFS="$OIFS"
 
-    echo -n $'\e[36;1m'
-    echo -n "${sf_list[$ndx]}"
-    echo $'\e[m'
-    if [ "$top" -eq "$ndx" ]; then
-        echo "${indent}No description for this function."
-    else
-        for (( i=top; i<ndx; ++i )); do
-            line="${sf_list[$i]}"
-            if [[ "$line" =~ $re ]]; then
-                if [ "${#BASH_REMATCH[@]}" -gt 1 ]; then
-                    echo "${indent}${BASH_REMATCH[1]}"
-                else
-                    echo
-                fi
-            fi
-        done
-    fi
-    echo
+    out_array=( "$func" "${desc_array[0]}" "$desc" )
 }
 
 
 parse()
 {
-    local -n array_name="$1"
-    local file="$2"
+    local array_name="$1"
+    local file_lines_name="$2"
+    local -n file_lines="$file_lines_name"
 
-    local -a lines=()
+    local -n output_array="$array_name"
+    local -i columns_count=3
+    output_array=( "$columns_count" 0 )
 
-    if mapfile -t lines < "$file"; then
-        local line
-        local -i ndx=0
-        for line in "${lines[@]}"; do
-            if [[ "$line" =~ ^[[:alnum:]_]+\(\) ]]; then
-                show_function "lines" "$ndx"
-            fi
-            (( ++ndx ))
-        done
+    local -a list_line
+
+    local line
+    local -i ndx=0
+    for line in "${file_lines[@]}"; do
+        list_line=()
+        if [[ "$line" =~ ^#\ *@def.*$ ]]; then
+            parse_definition "list_line" "$file_lines_name" "$ndx"
+        elif [[ "$line" =~ ^[[:alnum:]_]+\(\) ]]; then
+            parse_function "list_line" "$file_lines_name" "$ndx"
+        fi
+
+        case "${#list_line[@]}" in
+            "$columns_count" )
+                output_array+=( "${list_line[@]}" ) ;;
+            0 ) ;;
+            * )
+                echo "entry parsing column count mismatch." >&2
+                exit 1
+                ;;
+        esac
+
+        # if [ "${#list_line[@]}" -gt "$columns_count" ]; then
+        (( ++ndx ))
+    done
+    return 0
+}
+
+
+entry_display_line()
+{
+    local -i hilite="$1"
+    local -i padding="$2"
+    local -a els=( "${@:3}" )
+
+    if [ "$hilite" -eq 0 ]; then
+        echo -n "    "
     else
-        echo "Error reading file '$file'" >&2
-        exit 1
+        echo -n ">>> "
+    fi
+
+    local name="${els[0]}"
+    local desc="${el[1]}"
+    local color
+
+    if [[ "$name" =~ .*\(\) ]]; then
+        color="$FUNC_COLOR"
+    else
+        color="$DEF_COLOR"
+    fi
+
+    echo -n "$WRAP_DISABLE"
+    echo -n "$color"
+    echo -n "$name"
+    echo -n "$END_COLOR"
+    echo -n "  $desc"
+    echo "$WRAP_ENABLE"
+}
+
+entry_show_details()
+{
+    local keyp="$1"
+    local list_name="$2"
+    local -i ndx="$3"
+    local indent="   "
+
+    local -i top count
+
+    local -a row
+    if lui_list_copy_row "row" "$list_name" "$ndx"; then
+        reset_screen
+        local name="${row[0]}"
+
+        # Break down the description
+        local desc="${row[2]}"
+        local OIFS="$IFS"
+        IFS="$DESC_DELIM"
+        local -a lines=( $desc )
+        IFS="$OIFS"
+
+        local color
+        if [[ "$name" =~ .*\(\) ]]; then
+            color="$FUNC_COLOR"
+        else
+            color="$DEF_COLOR"
+        fi
+
+        echo "${color}${name}${END_COLOR}"
+        echo
+
+        if [ "${#lines[*]}" -lt 1 ]; then
+            echo "${indent}No description provided."
+        else
+            local line
+            for line in "${lines[@]}"; do
+                echo "${indent}$line"
+            done
+        fi
+
+        echo
+        read -n1 -p "${indent}Press any key to continue."
     fi
 }
 
 ##############
 #    Main    #
 ##############
+
+main()
+{
+    local FILE="$1"
+    local -a entry_list
+    local -i selected
+    local -i padding
+
+    local -a main_lines_list
+
+    if mapfile -t main_lines_list < "$FILE"; then
+        local -a main_keys_array=(
+            $'\e|q':LUI_ABORT
+            $'\n':entry_show_details
+        )
+
+        if parse "entry_list" "main_lines_list"; then
+            lui_list_init "entry_list" "${entry_list[0]}"
+            lui_list_generic "selected" "entry_list" "entry_display_line" 20 "main_keys_array"
+        fi
+    else
+        echo "Unable to open entry."
+    fi
+}
 
 if [ "$#" -lt 1 ]; then
     echo "Usage: func_reader <file_name>"
@@ -76,7 +267,5 @@ elif ! [ -e "$1" ]; then
     exit 1
 fi
 
-declare FILE="$1"
-declare -a funclist
+main "$1"
 
-parse "funclist" "$FILE"
