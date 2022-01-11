@@ -233,6 +233,7 @@ entry_show_details()
 #    Main    #
 ##############
 
+
 main()
 {
     local FILE="$1"
@@ -244,8 +245,8 @@ main()
 
     if mapfile -t main_lines_list < "$FILE"; then
         local -a main_keys_array=(
-            $'\e|q':LUI_ABORT
-            $'\n':entry_show_details
+            $'\e|q:LUI_ABORT'
+            $'\n:entry_show_details'
         )
 
         if parse "entry_list" "main_lines_list"; then
