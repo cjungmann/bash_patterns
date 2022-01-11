@@ -6,6 +6,14 @@
 # of the lui_list table.  The second element is the row count, and
 # it should be set with the lui_list_init() function.
 
+# shellcheck disable=SC2178
+# shellcheck disable=SC2034   # disable unused variable warning for nameref variable _rc_
+
+declare LUI_KEY_UP=$'\e[A'
+declare LUI_KEY_DN=$'\e[B'
+declare LUI_KEY_PGUP=$'\e[5~'
+declare LUI_KEY_PGDN=$'\e[6~'
+
 # @def lui_list
 # 
 # A lui_list is a specially-formatted array that is used in the
@@ -26,28 +34,37 @@
 #    row3_name row3_value
 # )
 #
-# See also: lui_list_init() to update the _rows_ element,
-#           lui_list_convert() to make a lui_list from another array
+# See also: lui_list_validate() Checks the array overall length against the
+#                               column count value.
+#           lui_list_init()     Updates the _rows_ element based on the column
+#                               count and the total number of array elements.
+#           lui_list_convert()  Makes a lui_list from another array.
 
 
 
-# shellcheck disable=SC2178
-# shellcheck disable=SC2034   # disable unused variable warning for nameref variable _rc_
+# Test list dimensions
+# Compare assumed row and column count to total array elements
+# to identify likely valid lui_list.
+# 
+# Args
+#    (name):    name of a lui_list
+#
+# Returns
+#    true (0)       likely valid lui_list
+#    false (1)      invalid lui_list
+lui_list_validate()
+{
+    local -n llv_list="$1"
+    local -i full_count="${#llv_list[@]}"
+    if [ "$full_count" -lt 3 ]; then
+        return 1
+    fi
 
-declare LUI_KEY_UP=$'\e[A'
-declare LUI_KEY_DN=$'\e[B'
-declare LUI_KEY_PGUP=$'\e[5~'
-declare LUI_KEY_PGDN=$'\e[6~'
+    local -i colcount="${llv_list[0]}"
+    local -i rowcount="${llv_list[1]}"
 
-# Built-in term-keys function for ESC or 'q'
-LUI_ABORT()  { return 1; }
-# Built-in term-keys function for 'ENTER'
-LUI_SELECT() { return 2; }
-
-declare -a LUI_DEFAULT_TERM_KEYS=(
-    $'\e'"|q:LUI_ABORT"
-    $'\n'":LUI_SELECT"
-    )
+    (( ((colcount * rowcount) + 2 ) == full_count ))
+}
 
 # Checks and updates row count of properly-constructed lui_list.
 # 
@@ -120,6 +137,10 @@ lui_list_convert()
     llc_list_out[1]="$count"
 }
 
+# @def list information functions
+#
+# This group of functions returns information about a lui_list
+
 # Return column count value from lui_list
 #
 # Args
@@ -172,6 +193,44 @@ lui_list_iterate()
         fi
     done
 }
+
+# Clumsy name for a function that returns the characters in the longest# string
+# in the given column for the given lui_list.
+#
+# Args
+#    (name)  :  name of lui_list array
+#    (integer): 0-based column number of column of interest
+lui_list_max_len_by_column()
+{
+    local -i maxlen=0
+    local -i requested_column="$2"
+    max_len_callback()
+    {
+        # shellcheck disable=SC2124
+        local val="${@:$(( requested_column+1 )):1}"
+        local -i len="${#val}"
+        if [ "$len" -gt "$maxlen" ]; then
+            maxlen="$len"
+        fi
+    }
+
+    lui_list_iterate "$1" "max_len_callback"
+    unset max_len_callback
+
+    echo "$maxlen"
+}
+
+# @def list row action functions
+#
+# Access the lui_list contents with row action functions.
+# The 'get' function is lui_list_copy_row(), and
+# the 'put' function is lui_list_replace_row().
+#
+# Despite having the same parameters, the parameter order
+# is different for the two functions in order to maintain
+# the library convention of keeping changing parameters
+# leftmost.
+
 
 # Get a row from a lui_list array.  Returns 0 (true) if the row
 # was successfully returned, non-zero (false) if out-of-range and
@@ -232,31 +291,24 @@ lui_list_replace_row()
     return 1
 }
 
-# Clumsy name for a function that returns the characters in the longest# string
-# in the given column for the given lui_list.
+# @def line display functions
+# 
+# The lui_list_generic() requires a line display function.
+# The line display function is called by lui_list_generic with three
+# arguments for each line displayed on the screen:
+# $1 (integer)    A flag parameter.  A non-zero value indicates that the row
+#                 being displayed is the row on which any action will be
+#                 taken, whether selection, toggle, or action.
+# $2 (integer)    A padding value. It is the length of the longest of
+#                 the first column elements, and can be used to ensure
+#                 all list elements are the same length.
+# ${@:2}          Parameters $3 and beyond are the elements of the
+#                 selected row which can be used to 
 #
-# Args
-#    (name)  :  name of lui_list array
-#    (integer): 0-based column number of column of interest
-lui_list_max_len_by_column()
-{
-    local -i maxlen=0
-    local -i requested_column="$2"
-    max_len_callback()
-    {
-        # shellcheck disable=SC2124
-        local val="${@:$(( requested_column+1 )):1}"
-        local -i len="${#val}"
-        if [ "$len" -gt "$maxlen" ]; then
-            maxlen="$len"
-        fi
-    }
+# Built-in function lui_list_display_line() and lui_list_display_selectable_line()
+# are models of line display functions.  Study them to better understand how
+# line display functions work
 
-    lui_list_iterate "$1" "max_len_callback"
-    unset max_len_callback
-
-    echo "$maxlen"
-}
 
 # Model, minimal, default line displayer function.
 #
@@ -268,9 +320,9 @@ lui_list_max_len_by_column()
 # is the selected row.
 #
 # Args
-#    (integer):    hilight line if value is non-zero
-#    (integer):    minimum number of characters per line
-#    (various):    all elements of current row follow the second argument
+#    (integer)     indicated flag, non-zero if active, zero if inactive
+#    (integer)     minimum number of characters per line
+#    (various...)  all elements of current row follow the second argument
 lui_list_display_line()
 {
     local -i hilite="$1"
@@ -283,6 +335,137 @@ lui_list_display_line()
     hilite_pad "${els[0]}" "$padding"
     echo $'\e[m'
 }
+
+# Model, minimal, default selectable line displayer
+#
+# This function is used by the built-in radio and checkbox
+# dialogs derived from an appropriate lui_list.
+#
+# Args
+#    (integer)     indicated flag, non-zero if active, zero if inactive
+#    (integer)     minimum number of characters per line
+#    (various...)  all elements of current row follow the second argument
+lui_list_display_selectable_line()
+{
+    local -i hilite="$1"
+    local -i padding="$2"
+    local -a row=( "${@:3}" )
+    if [ "$hilite" -ne 0 ]; then echo -n $'\e[43m'; fi
+    if [ "${row[1]}" -eq 0 ]; then
+        echo -n '[ ]'
+    else
+        echo -n '[x]'
+    fi
+    hilite_pad "${row[0]}" "$padding"
+    echo $'\e[m'
+}
+
+# @def key action list
+#
+# A key action list is an array of function names, each associated with
+# one or more keypress strings.  For each action, there is a list of
+# keypress strings separated by the pipe character '|', followed by a
+# function name, separated from the keypress strings with a colon ':'.
+#
+# A key action list is used by the function lui_list_process_key(),
+# which in turn calls the key action function associated with a keypress
+# string that matches the key just pressed by the user.
+#
+# Refer to 'key action functions' for details about how key action list
+# functions are called.
+
+declare -a LUI_DEFAULT_TERM_KEYS=(
+    $'\e|q:LUI_ABORT'
+    $'\n:LUI_SELECT'
+    )
+
+# @def key action functions
+#
+# These functions used by lui_list_generic() through a call to the
+# function lui_list_process_key().  Even though an action may or may not
+# target the indicated row, the lui_list and row number is passed to the
+# key action function.
+#
+# When triggered, the key action function will receive the following
+# parameters:
+#
+# $1 (string)          A character string representing the keypress that
+#                      triggers this action
+# $2 (name)            name of a lui_list that can be applied to a nameref
+#                      variable to get access to the controlling lui_list.
+# $3 (integer)         row number of the currently indicated row
+# ${@:3} (various...)  optional extra parameters passed to lui_list_generic()
+#                      following the first five parameters.
+#
+# The return value is unusual.  The following return values are significant:
+#   0    the interaction continues
+#   1    the interaction terminates with user aborting (ie ESC or 'q')
+#   2    the interaction terminates with user mandate  (ie ENTER or space)
+#
+# Example row action functions are:
+#   LUI_ABORT
+#   LUI_SELECT
+#   lui_list_action_radio_select
+#   lui_list_action_checkbox_select
+
+
+# Built-in term-keys function for ESC or 'q'
+LUI_ABORT()  { return 1; }
+# Built-in term-keys function for 'ENTER'
+LUI_SELECT() { return 2; }
+
+lui_list_action_radio_select()
+{
+    local keyp="$1"
+    local list_name="$2"
+    local -i row_ndx="$3"
+    local -a extra=( "${@:3}" )
+
+    local -n llar_list="$list_name"
+    local -i row_count="${llar_list[1]}"
+    local -a row
+    for ((ndx=0; ndx < row_count; ++ndx )); do
+        if lui_list_copy_row "row" "$list_name" "$ndx"; then
+            if [ "$ndx" -eq "$row_ndx" ]; then
+                (( row[1] = (row[1] + 1 ) % 2 ))
+                lui_list_replace_row "$list_name" "row" "$ndx"
+            elif [ "${row[1]}" -ne 0 ]; then
+                (( row[1] = 0 ))
+                lui_list_replace_row "$list_name" "row" "$ndx"
+            fi
+        else
+            echo "radio select row out-of-range" >&2
+            exit 1
+        fi
+    done
+
+    return 0
+}
+
+lui_list_action_checkbox_select()
+{
+    local keyp="$1"
+    local list_name="$2"
+    local -i row_ndx="$3"
+    local -a extra=( "${@:3}" )
+
+    local -a row
+    if lui_list_copy_row "row" "$list_name" "$row_ndx"; then
+        (( row[1] = (row[1] + 1 ) % 2 ))
+        lui_list_replace_row "$list_name" "row" "$row_ndx"
+    else
+        echo "radio select row out-of-range" >&2
+        exit 1
+    fi
+
+    return 0
+}
+
+# @def lui_list display functions
+#
+# There are several functions that manage the display and navigation
+# of a lui_list.
+
 
 # Internal function processes selection keypresses for lui_list_generic().
 #
@@ -447,6 +630,13 @@ lui_list_process_key()
     return 0
 }
 
+# @def primary list interaction
+#
+# The function lui_list_generic() is the simple and flexible consolidation
+# of the list display, navigation, and general keypress functions described
+# above.  Other interactions will call lui_list_generic() with custom
+# line display functions and key action lists.
+
 # Creates lui_list-based UI widgets
 #
 # Nearly any list-based user interaction can be build using this function
@@ -469,6 +659,11 @@ lui_list_generic()
     local -i line_count="${4:-10}"
     local term_keys_list_name="${5:-LUI_DEFAULT_TERM_KEYS}"
     local -a extra_args=( "${@:6}" )
+
+    if [ "$line_count" -lt 2 ]; then
+        echo "Invalid line count: $line_count" >&2
+        exit 1
+    fi
 
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
@@ -508,56 +703,56 @@ lui_list_generic()
     done
 }
 
+# @def specific list interaction types
+#
+# There are several simple interactions types that call lui_list_generic().
+# These functions perform their basic duties, but also serve as examples
+# of proper usage of lui_list_generic() for custom tasks.
+
 lui_list_menu()
 {
-    local -n llm_selected="$1"
-    local lui_list_name="$2"
-    local line_displayer="${3:-lui_list_display_line}"
-    local -i line_count="${4:-10}"
+    local llm_selected_name="$1"
+    local llm_list_name="$2"
+    local -i line_count="${3:-10}"
 
-    if [ ! "$llm_selected" ]; then
-        llm_selected=0
+    lui_list_generic "$llm_selected_name" "$llm_list_name" "" "$line_count"
+}
+
+lui_list_radio()
+{
+    if ! lui_list_validate "$1"; then
+        echo "Invalid lui_list submited to lui_list_radio." >&2
+        exit 1
     fi
-    local -i old_selected=$llm_selected
 
-    local -i row_count
-    lui_list_row_count "row_count" "$lui_list_name"
+    local llr_list_name="$1"
+    local -i lines="${2:-10}"
+    local -i selected=0
 
-    local -i top_row padding
-    padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
+    local -a keylist=(
+        "${LUI_DEFAULT_TERM_KEYS[@]}"
+        $' :lui_list_action_radio_select'
+    )
 
-    local keyp
+    lui_list_generic "selected" "$llr_list_name" "lui_list_display_selectable_line" "$lines" "keylist"
+}
 
-    top_row=1
-    while : ; do
-        top_row=$( lui_list_calc_top_row "$llm_selected" "$top_row" "$line_count" )
+lui_list_checkbox()
+{
+    if ! lui_list_validate "$1"; then
+        echo "Invalid lui_list submited to lui_list_checkbox." >&2
+        exit 1
+    fi
 
-        reset_screen
-        hide_cursor
-        lui_list_show_lines "$lui_list_name" "$llm_selected" "$top_row" \
-                             "$line_count" "$line_displayer" "$padding"
-        show_cursor
+    local llr_list_name="$1"
+    local -i lines="${2:-10}"
+    local -i selected=0
 
+    local -a keylist=(
+        "${LUI_DEFAULT_TERM_KEYS[@]}"
+        $' :lui_list_action_checkbox_select'
+    )
 
-        if get_keypress "keyp"; then
-            case "$keyp" in
-                $'\e'|'q' )
-                    lim_selected="$old_selected"
-                    return 1
-                    ;;
-                $'\n' )
-                    return 0
-                    ;;
-                * )
-                    llm_selected=$( lui_list_key_move_selection \
-                                        "$keyp" \
-                                        "$llm_selected" \
-                                        "$top_row" \
-                                        "$line_count" \
-                                        "$row_count")
-                    ;;
-            esac
-        fi
-    done
+    lui_list_generic "selected" "$llr_list_name" "lui_list_display_selectable_line" "$lines" "keylist"
 }
 
