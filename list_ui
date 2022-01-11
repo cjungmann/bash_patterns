@@ -296,19 +296,25 @@ lui_list_replace_row()
 # The lui_list_generic() requires a line display function.
 # The line display function is called by lui_list_generic with three
 # arguments for each line displayed on the screen:
-# $1 (integer)    A flag parameter.  A non-zero value indicates that the row
-#                 being displayed is the row on which any action will be
-#                 taken, whether selection, toggle, or action.
+# $1 (integer)    A flag parameter.  A non-zero value indicates that the
+#                 row being displayed is the row on which any action will
+#                 be taken, whether selection, toggle, or action.
 # $2 (integer)    A padding value. It is the length of the longest of
 #                 the first column elements, and can be used to ensure
 #                 all list elements are the same length.
 # ${@:2}          Parameters $3 and beyond are the elements of the
 #                 selected row which can be used to 
 #
-# Built-in function lui_list_display_line() and lui_list_display_selectable_line()
-# are models of line display functions.  Study them to better understand how
-# line display functions work
-
+# There are several built-in display line functions:
+#   lui_list_display_line()            for simple strings
+#   lui_list_menu_display_line()       hilites the character following an
+#                                      underscore for menus
+#   lui_list_selectable_display_line() for selectable lines, which are
+#                                      prefaced with [x] or [ ], depending
+#                                      on whether or not the line is flagged
+#                                      as selected.
+#
+#  Study them to better understand how line display functions work.
 
 # Model, minimal, default line displayer function.
 #
@@ -324,6 +330,32 @@ lui_list_replace_row()
 #    (integer)     minimum number of characters per line
 #    (various...)  all elements of current row follow the second argument
 lui_list_display_line()
+{
+    local -i hilite="$1"
+    local -i padding="$2"
+    local -a els=( "${@:3}" )
+
+    if [ "$hilite" -ne 0 ]; then
+        echo -n $'\e[44m'
+    fi
+    force_length "${els[0]}" "$padding"
+    echo $'\e[m'
+}
+
+# Line displayer that hilites letter following an underscore.
+#
+# This function is called by lui_list_generic() for each line
+# that is to be displayed.  It is expected that developers will
+# create custom versions of this function for specific uses.
+#
+# The first argument is a flag indicating that the current row
+# is the selected row.
+#
+# Args
+#    (integer)     indicated flag, non-zero if active, zero if inactive
+#    (integer)     minimum number of characters per line
+#    (various...)  all elements of current row follow the second argument
+lui_list_menu_display_line()
 {
     local -i hilite="$1"
     local -i padding="$2"
