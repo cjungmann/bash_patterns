@@ -170,3 +170,25 @@ get_hilite_char()
 }
 
 
+# Prints string exactly the length of $2.
+#
+# Short strings are supplemented with extra spaces,
+# long strings are truncated.
+#
+# Args
+#    (string)   string to be printed
+#    (integer)  number of characters to print
+force_length()
+{
+    local str="$1"
+    local -i len="$2"
+
+    local -i needed=$(( len - "${#str}" ))
+    if [ "$needed" -gt 0 ]; then
+        str="$str"$( dupchar "$needed" " " )
+    else
+        str="${str:0:$len}"
+    fi
+
+    echo -n "$str"
+}
