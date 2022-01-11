@@ -237,7 +237,7 @@ transform_color_maps_with_string()
 
     cf["disabled"]=1
     cb["disabled"]=1
-    
+
     local IFS=';'
     local -a parts=( $3 )
     local -i part
@@ -334,7 +334,7 @@ generate_color_string_with_map()
                 esac
             fi
         fi
-        
+
         local IFS=';'
         echo -n "${parts[*]}"
     fi
@@ -385,7 +385,7 @@ display_color_values()
 
     if [ "${c['disabled']}" -eq 1 ]; then
         echo "disabled: true"
-    else 
+    else
         local -i index="${c['type']}"
         local tname="${COL_TYPES[$index]}"
 
@@ -450,7 +450,7 @@ display_instructions()
     if is_foreground "$1"; then
         echo "t or T to toggle blinking"
     fi
-    
+
     echo "d or D to toggle disabled"
     echo "c or C to cycle color type"
     echo "s or S to toggle ansi string"
@@ -521,7 +521,6 @@ adjust_color_map_elements()
         # 1) no change between two 1-16-indexed types
         2) ;;
     esac
-            
 }
 
 # Function for execution of an edit_color() user response
@@ -585,7 +584,7 @@ process_color_keypress()
     local -i type="${cmap['type']}"
     local keyp="$2"
     local max_col
-    
+
     if ! max_col=$( get_max_index_by_type "$1" ); then exit; fi
 
     if [ "$type" -lt 3 ]; then
@@ -630,7 +629,7 @@ edit_color()
         local -n color="$1"
         transform_color_maps_with_string "foreground" "background" "$color"
     fi
-    
+
     local keyp
     local curcol="foreground"
     local -i help_flag=0
@@ -674,7 +673,7 @@ edit_color()
                     (( foreground['blink'] = (foreground['blink']+1) % 2 ))
                 fi
                 ;;
-            $'\t' ) 
+            $'\t' )
                 if [ "$curcol" == "foreground" ]; then
                     curcol="background"
                 else
@@ -685,7 +684,6 @@ edit_color()
         esac
     done
 
-    
     # The the name-reffed color variable name, if specified.
     # shellcheck disable=SC2034
     if [ "$#" -gt 0 ]; then
