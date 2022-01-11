@@ -167,7 +167,7 @@ entry_display_line()
     fi
 
     local name="${els[0]}"
-    local desc="${el[1]}"
+    local desc="${els[1]}"
     local color
 
     if [[ "$name" =~ .*\(\) ]]; then
