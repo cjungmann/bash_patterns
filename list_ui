@@ -723,6 +723,7 @@ lui_list_generic()
     local keyp
     local -i key_proc_exit=0
 
+    # disable echoing while running
     local OSTTY=$( stty -g )
     stty -echo
 
@@ -760,14 +761,23 @@ lui_list_generic()
             key_args=( "$keyp" "$llg_selected" "$top_row" "$line_count" "$row_count" )
             if ! llg_selected=$( lui_list_key_move_selection "${key_args[@]}" ); then
                 proc_args=( "$keyp" "$term_keys_list_name" "$lui_list_name" "$llg_selected" )
+
+                # restore stty for subordinate process
+                stty $OSTTY
+
                 lui_list_process_key "${proc_args[@]}" "${extra_args[@]}"
                 key_proc_exit="$?"
+
+                # return to no-echo for displaying the list
+                stty -echo
+
                 if [ "$key_proc_exit" -ne 0 ]; then
                     break
                 fi
             fi
         else
             echo "get_keypress unexpectedly returned without getting a key!"
+            stty $OSTTY
             exit 1
         fi
     done
