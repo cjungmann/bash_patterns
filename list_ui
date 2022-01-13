@@ -586,24 +586,33 @@ lui_list_calc_top_row()
 #
 # Args
 #    (name):      name of lui_list that provides content for display
+#    (integer):   index of first item to display (top_row)
 #    (integer):   index of selected item
-#    (integer):   index of first item to display
+#    (integer):   column to begin writing (xpos)
+#    (integer):   row to begin writing (ypos)
 #    (integer):   number of lines to display
+#    (integer):   number of characters to print per item
 #    (name):      name of function that should be used to display lines
-#    (integer):   minimum number of characters to print per item
 lui_list_show_lines()
 {
     local lui_list_name="$1"
-    local -i selected="$2"
-    local -i top_row="$3"
-    local -i line_count="$4"
-    local line_displayer="$5"
-    local -i padding="${6:-0}"
+    local -i top_row="$2"
+    local -i selected="$3"
+    local -i xpos="$4"
+    local -i ypos="$5"
+    local -i line_count="$6"
+    local -i width="${7:-0}"
+    local line_displayer="$8"
 
     local -a row
     local -i count=0
     local -i row_ndx="$top_row"
     local -i hilited
+
+    set_cursor_position "$xpos" "$ypos"
+
+    local ostty=$( stty -g )
+    stty -echo
 
     for (( ; count < line_count; ++count, ++row_ndx )); do
         row=()
@@ -614,12 +623,15 @@ lui_list_show_lines()
             hilited="$?"
 
             lui_list_copy_row "row" "$lui_list_name" "$row_ndx"
-            "$line_displayer" "$hilited" "$padding" "${row[@]}"
+            "$line_displayer" "$hilited" "$width" "${row[@]}"
+            echo -n $'\e['"${xpos}G"   # move to proper cursor position
         else
-            hilite_pad " " "$padding"
+            hilite_pad " " "$width"
             echo
         fi
     done
+
+    stty $ostty
 }
 
 
@@ -677,8 +689,9 @@ lui_list_process_key()
 # Args
 #    (name):       name of integer variable in which the selected index will be put
 #    (name):       name of lui_list from which the widget will be constructed
+#    (integer):    size of list in lines
+#    (integer):    width of list in characters
 #    (name):       name of function that will display summary lines
-#    (integer):    number of lines to display per 'screenful'
 #    (name):       name of keystroke functions list
 #    (various...): Optional extra arguments that will be passed to keystroke functions.
 #                  These extra arguments can be exploited by custom widgets.
@@ -687,9 +700,10 @@ lui_list_generic()
     # shellcheck disable=SC2155
     local -n llg_selected="$1"
     local lui_list_name="$2"
-    local line_displayer="${3:-lui_list_display_line}"
-    local -i line_count="${4:-10}"
-    local term_keys_list_name="${5:-LUI_DEFAULT_TERM_KEYS}"
+    local -i line_count="${3:-10}"
+    local -i char_width="${4:-40}"
+    local line_displayer="${5:-lui_list_display_line}"
+    local term_keys_list_name="${6:-LUI_DEFAULT_TERM_KEYS}"
     local -a extra_args=( "${@:6}" )
 
     if [ "$line_count" -lt 2 ]; then
@@ -707,32 +721,60 @@ lui_list_generic()
     local -a row
     local -a key_args proc_args
     local keyp
-    local -i key_proc_exit
+    local -i key_proc_exit=0
+
+    local OSTTY=$( stty -g )
+    stty -echo
+
+    local -i xpos ypos
+    get_cursor_position "xpos" "ypos"
+
+    local -a show_lines_args=(
+        "$lui_list_name"
+        0                 # top_row, calculated and set with each iteration
+        0                 # index of selected item, set with each iteration
+        "$xpos"
+        "$ypos"
+        "$line_count"
+        "$padding"
+        "$line_displayer"
+    )
+
+    local longest_keystring=""
+    local len_longest=0
 
     top_row=1
     while : ; do
         top_row=$( lui_list_calc_top_row "$llg_selected" "$top_row" "$line_count" )
 
-        reset_screen
-        hide_cursor
-        lui_list_show_lines "$lui_list_name" "$llg_selected" "$top_row" \
-                             "$line_count" "$line_displayer" "$padding"
-        show_cursor
+        show_lines_args[1]="$top_row"
+        show_lines_args[2]="$llg_selected"
+
+        lui_list_show_lines "${show_lines_args[@]}"
 
         if get_keypress "keyp"; then
+            if [ "${#keyp}" -gt "$len_longest" ]; then
+                longest_keystring="$keyp"
+                len_longest="${#keyp}"
+            fi
             key_args=( "$keyp" "$llg_selected" "$top_row" "$line_count" "$row_count" )
             if ! llg_selected=$( lui_list_key_move_selection "${key_args[@]}" ); then
                 proc_args=( "$keyp" "$term_keys_list_name" "$lui_list_name" "$llg_selected" )
                 lui_list_process_key "${proc_args[@]}" "${extra_args[@]}"
                 key_proc_exit="$?"
-                if [ "$key_proc_exit" -gt 1 ]; then
-                    return 0
-                elif [ "$key_proc_exit" -gt 0 ]; then
-                    return 1
+                if [ "$key_proc_exit" -ne 0 ]; then
+                    break
                 fi
             fi
+        else
+            echo "get_keypress unexpectedly returned without getting a key!"
+            exit 1
         fi
     done
+
+    stty $OSTTY
+
+    [ "$key_proc_exit" -gt 1 ]
 }
 
 # @def specific list interaction types
