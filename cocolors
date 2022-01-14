@@ -475,7 +475,7 @@ get_max_index_by_type()
 {
     local -n cmap="$1"
     case "${cmap[type]}" in
-        0 ) echo 8 ;;
+        0 ) echo 7 ;;
         1 ) echo 23 ;;
         2 ) echo 15 ;;
         3 ) echo 5 ;;
