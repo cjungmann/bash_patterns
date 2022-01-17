@@ -382,13 +382,26 @@ lui_list_display_selectable_line()
     local -i hilite="$1"
     local -i padding="$2"
     local -a row=( "${@:3}" )
+
+    local entry="${row[0]}"
+    local -i len_entry="${#entry}"
+    local -i spaces_needed=$(( padding - ( 4 + len_entry ) ))
+
     if [ "$hilite" -ne 0 ]; then echo -n $'\e[43m'; fi
+
     if [ "${row[1]}" -eq 0 ]; then
         echo -n '[ ]'
     else
         echo -n '[x]'
     fi
-    hilite_pad "${row[0]}" "$padding"
+
+    if (( spaces_needed < 0 )); then
+       local -i cutlen=$(( len_entry + spaces_needed ))
+       echo -n "${entry:0:$cutlen}"
+    else
+        echo -n "$entry"
+        dupchar "$spaces_needed" ' '
+    fi
     echo $'\e[m'
 }
 
@@ -588,8 +601,8 @@ lui_list_calc_top_row()
 #    (name):      name of lui_list that provides content for display
 #    (integer):   index of first item to display (top_row)
 #    (integer):   index of selected item
-#    (integer):   column to begin writing (xpos)
-#    (integer):   row to begin writing (ypos)
+#    (integer):   row to begin writing
+#    (integer):   column to begin writing
 #    (integer):   number of lines to display
 #    (integer):   number of characters to print per item
 #    (name):      name of function that should be used to display lines
@@ -598,33 +611,33 @@ lui_list_show_lines()
     local lui_list_name="$1"
     local -i top_row="$2"
     local -i selected="$3"
-    local -i xpos="$4"
-    local -i ypos="$5"
+    local -i row="$4"
+    local -i col="$5"
     local -i line_count="$6"
     local -i width="${7:-0}"
     local line_displayer="$8"
 
-    local -a row
+    local -a row_vals
     local -i count=0
     local -i row_ndx="$top_row"
     local -i hilited
 
-    set_cursor_position "$xpos" "$ypos"
+    set_cursor_position "$row" "$col"
 
     local ostty=$( stty -g )
     stty -echo
 
     for (( ; count < line_count; ++count, ++row_ndx )); do
-        row=()
+        row_vals=()
         if [ "$row_ndx" -lt "$row_count" ]; then
 
             # Convert boolean result to integer for use by line_displayer:
             [ "$row_ndx" -ne "$selected" ]
             hilited="$?"
 
-            lui_list_copy_row "row" "$lui_list_name" "$row_ndx"
-            "$line_displayer" "$hilited" "$width" "${row[@]}"
-            echo -n $'\e['"${xpos}G"   # move to proper cursor position
+            lui_list_copy_row "row_vals" "$lui_list_name" "$row_ndx"
+            "$line_displayer" "$hilited" "$width" "${row_vals[@]}"
+            echo -n $'\e['"${col}G"   # move to proper cursor position
         else
             hilite_pad " " "$width"
             echo
@@ -689,6 +702,8 @@ lui_list_process_key()
 # Args
 #    (name):       name of integer variable in which the selected index will be put
 #    (name):       name of lui_list from which the widget will be constructed
+#    (integer):    row on which to start printing the list
+#    (integer):    column on which to start printing the list
 #    (integer):    size of list in lines
 #    (integer):    width of list in characters
 #    (name):       name of function that will display summary lines
@@ -700,11 +715,13 @@ lui_list_generic()
     # shellcheck disable=SC2155
     local -n llg_selected="$1"
     local lui_list_name="$2"
-    local -i line_count="${3:-10}"
-    local -i char_width="${4:-40}"
-    local line_displayer="${5:-lui_list_display_line}"
-    local term_keys_list_name="${6:-LUI_DEFAULT_TERM_KEYS}"
-    local -a extra_args=( "${@:6}" )
+    local -i row="${3:-1}"
+    local -i col="${4:-1}"
+    local -i line_count="${5:-10}"
+    local -i chars_width="${6:-40}"
+    local line_displayer="${7:-lui_list_display_line}"
+    local term_keys_list_name="${8:-LUI_DEFAULT_TERM_KEYS}"
+    local -a extra_args=( "${@:8}" )
 
     if [ "$line_count" -lt 2 ]; then
         echo "Invalid line count: $line_count" >&2
@@ -714,35 +731,27 @@ lui_list_generic()
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
 
-    local -i padding
-    padding=$( lui_list_max_len_by_column "$lui_list_name" 0 )
-
     local -i top_row
     local -a row
     local -a key_args proc_args
     local keyp
     local -i key_proc_exit=0
 
-    # disable echoing while running
-    local OSTTY=$( stty -g )
-    stty -echo
-
-    local -i xpos ypos
-    get_cursor_position "xpos" "ypos"
-
     local -a show_lines_args=(
         "$lui_list_name"
         0                 # top_row, calculated and set with each iteration
         0                 # index of selected item, set with each iteration
-        "$xpos"
-        "$ypos"
+        "$row"
+        "$col"
         "$line_count"
-        "$padding"
+        "$chars_width"
         "$line_displayer"
     )
 
-    local longest_keystring=""
-    local len_longest=0
+    # disable echo and cursor while running
+    local OSTTY=$( stty -g )
+    stty -echo
+    hide_cursor
 
     top_row=1
     while : ; do
@@ -754,22 +763,20 @@ lui_list_generic()
         lui_list_show_lines "${show_lines_args[@]}"
 
         if get_keypress "keyp"; then
-            if [ "${#keyp}" -gt "$len_longest" ]; then
-                longest_keystring="$keyp"
-                len_longest="${#keyp}"
-            fi
             key_args=( "$keyp" "$llg_selected" "$top_row" "$line_count" "$row_count" )
             if ! llg_selected=$( lui_list_key_move_selection "${key_args[@]}" ); then
                 proc_args=( "$keyp" "$term_keys_list_name" "$lui_list_name" "$llg_selected" )
 
                 # restore stty for subordinate process
                 stty $OSTTY
+                show_cursor
 
                 lui_list_process_key "${proc_args[@]}" "${extra_args[@]}"
                 key_proc_exit="$?"
 
                 # return to no-echo for displaying the list
                 stty -echo
+                hide_cursor
 
                 if [ "$key_proc_exit" -ne 0 ]; then
                     break
@@ -778,11 +785,13 @@ lui_list_generic()
         else
             echo "get_keypress unexpectedly returned without getting a key!"
             stty $OSTTY
+            show_cursor
             exit 1
         fi
     done
 
     stty $OSTTY
+    show_cursor
 
     [ "$key_proc_exit" -gt 1 ]
 }
@@ -799,7 +808,7 @@ lui_list_menu()
     local llm_list_name="$2"
     local -i line_count="${3:-10}"
 
-    lui_list_generic "$llm_selected_name" "$llm_list_name" "" "$line_count"
+    lui_list_generic "$llm_selected_name" "$llm_list_name" 1 1 10 "$line_count"
 }
 
 lui_list_radio()
@@ -818,7 +827,16 @@ lui_list_radio()
         $' :lui_list_action_radio_select'
     )
 
-    lui_list_generic "selected" "$llr_list_name" "lui_list_display_selectable_line" "$lines" "keylist"
+    local -a list_args=(
+        "selected"
+        "$llr_list_name"
+        0         0            # row, column
+        "$lines" 40     # height, width
+        "lui_list_display_selectable_line"
+        "keylist"
+    )
+
+    lui_list_generic "${list_args[@]}"
 }
 
 lui_list_checkbox()
@@ -828,7 +846,7 @@ lui_list_checkbox()
         exit 1
     fi
 
-    local llr_list_name="$1"
+    local llc_list_name="$1"
     local -i lines="${2:-10}"
     local -i selected=0
 
@@ -837,6 +855,15 @@ lui_list_checkbox()
         $' :lui_list_action_checkbox_select'
     )
 
-    lui_list_generic "selected" "$llr_list_name" "lui_list_display_selectable_line" "$lines" "keylist"
+    local -a list_args=(
+        "selected"
+        "$llc_list_name"
+        0         0     # row, column
+        "$lines" 40     # height, width
+        "lui_list_display_selectable_line"
+        "keylist"
+    )
+
+    lui_list_generic "${list_args[@]}"
 }
 
