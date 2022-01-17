@@ -748,10 +748,9 @@ lui_list_generic()
         "$line_displayer"
     )
 
-    # disable echo and cursor while running
+    # disable echo while running
     local OSTTY=$( stty -g )
     stty -echo
-    hide_cursor
 
     top_row=1
     while : ; do
@@ -769,14 +768,12 @@ lui_list_generic()
 
                 # restore stty for subordinate process
                 stty $OSTTY
-                show_cursor
 
                 lui_list_process_key "${proc_args[@]}" "${extra_args[@]}"
                 key_proc_exit="$?"
 
                 # return to no-echo for displaying the list
                 stty -echo
-                hide_cursor
 
                 if [ "$key_proc_exit" -ne 0 ]; then
                     break
@@ -785,13 +782,11 @@ lui_list_generic()
         else
             echo "get_keypress unexpectedly returned without getting a key!"
             stty $OSTTY
-            show_cursor
             exit 1
         fi
     done
 
     stty $OSTTY
-    show_cursor
 
     [ "$key_proc_exit" -gt 1 ]
 }
