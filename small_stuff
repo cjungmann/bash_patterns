@@ -4,43 +4,11 @@ reset_screen() { echo -n "[2J[1;1H"; }
 hide_cursor() { echo -n $'\e[?25l'; }
 show_cursor() { echo -n $'\e[?25h'; }
 
-# Get the current cursor position from the terminal, returning the
-# values in nameref variables
-# Args
-#    (string):   name of columns variable
-#    (string):   name of rows variable
-
-get_cursor_position()
+print_keystroke()
 {
-    local -n gcp_cols="$1"
-    local -n gcp_rows="$2"
-
-    local -a read_args=(
-        -s          # silent mode
-        -dR         # read until 'R' (expecting '\e[n;nR')
-        -p $'\e[6n' # prompt, written to stdout, prompts terminal response
-    )
-
-    read "${read_args[@]}" REPLY
-
-    IFS=';'
-    local -a arr=( ${REPLY#*[} )
-    gcp_rows="${arr[0]}"
-    gcp_cols="${arr[1]}"
-}
-
-# Args
-#    (string):  name of variable for height value
-#    (string):  name of variable for width value
-get_screen_size()
-{
-    local -i ocol orow
-    hide_cursor
-    get_cursor_position "ocol" "orow"
-    printf $'\e[999;999H'
-    get_cursor_position "$1" "$2"
-    printf $'\e['"${orow};${ocol}f"
-    show_cursor
+    local keyp="${1///\\e}"
+    keyp="${keyp///\\n}"
+    echo -n "$keyp"
 }
 
 # Function to duplicate a character a given number of times
@@ -49,6 +17,110 @@ get_screen_size()
 #    (character): character to be repeated
 # shellcheck disable=2155  # ignore 'declare and assign separately' warning
 dupchar() { local s=$( printf "%0${1}d" 0 ); echo -n "${s//0/$2}"; }
+
+# Get the current cursor position from the terminal, returning the
+# values in nameref variables
+# Args
+#    (string):   name of rows variable
+#    (string):   name of columns variable
+
+get_cursor_position()
+{
+    local -n gcp_rows="$1"
+    local -n gcp_cols="$2"
+
+    local -a read_args=(
+        -s          # silent mode
+        -r          # don't escape backslash-prefixed characters
+        -dR         # read until 'R' (expecting '\e[n;nR')
+        -p $'\e[6n' # prompt, written to stdout, prompts terminal response
+    )
+
+    # set -x
+
+    read "${read_args[@]}" REPLY
+
+    IFS=';'
+    local -a arr
+    arr=( ${REPLY#*[} )
+
+    local -i ecode
+    local treply
+
+    # discard any pending keypresses
+    while read -t 0; ! (( ecode=$? )); do
+        read -srN1
+        treply="$REPLY"
+    done
+
+    gcp_rows="${arr[0]}"
+    gcp_cols="${arr[1]}"
+
+    # set +x
+}
+
+set_cursor_position()
+{
+    local -i row="${1:-1}"
+    local -i col="${2:-1}"
+    printf $'\e['"${row};${col}H"
+}
+
+block_print()
+{
+    local -i row="$1"
+    local -i col="$2"
+    local -i width="$3"
+    local -n linearr="$4"
+
+    local line spaces
+    local -i padd
+
+    set_cursor_position "$row" "$col"
+    for line in "${linearr[@]}"; do
+        (( pad = width - ${#line} ))
+        if [ "$pad" -gt 0 ]; then
+            spaces=$( dupchar "${pad}" ' ' )
+            echo "${line}${spaces}"
+        else
+            echo "${line:0:$width}"
+        fi
+
+        echo -n $'\e['"${col}G"
+    done
+}
+
+
+bp_test()
+{
+    local IFS=$'\n'
+    local -a prose=(
+        My mother told me to pick the best one
+        and out goes you.  What do you think of that,
+        you miserable lying cheat?  You are the worst
+        one by far.
+    )
+
+    echo -n $'\e[44m'
+    block_print 10 10 40 "prose"
+    echo -n $'\e[m'
+}
+
+# bp_test
+
+# Args
+#    (string):  name of variable for rows value
+#    (string):  name of variable for columns value
+get_screen_size()
+{
+    local -i csave, rsave
+    hide_cursor
+    get_cursor_position "rsave" "csave"
+    printf $'\e[999;999H'
+    get_cursor_position "$1" "$2"
+    printf $'\e['"${rsave};${csave}f"
+    show_cursor
+}
 
 
 # The following two functions convert from character to an integer
