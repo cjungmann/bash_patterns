@@ -282,7 +282,7 @@ main()
 
             reset_screen
 
-            lui_list_generic "selected" "entry_list" 5 20 20 80 "entry_display_line" "main_keys_array"
+            lui_list_generic "selected" "entry_list" 0 0 20 80 "entry_display_line" "main_keys_array"
         fi
     else
         echo "Unable to open entry."
