@@ -89,10 +89,10 @@ set_color_map_init()
 # shellcheck disable=2155  # ignore 'declare and assign separately' warning
 dupchar()
 {
-    local -i len="$1"
-    local chr="$2"
-    local s=$( printf "%0${len}d" 0 )
-    echo -n "${s//0/${chr}}"
+    if [ "$1" -gt 0 ]; then
+        local s=$( printf "%0${1}d" 0 )
+        echo -n "${s//0/$2}"
+    fi
 }
 
 
