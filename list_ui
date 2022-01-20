@@ -715,8 +715,8 @@ lui_list_generic()
     # shellcheck disable=SC2155
     local -n llg_selected="$1"
     local lui_list_name="$2"
-    local -i row="${3:-1}"
-    local -i col="${4:-1}"
+    local -i row="${3:-0}"
+    local -i col="${4:-0}"
     local -i line_count="${5:-10}"
     local -i chars_width="${6:-40}"
     local line_displayer="${7:-lui_list_display_line}"
@@ -728,11 +728,21 @@ lui_list_generic()
         exit 1
     fi
 
+    if (( row==0 || col==0 )); then
+        local -i scrn_rows scrn_cols
+        get_screen_size "scrn_rows" "scrn_cols"
+        if (( row==0 )); then
+            (( row = (scrn_rows - line_count) / 2 ))
+        fi
+        if (( col==0 )); then
+            (( col = (scrn_cols - chars_width) / 2 ))
+        fi
+    fi
+
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
 
     local -i top_row
-    local -a row
     local -a key_args proc_args
     local keyp
     local -i key_proc_exit=0
