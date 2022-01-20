@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
+# Clear screen, cursor to origin
 reset_screen() { echo -n "[2J[1;1H"; }
+
 hide_cursor() { echo -n $'\e[?25l'; }
 show_cursor() { echo -n $'\e[?25h'; }
 
+# Print string with ESCAPE and NEWLINE characters replaced by \e and \n
+#
+# Args
+#    (string):   keystroke key
 print_keystroke()
 {
     local keyp="${1///\\e}"
@@ -23,7 +29,6 @@ dupchar() { local s=$( printf "%0${1}d" 0 ); echo -n "${s//0/$2}"; }
 # Args
 #    (string):   name of rows variable
 #    (string):   name of columns variable
-
 get_cursor_position()
 {
     local -n gcp_rows="$1"
@@ -59,6 +64,11 @@ get_cursor_position()
     # set +x
 }
 
+# Move the cursor to specified screen location
+#
+# Args
+#    (integer):    row number
+#    (integer):    column number
 set_cursor_position()
 {
     local -i row="${1:-1}"
@@ -108,26 +118,29 @@ bp_test()
 
 # bp_test
 
+# Returns rows and columns size of screen in nameref variables
+# 
 # Args
 #    (string):  name of variable for rows value
 #    (string):  name of variable for columns value
 get_screen_size()
 {
-    local -i csave, rsave
-    hide_cursor
+    local -i csave rsave
     get_cursor_position "rsave" "csave"
     printf $'\e[999;999H'
     get_cursor_position "$1" "$2"
     printf $'\e['"${rsave};${csave}f"
-    show_cursor
 }
 
 
-# The following two functions convert from character to an integer
-# and back.  
-
 # shellcheck disable=SC2046,SC2059  # quiet printf scolding
+
+# The following two functions convert from character to an integer
+# and back.
+
+# Returns ASCII character when given an integer value.
 char_from_val() { printf $(printf "\\%03o" "$1"); }
+# Returns an integer value associated with an ASCII character
 val_from_char() { LC_CTYPE=C; printf '%d' "'$1"; }
 
 
@@ -264,3 +277,130 @@ force_length()
 
     echo -n "$str"
 }
+
+
+# Parses text to make an array of single-line paragraphs.
+#
+# Consecutive text lines will be combined into a single line, when a text line
+# is separated from its neighbor by an empty line (i.e. two consecutive newlines),
+# the next line will start a new paragraph.
+#
+# Use this function to prepare text for formatting in function format_paragraphs().
+#
+# The input of the function is *stdin*.  One way to use it could be:
+#    local -a PARAS=()
+#    bind_paragraphs "PARAS" < "text.txt"
+#
+# or:
+#    local -a PARAS=()
+#    bind_paragraphs "PARAS" <<EOF
+#    Sample Text, paragraph 1
+#
+#    Sample Text, paragraph 2
+#    EOF
+#
+# Args
+#    (name):     name of array in which the comiled lines should be stored.
+bind_paragraphs()
+{
+    local -n output="$1"
+    output=()
+
+    local datext
+    local -a lines=()
+
+    while IFS= read -r datext; do
+        if [ -z "$datext" ]; then
+            IFS=' '
+            output+=( "${lines[*]}" )
+            lines=()
+        else
+            lines+=( $datext )
+        fi
+    done
+
+    IFS=' '
+    output+=( "${lines[*]}" )
+}
+
+# Prints a line of text over as many lines as necessary.
+#
+# Args
+#    (string):      The line/paragraph to be printed
+#    (integer):     Number of characters allowed per line
+#    (integer):     Number of characters to indent the first line
+#                   of a paragraph
+format_paragraph()
+{
+    local -a words=( $1 )
+    local -i line_width="$2"
+    local -i para_indent="$3"
+
+    local indent=$( dupchar "$para_indent" ' ' )
+
+    local word
+    local -a line=( )
+    local -i wordlen
+    local -i linelen="$para_indent"
+
+    for word in "${words[@]}"; do
+        wordlen="${#word}"
+        if [ "${#indent}" -gt 0 ]; then
+            line=( "${indent}$word" )
+            (( linelen = para_indent + wordlen ))
+            indent=""
+        elif (( wordlen + linelen >= line_width )); then
+            echo "${line[*]}"
+            line=( "$word" )
+            (( linelen = wordlen ))
+        else
+            line+=( "$word" )
+            (( linelen += wordlen + 1 ))
+        fi
+    done
+    if [ "${#line[*]}" -gt 0 ]; then
+        echo "${line[*]}"
+    fi
+}
+
+# Sumbits text lines from an array to format_paragraph() to wrap lines
+# as necessary to fit within the space limites.  Use this function on
+# paragraph arrays prepared with bind_paragraphs().
+#
+# Args
+#    (name):     name of array of paragraph strings
+#    (integer):  number of characters permitted per line
+#    (integer):  number of characters to indent the first line
+#                of a paragraph.
+format_paragraphs()
+{
+    local -n paras="$1"
+    local -i width="${2:-50}"
+    local -i para_indent="${3:-4}"
+
+    local para
+    for para in "${paras[@]}"; do
+        format_paragraph "$para" "$width" "$para_indent"
+    done
+}
+
+
+
+
+# declare -a PARAS
+
+# bind_paragraphs "PARAS" <<EOF
+# This is a paragraph that flows over several lines.  The mark of
+# a new paragraph is at least two consecutive newlines.  Paragraphs bound
+# will extend on a single line (no newlines), and can be of unlimited
+# length.
+
+# The purpose of these long lines of text is to ultimately break each
+# paragraph into lines limited to a specific length.
+# EOF
+
+# format_paragraphs "PARAS" 60 2
+# read -n1
+
+# bind_paragraphs "PARAS" < small_stuff
+# format_paragraphs "PARAS" 100 2
