@@ -22,7 +22,13 @@ print_keystroke()
 #    (integer):   number of characters to repeat
 #    (character): character to be repeated
 # shellcheck disable=2155  # ignore 'declare and assign separately' warning
-dupchar() { local s=$( printf "%0${1}d" 0 ); echo -n "${s//0/$2}"; }
+dupchar()
+{
+    if [ "$1" -gt 0 ]; then
+        local s=$( printf "%0${1}d" 0 )
+        echo -n "${s//0/$2}"
+    fi
+}
 
 # Get the current cursor position from the terminal, returning the
 # values in nameref variables
@@ -323,18 +329,21 @@ bind_paragraphs()
     output+=( "${lines[*]}" )
 }
 
-# Prints a line of text over as many lines as necessary.
+# Splits a submitted string of words into as many lines as necessary
+# to fit within the width constraints.
 #
 # Args
+#    (name):        nameref of array to hold resulting lines
 #    (string):      The line/paragraph to be printed
 #    (integer):     Number of characters allowed per line
 #    (integer):     Number of characters to indent the first line
 #                   of a paragraph
 format_paragraph()
 {
-    local -a words=( $1 )
-    local -i line_width="$2"
-    local -i para_indent="$3"
+    local -n fp_lines="$1"
+    local -a words=( $2 )
+    local -i line_width="$3"
+    local -i para_indent="$4"
 
     local indent=$( dupchar "$para_indent" ' ' )
 
@@ -343,6 +352,8 @@ format_paragraph()
     local -i wordlen
     local -i linelen="$para_indent"
 
+    fp_lines=()
+
     for word in "${words[@]}"; do
         wordlen="${#word}"
         if [ "${#indent}" -gt 0 ]; then
@@ -350,7 +361,7 @@ format_paragraph()
             (( linelen = para_indent + wordlen ))
             indent=""
         elif (( wordlen + linelen >= line_width )); then
-            echo "${line[*]}"
+            fp_lines+=( "${line[*]}" )
             line=( "$word" )
             (( linelen = wordlen ))
         else
@@ -359,7 +370,7 @@ format_paragraph()
         fi
     done
     if [ "${#line[*]}" -gt 0 ]; then
-        echo "${line[*]}"
+        fp_lines+=( "${line[*]}" )
     fi
 }
 
@@ -372,22 +383,56 @@ format_paragraph()
 #    (integer):  number of characters permitted per line
 #    (integer):  number of characters to indent the first line
 #                of a paragraph.
-format_paragraphs()
+write_format_paragraphs()
 {
     local -n paras="$1"
     local -i width="${2:-50}"
-    local -i para_indent="${3:-4}"
+    local -i para_indent="$3"
 
+    local -a lines
+    local -i count=0
+    local line
     local para
     for para in "${paras[@]}"; do
-        format_paragraph "$para" "$width" "$para_indent"
+        format_paragraph "lines" "$para" "$width" "$para_indent"
+
+        # Add extra line between paragraphs if not indenting
+        if [ $(( count++ )) -gt 0 ]; then
+            if [ "$para_indent" -eq 0 ]; then
+                echo
+            fi
+        fi
+        for line in "${lines[@]}"; do
+            echo "$line"
+        done
+    done
+}
+
+format_paragraphs()
+{
+    local -n output="$1"
+    local -n paras="$2"
+    local -i width="$3"
+    local -i para_indent="$4"
+
+    output=()
+
+    local -a lines
+    local para
+    local -i count=0
+    for para in "${paras[@]}"; do
+        if (( count++ > 0 && para_indent == 0 )); then
+            output+=( "" )
+        fi
+        format_paragraph "lines" "$para" "$width" "$para_indent"
+        output+=( "${lines[@]}" )
     done
 }
 
 
 
 
-# declare -a PARAS
+re -a PARAS
 
 # bind_paragraphs "PARAS" <<EOF
 # This is a paragraph that flows over several lines.  The mark of
