@@ -194,28 +194,28 @@ lui_list_iterate()
     done
 }
 
-# Clumsy name for a function that returns the characters in the longest# string
-# in the given column for the given lui_list.
+# Determine the longest display length of a lui_list
 #
 # Args
-#    (name)  :  name of lui_list array
-#    (integer): 0-based column number of column of interest
-lui_list_max_len_by_column()
+#    (name):     name of a lui_list for nameref access
+#    (name):     name of row length comparison function
+lui_list_max_len()
 {
-    local -i maxlen=0
-    local -i requested_column="$2"
-    max_len_callback()
+    local list_name="$1"
+    local func_name="${2:-lui_list_line_length_column}"
+
+    local -i limit maxlen=0
+
+    llml_calc()
     {
-        # shellcheck disable=SC2124
-        local val="${@:$(( requested_column+1 )):1}"
-        local -i len="${#val}"
-        if [ "$len" -gt "$maxlen" ]; then
-            maxlen="$len"
+        local -i len
+        "$func_name" "len" "$@"
+        if (( len > maxlen )); then
+            (( maxlen = len ))
         fi
     }
 
-    lui_list_iterate "$1" "max_len_callback"
-    unset max_len_callback
+    lui_list_iterate "$list_name" "llml_calc"
 
     echo "$maxlen"
 }
@@ -289,6 +289,58 @@ lui_list_replace_row()
     fi
 
     return 1
+}
+
+# @def line_length functions
+#
+# These functions are called by lui_list_max_len() to get the number of
+# displayed characters for a list line.  lui_list_max_len() compares each
+# row in a lui_list to find the largest line length value to the nameref
+# first argument.
+#
+# These functions takes the following parameters:
+# 1. The nameref of an integer variable in which the length is returned.
+# 2. The first column of the current row,
+# ...followed by the rest of the columns of the current row.
+#
+# It should return 0 (success).  lui_list_max_len() uses lui_list_iterate(),
+# which stops sending rows if a function returns non-zero (error).
+#
+# There are two built-in line_length functions:
+# 1. lui_list_line_length_column() returns the length of the first column
+# 2. lui_list_line_length_selection() accounts for '[ ]' in radio or
+#    checkbox interactions.
+
+# default line_length function function for lui_list_max_len()
+#
+# Returns the raw length of the first column of the given row.
+#
+# Args
+#    (name):        nameref of integer in which the length is stored
+#    (various):     columns of current row
+lui_list_line_length_column()
+{
+    local -n llllc_len="$1"
+    shift
+    llllc_len="${#1}"
+    return 0
+}
+
+# line_length function function for determining radio and checkbok display line length.
+#
+# This simply adds 4 to the length of the first column, accounting for
+# the prepended string '[x]' or '[ ]' for selection rows.
+# 
+# Args
+#    (name):        nameref of integer in which the length is stored
+#    (various):     columns of current row
+lui_list_line_length_selection()
+{
+    local -n lllls_len="$1"
+    shift
+    lllls_len="${#1}"
+    (( lllls_len += 3 ))
+    return 0
 }
 
 # @def line display functions
@@ -385,7 +437,7 @@ lui_list_display_selectable_line()
 
     local entry="${row[0]}"
     local -i len_entry="${#entry}"
-    local -i spaces_needed=$(( padding - ( 4 + len_entry ) ))
+    local -i spaces_needed=$(( padding - ( 3 + len_entry ) ))
 
     if [ "$hilite" -ne 0 ]; then echo -n $'\e[43m'; fi
 
@@ -446,6 +498,8 @@ declare -a LUI_DEFAULT_TERM_KEYS=(
 #   0    the interaction continues
 #   1    the interaction terminates with user aborting (ie ESC or 'q')
 #   2    the interaction terminates with user mandate  (ie ENTER or space)
+#   3    the interaction continues with full replot
+#   >3   custom usage/response (not sure yet how to trigger custom response, tho)
 #
 # Example row action functions are:
 #   LUI_ABORT
@@ -459,6 +513,20 @@ LUI_ABORT()  { return 1; }
 # Built-in term-keys function for 'ENTER'
 LUI_SELECT() { return 2; }
 
+# Built-in key action function handling radio selection.
+#
+# Item selection toggles the state of the indicated line and clears the
+# states of all other items.
+#
+# Args
+#    (string)      A character string representing the keypress that
+#                  triggers this action
+#    (name)        name of the current lui_list
+#    (integer)     row number of the currently indicated lui_list row
+#    (various...)  optional extra parameters passed to lui_list_generic()
+#                  following the first five parameters.
+#
+# Returns 0 to continue the interaction
 lui_list_action_radio_select()
 {
     local keyp="$1"
@@ -487,6 +555,20 @@ lui_list_action_radio_select()
     return 0
 }
 
+# Built-in key action function handling checkbox selection.
+#
+# Item selection toggles the state of the indicated line and leaves
+# the states of all other items unchanged.
+#
+# Args
+#    (string)      A character string representing the keypress that
+#                  triggers this action
+#    (name)        name of the current lui_list
+#    (integer)     row number of the currently indicated lui_list row
+#    (various...)  optional extra parameters passed to lui_list_generic()
+#                  following the first five parameters.
+#
+# Returns 0 to continue the interaction
 lui_list_action_checkbox_select()
 {
     local keyp="$1"
@@ -510,6 +592,33 @@ lui_list_action_checkbox_select()
 #
 # There are several functions that manage the display and navigation
 # of a lui_list.
+
+
+# Plot the contents of a text array at the given location
+#
+# The text array will be written without any processing; it should
+# have been previously formatted to fit.
+#
+# Look at small_stuff::format_paragraphs
+#
+# Args
+#    (name):     name of text array
+#    (integer):  row at which to start printing text
+#    (integer):  column at which to start printing text
+lui_list_plot_head()
+{
+    local -n text_lines="$1"
+    local -i row="$2"
+    local -i column="$3"
+    local line
+
+    set_cursor_position "$row" "$column"
+    for line in "${text_lines[@]}"; do
+        echo "$line"
+        
+        
+    done
+}
 
 
 # Internal function processes selection keypresses for lui_list_generic().
@@ -708,6 +817,7 @@ lui_list_process_key()
 #    (integer):    width of list in characters
 #    (name):       name of function that will display summary lines
 #    (name):       name of keystroke functions list
+#    (name):       name of paragraphs array to print above the list
 #    (various...): Optional extra arguments that will be passed to keystroke functions.
 #                  These extra arguments can be exploited by custom widgets.
 lui_list_generic()
@@ -721,6 +831,7 @@ lui_list_generic()
     local -i chars_width="${6:-40}"
     local line_displayer="${7:-lui_list_display_line}"
     local term_keys_list_name="${8:-LUI_DEFAULT_TERM_KEYS}"
+    local head_array_name="$9"
     local -a extra_args=( "${@:8}" )
 
     if [ "$line_count" -lt 2 ]; then
@@ -739,10 +850,24 @@ lui_list_generic()
         fi
     fi
 
+    local -a head_text
+    local -i head_row head_lines=0
+
+    # Adjust for head array, if necessary
+    if [ "$head_array_name" ]; then
+        format_paragraphs "head_text" "$head_array_name" "$chars_width" 0
+        head_lines="${#head_text[@]}"
+        (( line_count -= head_lines ))
+
+        # Adjust rows for header
+        (( head_row = row ))
+        (( row += head_lines + 1 ))
+    fi
+
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
 
-    local -i top_row
+    local -i top_row plot_head
     local -a key_args proc_args
     local keyp
     local -i key_proc_exit=0
@@ -763,11 +888,21 @@ lui_list_generic()
     stty -echo
 
     top_row=1
+
+    if [ "$head_lines" -gt 0 ]; then
+        plot_head=1
+    fi
+
     while : ; do
         top_row=$( lui_list_calc_top_row "$llg_selected" "$top_row" "$line_count" )
 
         show_lines_args[1]="$top_row"
         show_lines_args[2]="$llg_selected"
+
+        if [ "$plot_head" -ne 0 ]; then
+            indent_print "head_text" "$head_row" "$col"
+            plot_head=0
+        fi
 
         lui_list_show_lines "${show_lines_args[@]}"
 
@@ -785,8 +920,13 @@ lui_list_generic()
                 # return to no-echo for displaying the list
                 stty -echo
 
-                if [ "$key_proc_exit" -ne 0 ]; then
+                if (( key_proc_exit == 1 || key_proc_exit == 2 )); then
                     break
+                elif (( key_proc_exit == 3 )); then
+                    plot_head=1
+                elif (( key_proc_exit > 3 )); then
+                    echo "Gotcha, you have to figure out a custom response."
+                    read -n1 -p "Press any key to continue without custom response."
                 fi
             fi
         else
@@ -827,6 +967,8 @@ lui_list_radio()
     local -i lines="${2:-10}"
     local -i selected=0
 
+    local -i maxlen=$( lui_list_max_len "$llr_list_name" "lui_list_line_length_selection" )
+
     local -a keylist=(
         "${LUI_DEFAULT_TERM_KEYS[@]}"
         $' :lui_list_action_radio_select'
@@ -835,8 +977,8 @@ lui_list_radio()
     local -a list_args=(
         "selected"
         "$llr_list_name"
-        0         0            # row, column
-        "$lines" 40     # height, width
+        0         0            # row, column (0s to center dialog)
+        "$lines" "$maxlen"     # height, width in characters
         "lui_list_display_selectable_line"
         "keylist"
     )
@@ -855,6 +997,8 @@ lui_list_checkbox()
     local -i lines="${2:-10}"
     local -i selected=0
 
+    local -i maxlen=$( lui_list_max_len "$llc_list_name" "lui_list_line_length_selection" )
+
     local -a keylist=(
         "${LUI_DEFAULT_TERM_KEYS[@]}"
         $' :lui_list_action_checkbox_select'
@@ -863,8 +1007,8 @@ lui_list_checkbox()
     local -a list_args=(
         "selected"
         "$llc_list_name"
-        0         0     # row, column
-        "$lines" 40     # height, width
+        0         0          # row, column (0s for centered dialog)
+        "$lines" "$maxlen"   # height, width in characters
         "lui_list_display_selectable_line"
         "keylist"
     )
