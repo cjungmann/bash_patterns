@@ -133,9 +133,9 @@ test_markdown_paragraphs()
     to_return
 }
 
-
-
+##############
 #    MAIN    #
+##############
 
 declare -a MAIN_MENU=(
     2 0
