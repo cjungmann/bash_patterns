@@ -53,7 +53,6 @@ parse_definition()
     local -a desc_array=()
 
     local -i ndx="$top"
-    local line
     while : ; do
         line="${sf_list[$ndx]}"
         if [ "${line:0:1}" != '#' ]; then
@@ -131,7 +130,8 @@ parse()
     local -i ndx=0
     for line in "${file_lines[@]}"; do
         list_line=()
-        if [[ "$line" =~ ^#\ *@def.*$ ]]; then
+
+        if [[ "$line" =~ ^#\ *@def\  ]]; then
             parse_definition "list_line" "$file_lines_name" "$ndx"
         elif [[ "$line" =~ ^[[:alnum:]_]+\(\) ]]; then
             parse_function "list_line" "$file_lines_name" "$ndx"
@@ -173,10 +173,11 @@ entry_display_line()
     local desc="${els[1]}"
     local color
 
-    if [[ "$name" =~ .*\(\) ]]; then
+    if [[ "$name" =~ .*\(\)$ ]]; then
         color="$FUNC_COLOR"
     else
         color="$DEF_COLOR"
+        desc=
     fi
 
     echo -n "$color"
@@ -198,6 +199,17 @@ entry_display_line()
     echo  # emit newline
 }
 
+# key action function: display item commentary
+# 
+# Args
+#    (string)      A character string representing the keypress that
+#                  triggers this action
+#    (name)        name of the current lui_list
+#    (integer)     row number of the currently indicated lui_list row
+#
+# Returns
+#     0 if row not found
+#     3 if commentary was displayed (trigger header replot)
 entry_show_details()
 {
     local keyp="$1"
@@ -240,7 +252,12 @@ entry_show_details()
 
         echo
         read -n1 -p "${indent}Press any key to continue."
+        reset_screen
+
+        return 3
     fi
+
+    return 0
 }
 
 declare STARTING_STTY
@@ -257,10 +274,16 @@ restore_console()
     show_cursor
 }
 
+declare -a MAIN_INFO
+bind_paragraphs "MAIN_INFO" <<EOF
+The following list includes ${FUNC_COLOR}functions${END_COLOR} and
+${DEF_COLOR}topic headings${END_COLOR}.  Move the selection with arrow
+or page keys, read an entry by pressing ENTER.
+EOF
+
 ##############
 #    Main    #
 ##############
-
 
 main()
 {
@@ -282,7 +305,7 @@ main()
 
             reset_screen
 
-            lui_list_generic "selected" "entry_list" 0 0 20 80 "entry_display_line" "main_keys_array"
+            lui_list_generic "selected" "entry_list" 0 0 20 80 "entry_display_line" "main_keys_array" "MAIN_INFO"
         fi
     else
         echo "Unable to open entry."
@@ -298,8 +321,7 @@ elif ! [ -e "$1" ]; then
 fi
 
 prepare_console
-trap restore_console SIG_INT
+trap restore_console SIGINT
 trap restore_console EXIT
 
 main "$1"
-
