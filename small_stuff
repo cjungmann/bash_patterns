@@ -1,34 +1,15 @@
 #!/usr/bin/env bash
 
+# @def Console-code screen functions
+# These functions use console codes (see man console_codes) to
+# set or read certain screen characteristics.
+
 # Clear screen, cursor to origin
 reset_screen() { echo -n "[2J[1;1H"; }
-
+# Console-code that prevent display of cursor.
 hide_cursor() { echo -n $'\e[?25l'; }
+# Console-code that enables display of cursor.
 show_cursor() { echo -n $'\e[?25h'; }
-
-# Print string with ESCAPE and NEWLINE characters replaced by \e and \n
-#
-# Args
-#    (string):   keystroke key
-print_keystroke()
-{
-    local keyp="${1///\\e}"
-    keyp="${keyp///\\n}"
-    echo -n "$keyp"
-}
-
-# Function to duplicate a character a given number of times
-# Args
-#    (integer):   number of characters to repeat
-#    (character): character to be repeated
-# shellcheck disable=2155  # ignore 'declare and assign separately' warning
-dupchar()
-{
-    if [ "$1" -gt 0 ]; then
-        local s=$( printf "%0${1}d" 0 )
-        echo -n "${s//0/$2}"
-    fi
-}
 
 # Get the current cursor position from the terminal, returning the
 # values in nameref variables
@@ -47,8 +28,6 @@ get_cursor_position()
         -p $'\e[6n' # prompt, written to stdout, prompts terminal response
     )
 
-    # set -x
-
     read "${read_args[@]}" REPLY
 
     IFS=';'
@@ -66,8 +45,6 @@ get_cursor_position()
 
     gcp_rows="${arr[0]}"
     gcp_cols="${arr[1]}"
-
-    # set +x
 }
 
 # Move the cursor to specified screen location
@@ -81,48 +58,6 @@ set_cursor_position()
     local -i col="${2:-1}"
     printf $'\e['"${row};${col}H"
 }
-
-block_print()
-{
-    local -i row="$1"
-    local -i col="$2"
-    local -i width="$3"
-    local -n linearr="$4"
-
-    local line spaces
-    local -i padd
-
-    set_cursor_position "$row" "$col"
-    for line in "${linearr[@]}"; do
-        (( pad = width - ${#line} ))
-        if [ "$pad" -gt 0 ]; then
-            spaces=$( dupchar "${pad}" ' ' )
-            echo "${line}${spaces}"
-        else
-            echo "${line:0:$width}"
-        fi
-
-        echo -n $'\e['"${col}G"
-    done
-}
-
-
-bp_test()
-{
-    local IFS=$'\n'
-    local -a prose=(
-        My mother told me to pick the best one
-        and out goes you.  What do you think of that,
-        you miserable lying cheat?  You are the worst
-        one by far.
-    )
-
-    echo -n $'\e[44m'
-    block_print 10 10 40 "prose"
-    echo -n $'\e[m'
-}
-
-# bp_test
 
 # Returns rows and columns size of screen in nameref variables
 # 
@@ -138,17 +73,16 @@ get_screen_size()
     printf $'\e['"${rsave};${csave}f"
 }
 
+# @def Conversion functions
 
 # shellcheck disable=SC2046,SC2059  # quiet printf scolding
-
-# The following two functions convert from character to an integer
-# and back.
 
 # Returns ASCII character when given an integer value.
 char_from_val() { printf $(printf "\\%03o" "$1"); }
 # Returns an integer value associated with an ASCII character
 val_from_char() { LC_CTYPE=C; printf '%d' "'$1"; }
 
+# @def String search functions
 
 # Gets 0-based character position in first string of the first
 # occurance of the second string
@@ -172,6 +106,73 @@ strstrndx()
 
     echo $(( len1 - sublen - "${#2}" ))
     return 0
+}
+
+# 'Echo's the first character that follows the first
+# underscore in the string and returns TRUE (0).
+# If there is no underscore+character in the string,
+# the function returns FALSE (!0)
+# Args
+#    (string):    string in which the letter following an underscore
+#                 is sought and echoed.
+get_hilite_char()
+{
+    local str="$1"
+    local -i pos
+    if pos=$( strstrndx "$str" '_' ); then
+        echo "${str:$((pos+2)):1}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# @def Output functions
+# 
+# Various simple functions making common needs to be convenient.
+
+# Function to duplicate a character a given number of times
+# Args
+#    (integer):   number of characters to repeat
+#    (character): character to be repeated
+# shellcheck disable=2155  # ignore 'declare and assign separately' warning
+dupchar()
+{
+    if [ "$1" -gt 0 ]; then
+        local s=$( printf "%0${1}d" 0 )
+        echo -n "${s//0/$2}"
+    fi
+}
+
+# Print string with ESCAPE and NEWLINE characters replaced by \e and \n
+#
+# Args
+#    (string):   keystroke key
+print_keystroke()
+{
+    local keyp="${1///\\e}"
+    keyp="${keyp///\\n}"
+    echo -n "$keyp"
+}
+
+# Prints an array of text lines to a given location
+#
+# Args
+#    (name):     name of simple array of text strings
+#    (integer):  row at which to start printing
+#    (integer):  column from which all text should print
+indent_print()
+{
+    local -n ip_lines="$1"
+    local -i row="$2"
+    local -i col="$3"
+
+    set_cursor_position "$row" "$col"
+
+    for line in "${ip_lines[@]}"; do
+        echo "$line"
+        echo -n $'\e['"${col}G"
+    done
 }
 
 # This variable can be changed in a calling script to set a different default.
@@ -241,24 +242,7 @@ hilite_pad()
     fi
 }
 
-# 'Echo's the first character that follows the first
-# underscore in the string and returns TRUE (0).
-# If there is no underscore+character in the string,
-# the function returns FALSE (!0)
-# Args
-#    (string):    string in which the letter following an underscore
-#                 is sought and echoed.
-get_hilite_char()
-{
-    local str="$1"
-    local -i pos
-    if pos=$( strstrndx "$str" '_' ); then
-        echo "${str:$((pos+2)):1}"
-        return 0
-    else
-        return 1
-    fi
-}
+
 
 
 # Prints string exactly the length of $2.
@@ -284,6 +268,11 @@ force_length()
     echo -n "$str"
 }
 
+# @def Paragraph formatting functions
+#
+# One function, bind_paragraphs(), scans text to group paragraphs,
+# and another, format_paragraphs(), splits the bound paragraphs
+# into length-limited lines.
 
 # Parses text to make an array of single-line paragraphs.
 #
@@ -429,23 +418,3 @@ format_paragraphs()
     done
 }
 
-
-
-
-re -a PARAS
-
-# bind_paragraphs "PARAS" <<EOF
-# This is a paragraph that flows over several lines.  The mark of
-# a new paragraph is at least two consecutive newlines.  Paragraphs bound
-# will extend on a single line (no newlines), and can be of unlimited
-# length.
-
-# The purpose of these long lines of text is to ultimately break each
-# paragraph into lines limited to a specific length.
-# EOF
-
-# format_paragraphs "PARAS" 60 2
-# read -n1
-
-# bind_paragraphs "PARAS" < small_stuff
-# format_paragraphs "PARAS" 100 2
