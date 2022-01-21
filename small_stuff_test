@@ -2,6 +2,10 @@
 
 source small_stuff
 
+# For interface
+source list_ui
+source keypress
+
 declare -a HL_TEST=(
     "one"         "_"    "na"
     "_one"        "_"    0
@@ -12,6 +16,10 @@ declare -a HL_TEST=(
 )
 
 declare ACOL=$'\e[48;5;236m'
+
+to_continue() { read -n1 -p $'\nPress any key to continue.'; }
+to_return() { read -n1 -p $'\nPress any key to return to the main menu.'; }
+
 
 test_strstrndx()
 {
@@ -59,6 +67,8 @@ test_hilite_substr()
             test=()
         fi
     done
+
+    to_return
 }
 
 test_hilite_pad()
@@ -77,9 +87,110 @@ test_hilite_pad()
             test=()
         fi
     done
+
+    to_return
+}
+
+test_heredoc_paragraphs()
+{
+    local -a paragraphs
+    bind_paragraphs "paragraphs" <<EOF
+Once this test is passed, I expect I will retrofit
+many if not all calls to lui_list_generic() to include
+a header to explain the purpose of each list.
+
+I'll likely keep this test around, despite subsequent
+plentiful examples of its fitness for duty.
+
+Just consider it an artifact of development that indulged
+my need for a multiple paragraph formatting exercise.
+EOF
+
+    local -a format_paras
+    format_paragraphs "format_paras" "paragraphs" 60 5
+
+    local line
+    for line in "${format_paras[@]}"; do
+        echo "$line"
+    done
+
+    to_return
+}
+
+test_markdown_paragraphs()
+{
+    local -a paragraphs
+    bind_paragraphs "paragraphs" < README.md
+
+    local -a formatted
+    format_paragraphs "formatted" "paragraphs" 60
+
+    local line
+    for line in "${formatted[@]}"; do
+        echo "$line"
+    done
+
+    to_return
 }
 
 
-test_strstrndx
-test_hilite_substr
-test_hilite_pad
+
+#    MAIN    #
+
+declare -a MAIN_MENU=(
+    2 0
+    "test strstrndx"                     test_strstrndx
+    "test hilite substring"              test_hilite_substr
+    "test hilite pad"                    test_hilite_pad
+    "test paragraph-formatting heredoc"  test_heredoc_paragraphs
+    "test paragraph-formatting markdown" test_markdown_paragraphs
+)
+
+lui_list_init "MAIN_MENU"
+
+main_menu()
+{
+    run_test()
+    {
+        local -a row=()
+        lui_list_copy_row "row" "$2" "$3"
+
+        reset_screen
+
+        # Execute the command
+         "${row[1]}"
+
+        reset_screen
+
+        return 0
+    }
+
+    local -a keylist=(
+        $'\e|q:LUI_ABORT'
+        $'\n:run_test'
+    )
+
+    local -i selected=0
+    local -i maxlen=$( lui_list_max_len "MAIN_MENU" )
+
+    local list_args=(
+        "selection"           # name of selection variable
+        "MAIN_MENU"           # name of lui_list
+        0 0                   # row, column to zero for centering
+        "${#MAIN_MENU[@]}"    # size of list in lines (ysize)
+        "$maxlen"             # size of list in characters (xsize)
+        ""                    # use default line displayer
+        "keylist"             # name of keystroke functions list
+    )
+
+    reset_screen
+    lui_list_generic "${list_args[@]}"
+}
+
+hide_cursor
+main_menu
+show_cursor
+
+# leave cursor in expected column
+echo
+
