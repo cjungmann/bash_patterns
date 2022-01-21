@@ -133,6 +133,22 @@ test_markdown_paragraphs()
     to_return
 }
 
+test_indent_print()
+{
+    local -a lines=(
+        "This is the first line of a block print area."
+        "This is the second line of a block print area."
+        "This is the third line of a block print area."
+        "This is the fourth line of a block print area."
+        "This is the fifth line of a block print area."
+        "This is the sixth line of a block print area."
+    )
+
+    indent_print "lines" 10 10
+
+    to_return
+}
+
 ##############
 #    MAIN    #
 ##############
@@ -144,6 +160,7 @@ declare -a MAIN_MENU=(
     "test hilite pad"                    test_hilite_pad
     "test paragraph-formatting heredoc"  test_heredoc_paragraphs
     "test paragraph-formatting markdown" test_markdown_paragraphs
+    "test indent_print"                  test_indent_print
 )
 
 lui_list_init "MAIN_MENU"
