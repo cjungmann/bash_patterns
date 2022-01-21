@@ -852,6 +852,7 @@ lui_list_generic()
 
     local -a head_text
     local -i head_row head_lines=0
+    local -i plot_head=0
 
     # Adjust for head array, if necessary
     if [ "$head_array_name" ]; then
@@ -867,7 +868,7 @@ lui_list_generic()
     local -i row_count
     lui_list_row_count "row_count" "$lui_list_name"
 
-    local -i top_row plot_head
+    local -i top_row
     local -a key_args proc_args
     local keyp
     local -i key_proc_exit=0
