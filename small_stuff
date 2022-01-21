@@ -410,22 +410,22 @@ write_format_paragraphs()
 #                 the paragraphs will NOT be separated by empty lines.
 format_paragraphs()
 {
-    local -n output="$1"
-    local -n paras="$2"
+    local -n fp_output="$1"
+    local -n fp_paras="$2"
     local -i width="$3"
     local -i para_indent="$4"
 
-    output=()
+    fp_output=()
 
     local -a lines
     local para
     local -i count=0
-    for para in "${paras[@]}"; do
+    for para in "${fp_paras[@]}"; do
         if (( count++ > 0 && para_indent == 0 )); then
-            output+=( "" )
+            fp_output+=( "" )
         fi
         format_paragraph "lines" "$para" "$width" "$para_indent"
-        output+=( "${lines[@]}" )
+        fp_output+=( "${lines[@]}" )
     done
 }
 
