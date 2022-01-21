@@ -397,6 +397,17 @@ write_format_paragraphs()
     done
 }
 
+# Breaks paragraphs into an array of length-limited lines
+#
+# Args
+#    (name):      name of array in which formatted lines will be returned
+#    (name):      name of array in which source paragraphs will be read
+#    (integer):   maximum line length for output lines
+#    (integer):   number of characters to indent paragraphs.  If this value
+#                 is 0 (or omitted), an empty line will indicate new
+#                 paragraphs.  If this value is greated than 0, each
+#                 paragraph will be indented this number of characters and
+#                 the paragraphs will NOT be separated by empty lines.
 format_paragraphs()
 {
     local -n output="$1"
