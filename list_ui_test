@@ -460,6 +460,26 @@ main_menu()
     lui_list_generic "${list_args[@]}"
 }
 
+# Prepare console for appropriate behavior.
+# First draft of function mainly saves the state (for later restoring)
+# and hides the cursor.
+prepare_console()
+{
+    STARTING_STTY=$( stty -g )
+    hide_cursor
+}
+
+# Restores the console from state saved in prepare_console()
+restore_console()
+{
+    stty "$STARTING_STTY"
+    show_cursor
+}
+
+prepare_console
+trap restore_console SIGINT
+trap restore_console EXIT
+
 hide_cursor
 main_menu
 show_cursor
