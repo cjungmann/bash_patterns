@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+
+block_text_line_len()
+{
+    # echo -n "${#1}"
+    string_len_sans_csi "$1"
+}
+
+block_text_get_size()
+{
+    local -n gbd_rows="$1"
+    local -n gbd_cols="$2"
+    local -n lines="$3"
+
+    gbd_rows="${#lines[@]}"
+    gbd_cols=0
+
+    local -i curlen maxlen
+    local line
+    for line in "${lines[@]}"; do
+        curlen=$( block_text_line_len "$line" )
+        (( maxlen = curlen > maxlen ? curlen : maxlen ))
+    done
+
+    gbd_cols="$maxlen"
+}
+
+block_text_print()
+{
+    local -n text_lines="$1"
+    local -i top="$2"
+    local -i ptb_origin_row="$3"
+    local -i ptb_origin_col="$4"
+    local -i rows="$5"
+    local -i cols="$6"
+
+    set_cursor_position "$ptb_origin_row" "$ptb_origin_col"
+
+    local -a tarray=( "${text_lines[@]:$top:$rows}" )
+
+    local line padding
+    local -i count=0
+    local -i curwide
+
+    # Truncate too-long lines:
+    disable_autowrap
+
+    for line in "${tarray[@]}"; do
+        curwide=$( block_text_line_len "$line" )
+        if [ "$curwide" -lt "$cols" ]; then
+            line="$line$( dupchar $(( cols - curwide )) ' ')"
+        else
+            line="$line"
+        fi
+
+        # newline BEFORE printing to avoid extra newline at end
+        if (( count++ > 0 )); then
+            echo
+        fi
+        set_cursor_column "$ptb_origin_col"
+        echo -n "$line"
+    done
+
+    enable_autowrap
+
+    set_cursor_position 99999 1
+}
+
+block_text_display()
+{
+    local -n lines="$1"
+    local -i print_rows="$2"
+    local -i print_cols="$3"
+
+    local -i blk_rows blk_cols
+    block_text_get_size "blk_rows" "blk_cols" "$1"
+
+    # Center based on contents width if not specified
+    if [ "$print_cols" -eq 0 ]; then
+        print_cols="$blk_cols"
+    fi
+
+    if [ "$print_rows" -eq 0 ]; then
+        print_rows="$blk_rows"
+    fi
+
+    local -i scr_rows scr_cols
+    get_screen_size "scr_rows" "scr_cols"
+
+    # Sanity check: shrink if too large
+    if [ "$scr_rows" -lt "$print_rows" ]; then
+        print_rows="$scr_rows"
+    fi
+    if [ "$scr_cols" -lt "$print_cols" ]; then
+        print_cols="$scr_cols"
+    fi
+
+    # top value if fully-scrolled down
+    local -i maxtop=$(( blk_rows - print_rows  ))
+
+    local -i top=0
+
+    # echo "blk_rows=$blk_rows, $blk_cols=$blk_cols" >&2
+    # echo "scr_rows=$scr_rows, print_rows=$print_rows, scr_cols=$scr_cols, print_cols=$print_cols" >&2
+
+    local -a text_block_args=(
+        "$1"                                  # name of list
+        0                                     # top row, starting at 0
+        $(( (scr_rows - print_rows) / 2 ))    # rows origin
+        $(( (scr_cols - print_cols) / 2 ))    # columns origin
+        "$print_rows"
+        "$print_cols"
+        )
+
+    local keyp
+
+    reset_screen
+
+    disable_echo
+    hide_cursor
+    while :; do
+        block_text_print "${text_block_args[@]}"
+        if get_keypress "keyp"; then
+            case "$keyp" in
+                $'\e' | 'q' ) break ;;
+                $'\e[A' ) # up arrow
+                    (( top = (top > 0 ? --top : top) ))
+                    ;;
+                $'\e[B' ) # down arrow
+                    (( top = (top < maxtop) ? ++top : top ))
+                    ;;
+            esac
+
+            text_block_args[1]="$top"
+        fi
+    done
+    show_cursor
+    enable_echo
+}

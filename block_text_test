@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+source keypress
+source small_stuff
+source block_text
+
+declare -a TEXT_BLOCK
+mapfile -t "TEXT_BLOCK" <<EOF
+[41;38;1mSTART-OF-TEXT[m                                                          X
+
+This is a long text block with several paragraphs.                     X
+
+It will be used to test a relatively-simple text-block-printing
+function that prints the contents of an array without interpretation.
+
+This [44;33;1mparagraph[m contains several [34;1mcolored[m words to test, while           X
+maintaining the right-margin [35;1m'X'[m position, thus proving that           X
+the small_stuff::string_len_sans_csi function works, and we            X
+can more confidently add the correct number of spaces to fill          X
+out the text block.   I recommend doing what I did, write the line     X
+[36;1mraw[m, ie [36;1mwithout colors[m, first to [36;1maccurately position[m the line-end 'X', X
+then add the color sequences, allowing the line to grow past the       X
+intended right-margin target.                                          X
+
+The work that the 'display_text_block' function will do is to center
+the text horizonally and vertically and will scroll the content, if
+necessary.  Lines that are too long for the screen will be truncated
+rather than wrapped.  All formatting will be maintained.  That is,
+there will be no attempt to discern paragraphs or to discard extra
+spaces.  All spaces in the text will be printed, provided that they
+remain within the limits of the console.
+
+This very long paragraph is intended as a trial of long text blocks
+to see how the 'display_text_block' function handles content that
+extends beyond the dimensions of the screen.  The test will need many
+lines of text to ensure it won't fit.  It's not particularly easy to
+generate extended readable text when there is no obvious topic.
+Without a topic, there is a temptation to simply ramble on with
+insignificant prose.  I feel a bit embarassed to generate useless text,
+but I also have to consider the time that is wasted trying to come up
+with something interesting that no one is likely to ever read.  While
+writing this paragraph I have paused more that a couple of times to
+consider what I could write.  What a waste!  Who cares what is written
+here?  Perhaps I care, for reasons listed above, but I shouldn't, also
+for reasons listed above.  I'm not sure if I've reached a volume of text
+that will test the new code.  I don't think I will try much longer to
+ensure sufficient length.  So this is the end.
+
+END-OF-TEXT
+EOF
+
+
+main()
+{
+    local -i t_rows t_cols
+    block_text_get_size "t_rows" "t_cols" "TEXT_BLOCK"
+    echo "The block contains $t_rows rows and $t_cols columns."
+
+    # block_text_print "TEXT_BLOCK" 10 60 0
+    block_text_display "TEXT_BLOCK"
+}
+
+main
