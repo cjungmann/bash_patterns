@@ -4,6 +4,7 @@ source list_ui
 source keypress
 source small_stuff
 
+declare FILE_COLOR=$'\e[48;5;4;1;38;5;15;1m'
 declare FUNC_COLOR=$'\e[36;1m'
 declare DEF_COLOR=$'\e[34;1m'
 declare END_COLOR=$'\e[m'
@@ -14,6 +15,8 @@ declare WRAP_DISABLE=$'\e[?7l'
 declare WRAP_ENABLE=$'\e[?7h'
 
 declare DESC_DELIM=$'\037'
+
+declare FILENAME=
 
 
 # @def entry_list
@@ -30,12 +33,12 @@ declare DESC_DELIM=$'\037'
 
 
 
-# Returns an entry_list row for definition at the indicated line number.
+# Returns an entry list row, given a text array and the definition's index.
 #
 # Args
-#    (name):      name of array in which the row definition will be stored
-#    (name):      name of array of lines from the target file
-#    (integer):   line number where the definition begins
+#    (name):     name of array in which to save the entry list row
+#    (name):     name of array of lines from the target file
+#    (integer):  index of line where the definition begins
 parse_definition()
 {
     local -n out_array="$1"
@@ -80,6 +83,12 @@ parse_definition()
     out_array=( "$entry" "${desc_array[0]}" "$desc" )
 }
 
+# Returns an entry list row, given a text array and the function's index.
+#
+# Args
+#    (name):     name of array in which to save the entry list row
+#    (name):     name of array of lines from the target file
+#    (integer):  index of line where the function is defined
 parse_function()
 {
     local -n out_array="$1"
@@ -106,14 +115,22 @@ parse_function()
     done
 
     local OIFS="$IFS"
-    IFS="$DESC_DELIM"
+    local IFS="$DESC_DELIM"
     local desc="${desc_array[*]}"
     IFS="$OIFS"
 
     out_array=( "$func" "${desc_array[0]}" "$desc" )
 }
 
-
+# Generate lui_list of functions and definitions
+#
+# This function scans an array of lines from a text file, saving functions and
+# definitions (a comment starting with '@def'), their line number and the line
+# number where the attached description begins, if found.
+#
+# Args
+#    (name):     name of array in which the lui_list will be generated
+#    (name):     name of array of text file lines
 parse()
 {
     local array_name="$1"
@@ -153,7 +170,12 @@ parse()
     return 0
 }
 
-
+# Custom line display function for lui_list_generic
+# 
+# Args
+#    (integer):     flag: 1 line is indicated, 0 if not indicated
+#    (integer):     maximum width of the display line
+#    (various):     remaining arguments are columns of the display row
 entry_display_line()
 {
     local -i hilite="$1"
@@ -233,12 +255,12 @@ entry_show_details()
 
         local color
         if [[ "$name" =~ .*\(\) ]]; then
-            color="$FUNC_COLOR"
+            entry_intro="function $FUNC_COLOR"
         else
-            color="$DEF_COLOR"
+            entry_intro="definition $DEF_COLOR"
         fi
 
-        echo "${color}${name}${END_COLOR}"
+        echo "${entry_intro}${name}${END_COLOR} from script ${FILE_COLOR}${FILENAME}${END_COLOR}."
         echo
 
         if [ "${#lines[*]}" -lt 1 ]; then
@@ -262,24 +284,26 @@ entry_show_details()
 
 declare STARTING_STTY
 
+# @def Screen preparation and restoration functions
+# Grouped these functions for ease of matching prep and restore elements.
+# The restore function will be attached to SIGINT and EXIT traps to make
+# a best effort at restoring the console to the original state.
+
+# Prepare console for appropriate behavior.
+# First draft of function mainly saves the state (for later restoring)
+# and hides the cursor.
 prepare_console()
 {
     STARTING_STTY=$( stty -g )
     hide_cursor
 }
 
+# Restores the console from state saved in prepare_console()
 restore_console()
 {
     stty "$STARTING_STTY"
     show_cursor
 }
-
-declare -a MAIN_INFO
-bind_paragraphs "MAIN_INFO" <<EOF
-The following list includes ${FUNC_COLOR}functions${END_COLOR} and
-${DEF_COLOR}topic headings${END_COLOR}.  Move the selection with arrow
-or page keys, read an entry by pressing ENTER.
-EOF
 
 ##############
 #    Main    #
@@ -294,6 +318,15 @@ main()
 
     local -a main_lines_list
 
+    local -a main_header
+    bind_paragraphs "main_header" <<EOF
+Showing functions and topics for script ${FILE_COLOR}$FILE${END_COLOR}.
+
+The following list includes ${FUNC_COLOR}functions${END_COLOR} and
+${DEF_COLOR}topic headings${END_COLOR}.  Move the selection with arrow
+or page keys, read an entry by pressing ENTER.
+EOF
+
     if mapfile -t main_lines_list < "$FILE"; then
         local -a main_keys_array=(
             $'\e|q:LUI_ABORT'
@@ -305,7 +338,17 @@ main()
 
             reset_screen
 
-            lui_list_generic "selected" "entry_list" 0 0 20 80 "entry_display_line" "main_keys_array" "MAIN_INFO"
+            local -a list_args=(
+                "selected"            # name of selection variable
+                "entry_list"          # name of entry list lui_list
+                0 0                   # allow lui_list_generic position interaction
+                20 80                 # rows and columns to be displayed
+                "entry_display_line"  # list display function
+                "main_keys_array"     # key action array
+                "main_header"         # array of paragraphs to display in header
+                )
+
+            lui_list_generic "${list_args[@]}"
         fi
     else
         echo "Unable to open entry."
@@ -324,4 +367,8 @@ prepare_console
 trap restore_console SIGINT
 trap restore_console EXIT
 
-main "$1"
+FILENAME="$1"
+
+main "$FILENAME"
+
+echo
