@@ -49,6 +49,8 @@ test_strstrndx()
             test=()
         fi
     done
+
+    return 3
 }
 
 test_hilite_substr()
@@ -69,6 +71,8 @@ test_hilite_substr()
     done
 
     to_return
+
+    return 3
 }
 
 test_hilite_pad()
@@ -89,6 +93,8 @@ test_hilite_pad()
     done
 
     to_return
+
+    return 3
 }
 
 test_heredoc_paragraphs()
@@ -115,6 +121,8 @@ EOF
     done
 
     to_return
+
+    return 3
 }
 
 test_markdown_paragraphs()
@@ -131,7 +139,10 @@ test_markdown_paragraphs()
     done
 
     to_return
+
+    return 3
 }
+
 
 test_indent_print()
 {
@@ -147,23 +158,93 @@ test_indent_print()
     indent_print "lines" 10 10
 
     to_return
+
+    return 3
 }
+
+# Print simple two-line ruler to compare with line output
+# Args
+#    (integer):   Characters in ruler
+print_ruler()
+{
+    local -i length="$1"
+
+    local con=$'\e[33;1m'
+    local coff=$'\e[m'
+
+    local str_1=""
+    local str_10=""
+    for (( count=0, i=0; i<length; ++count, i+=10 )); do
+        str_1="${str_1}0123456789"
+        str_10="${str_10}${count}         "
+        # str="${str}${con}0${coff}123456789"
+    done
+
+    echo "${str_10:0:$length}"
+    echo "${str_1:0:$length}"
+}
+
+test_string_len_sans_csi()
+{
+    echo "Testing several string combinations against new function."
+
+    local -a words=(
+        $'\e[43;31mword[m'
+        $'\e[38;2;255;128;0;48;2;63;63;255mword\e[m'
+    )
+
+    local word tword
+    local -i wlen
+    for word in "${words[@]}"; do
+        tword=$( print_keystroke "$word" )
+        wlen=$( string_len_sans_csi "$word" )
+        echo "$word ($tword): $wlen characters"
+    done
+
+    to_return
+
+    return 3
+}
+
+test_csi_aware_paragraphs()
+{
+    local FUNC_COLOR=$'\e[34;1m'
+    local DEF_COLOR=$'\e[35;1m'
+    local END_COLOR=$'\e[m'
+
+    local -a paragraphs
+    bind_paragraphs "paragraphs" <<EOF
+The following list includes ${FUNC_COLOR}functions${END_COLOR} and
+${DEF_COLOR}topic headings${END_COLOR}.  Move the selection with arrow
+or page keys, read an entry by pressing ENTER.
+
+This second paragraph is included in the test function to further
+stress bind_paragraphs().
+EOF
+
+    local -a lines
+    local -i length=60
+    format_paragraphs "lines" "paragraphs" "$length"
+
+    echo "There are ${#paragraphs[@]} paragraphs in the heredoc"
+    echo "There are ${#lines[@]} lines in the formatted result."
+    echo
+
+    local line
+    for line in "${lines[@]}"; do
+        echo "$line"
+    done
+    print_ruler "$length"
+
+    to_continue
+
+    return 3
+}
+
 
 ##############
 #    MAIN    #
 ##############
-
-declare -a MAIN_MENU=(
-    2 0
-    "test strstrndx"                     test_strstrndx
-    "test hilite substring"              test_hilite_substr
-    "test hilite pad"                    test_hilite_pad
-    "test paragraph-formatting heredoc"  test_heredoc_paragraphs
-    "test paragraph-formatting markdown" test_markdown_paragraphs
-    "test indent_print"                  test_indent_print
-)
-
-lui_list_init "MAIN_MENU"
 
 main_menu()
 {
@@ -176,11 +257,19 @@ main_menu()
 
         # Execute the command
          "${row[1]}"
+         local -i cmd_result="$?"
 
         reset_screen
 
-        return 0
+        return "$cmd_result"
     }
+
+    local -a paragraphs
+    bind_paragraphs "paragraphs" <<EOF
+This script exists to make it easy to create a collection of test
+that are easy to access and save.  It also serves as a simple demonstration
+of the list_ui script.
+EOF
 
     local -a keylist=(
         $'\e|q:LUI_ABORT'
@@ -189,6 +278,9 @@ main_menu()
 
     local -i selected=0
     local -i maxlen=$( lui_list_max_len "MAIN_MENU" )
+    if [ "$maxlen" -lt 60 ]; then
+        maxlen=60
+    fi
 
     local list_args=(
         "selection"           # name of selection variable
@@ -198,11 +290,50 @@ main_menu()
         "$maxlen"             # size of list in characters (xsize)
         ""                    # use default line displayer
         "keylist"             # name of keystroke functions list
+        "paragraphs"          # name of header paragraphs array
     )
 
     reset_screen
     lui_list_generic "${list_args[@]}"
 }
+
+# Prepare console for appropriate behavior.
+# First draft of function mainly saves the state (for later restoring)
+# and hides the cursor.
+prepare_console()
+{
+    STARTING_STTY=$( stty -g )
+    hide_cursor
+}
+
+# Restores the console from state saved in prepare_console()
+restore_console()
+{
+    stty "$STARTING_STTY"
+    show_cursor
+}
+
+declare -a MAIN_MENU=(
+    2 0
+    "test string len sans csi"           test_string_len_sans_csi
+    "test strstrndx"                     test_strstrndx
+    "test hilite substring"              test_hilite_substr
+    "test hilite pad"                    test_hilite_pad
+    "test paragraph-formatting heredoc"  test_heredoc_paragraphs
+    "test paragraph-formatting markdown" test_markdown_paragraphs
+    "test indent_print"                  test_indent_print
+    "test CSI aware paragraphs"          test_csi_aware_paragraphs
+)
+
+##############
+#    MAIN    #
+##############
+
+prepare_console
+trap restore_console SIGINT
+trap restore_console EXIT
+
+lui_list_init "MAIN_MENU"
 
 hide_cursor
 main_menu
