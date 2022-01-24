@@ -615,8 +615,6 @@ lui_list_plot_head()
     set_cursor_position "$row" "$column"
     for line in "${text_lines[@]}"; do
         echo "$line"
-        
-        
     done
 }
 
@@ -839,6 +837,7 @@ lui_list_generic()
         exit 1
     fi
 
+    # Centering image if indicated by position value of 0:
     if (( row==0 || col==0 )); then
         local -i scrn_rows scrn_cols
         get_screen_size "scrn_rows" "scrn_cols"
