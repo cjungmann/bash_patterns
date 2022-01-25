@@ -3,6 +3,7 @@
 source list_ui
 source keypress
 source small_stuff
+source block_text
 
 declare FILE_COLOR=$'\e[48;5;4;1;38;5;15;1m'
 declare FUNC_COLOR=$'\e[36;1m'
@@ -248,10 +249,17 @@ entry_show_details()
 
         # Break down the description
         local desc="${row[2]}"
-        local OIFS="$IFS"
-        IFS="$DESC_DELIM"
-        local -a lines=( $desc )
-        IFS="$OIFS"
+
+        local -a lines
+
+        if [ "$desc" ]; then
+            local OIFS="$IFS"
+            IFS="$DESC_DELIM"
+            lines=( $desc )
+            IFS="$OIFS"
+        else
+            lines=( "No description provided" )
+        fi
 
         local color
         if [[ "$name" =~ .*\(\) ]]; then
@@ -260,20 +268,17 @@ entry_show_details()
             entry_intro="definition $DEF_COLOR"
         fi
 
-        echo "${entry_intro}${name}${END_COLOR} from script ${FILE_COLOR}${FILENAME}${END_COLOR}."
-        echo
+        entry_intro="${entry_intro}${name}$END_COLOR from script ${FILE_COLOR}${FILENAME}$END_COLOR"
 
-        if [ "${#lines[*]}" -lt 1 ]; then
-            echo "${indent}No description provided."
-        else
-            local line
-            for line in "${lines[@]}"; do
-                echo "${indent}$line"
-            done
-        fi
+        echo -n "line count BEFORE: ${#lines[@]}  "
 
-        echo
-        read -n1 -p "${indent}Press any key to continue."
+        lines=(
+            "$entry_intro"
+            " "
+            "${lines[@]}" )
+
+        block_text_display "lines"
+
         reset_screen
 
         return 3
@@ -281,6 +286,9 @@ entry_show_details()
 
     return 0
 }
+
+
+
 
 declare STARTING_STTY
 
