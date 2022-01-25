@@ -10,14 +10,14 @@ block_text_get_size()
 {
     local -n gbd_rows="$1"
     local -n gbd_cols="$2"
-    local -n lines="$3"
+    local -n btgs_lines="$3"
 
-    gbd_rows="${#lines[@]}"
+    gbd_rows="${#btgs_lines[@]}"
     gbd_cols=0
 
     local -i curlen maxlen
     local line
-    for line in "${lines[@]}"; do
+    for line in "${btgs_lines[@]}"; do
         curlen=$( block_text_line_len "$line" )
         (( maxlen = curlen > maxlen ? curlen : maxlen ))
     done
@@ -27,7 +27,7 @@ block_text_get_size()
 
 block_text_print()
 {
-    local -n text_lines="$1"
+    local -n btp_lines="$1"
     local -i top="$2"
     local -i ptb_origin_row="$3"
     local -i ptb_origin_col="$4"
@@ -36,7 +36,7 @@ block_text_print()
 
     set_cursor_position "$ptb_origin_row" "$ptb_origin_col"
 
-    local -a tarray=( "${text_lines[@]:$top:$rows}" )
+    local -a tarray=( "${btp_lines[@]:$top:$rows}" )
 
     local line padding
     local -i count=0
@@ -66,14 +66,20 @@ block_text_print()
     set_cursor_position 99999 1
 }
 
+# Block text interaction manager
+#
+# Args
+#    (name):     name of array of text lines
+#    (integer):  display block size in rows
+#    (integer):  display block size in columns
 block_text_display()
 {
-    local list_name="$1"
+    local array_name="$1"
     local -i print_rows="$2"
     local -i print_cols="$3"
 
     local -i blk_rows blk_cols
-    block_text_get_size "blk_rows" "blk_cols" "$list_name"
+    block_text_get_size "blk_rows" "blk_cols" "$array_name"
 
     # Center based on contents width if not specified
     if [ "$print_cols" -eq 0 ]; then
@@ -104,7 +110,7 @@ block_text_display()
     # echo "scr_rows=$scr_rows, print_rows=$print_rows, scr_cols=$scr_cols, print_cols=$print_cols" >&2
 
     local -a text_block_args=(
-        "$list_name"                          # name of list
+        "$array_name"                         # name of array of text lines
         0                                     # top row, starting at 0
         $(( (scr_rows - print_rows) / 2 ))    # rows origin
         $(( (scr_cols - print_cols) / 2 ))    # columns origin
