@@ -837,16 +837,19 @@ lui_list_generic()
         exit 1
     fi
 
+    local -i scrn_rows scrn_cols
+    get_screen_size "scrn_rows" "scrn_cols"
+
+    # Adjust values if terminal too small
+    (( line_count = scrn_rows < line_count ? scrn_rows : line_count ))
+    (( chars_width = scrn_cols < chars_width ? scrn_cols : chars_width ))
+
     # Centering image if indicated by position value of 0:
-    if (( row==0 || col==0 )); then
-        local -i scrn_rows scrn_cols
-        get_screen_size "scrn_rows" "scrn_cols"
-        if (( row==0 )); then
-            (( row = (scrn_rows - line_count) / 2 ))
-        fi
-        if (( col==0 )); then
-            (( col = (scrn_cols - chars_width) / 2 ))
-        fi
+    if (( row==0 )); then
+        (( row = (scrn_rows - line_count) / 2 ))
+    fi
+    if (( col==0 )); then
+        (( col = (scrn_cols - chars_width) / 2 ))
     fi
 
     local -a head_text
