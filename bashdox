@@ -270,12 +270,7 @@ entry_show_details()
 
         entry_intro="${entry_intro}${name}$END_COLOR from script ${FILE_COLOR}${FILENAME}$END_COLOR"
 
-        echo -n "line count BEFORE: ${#lines[@]}  "
-
-        lines=(
-            "$entry_intro"
-            " "
-            "${lines[@]}" )
+        lines=( "$entry_intro" " " "${lines[@]}" )
 
         block_text_display "lines"
 
