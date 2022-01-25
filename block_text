@@ -68,12 +68,12 @@ block_text_print()
 
 block_text_display()
 {
-    local -n lines="$1"
+    local list_name="$1"
     local -i print_rows="$2"
     local -i print_cols="$3"
 
     local -i blk_rows blk_cols
-    block_text_get_size "blk_rows" "blk_cols" "$1"
+    block_text_get_size "blk_rows" "blk_cols" "$list_name"
 
     # Center based on contents width if not specified
     if [ "$print_cols" -eq 0 ]; then
@@ -104,7 +104,7 @@ block_text_display()
     # echo "scr_rows=$scr_rows, print_rows=$print_rows, scr_cols=$scr_cols, print_cols=$print_cols" >&2
 
     local -a text_block_args=(
-        "$1"                                  # name of list
+        "$list_name"                          # name of list
         0                                     # top row, starting at 0
         $(( (scr_rows - print_rows) / 2 ))    # rows origin
         $(( (scr_cols - print_cols) / 2 ))    # columns origin
