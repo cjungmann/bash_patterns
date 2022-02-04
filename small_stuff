@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2206 # don't warn about initializing arrays with unquoted variables.
+# shellcheck disable=SC2059 # skip printf format variables warnings (it thinks $'\e' is a variable)
+# shellcheck disable=SC2034 # "unused" nameref variables are read from in calling function
+
 # @def Console-code screen functions
 # These functions use console codes (see man console_codes) to
 # set or read certain screen characteristics.
@@ -29,6 +33,7 @@ set_cursor_column() { echo -n $'\e['"${1}G"; }
 
 set_window_title() { echo -ne $'\e]2;'"$1"$'\a'; }
 
+
 # Get the current cursor position from the terminal, returning the
 # values in nameref variables
 # Args
@@ -46,24 +51,22 @@ get_cursor_position()
         -p $'\e[6n' # prompt, written to stdout, prompts terminal response
     )
 
+    # shellcheck disable=SC2162 # don't warn missing -r: it's in read_args[@].
     read "${read_args[@]}" REPLY
 
     IFS=';'
     local -a arr
     arr=( ${REPLY#*[} )
 
-    local -i ecode
-    local treply
-
     # discard any pending keypresses
-    while read -t 0; ! (( ecode=$? )); do
+    while read -t 0; do
         read -srN1
-        treply="$REPLY"
     done
 
     gcp_rows="${arr[0]}"
     gcp_cols="${arr[1]}"
 }
+
 
 # Move the cursor to specified screen location
 #
@@ -390,7 +393,8 @@ format_paragraph()
     local -i line_width="$3"
     local -i para_indent="$4"
 
-    local indent=$( dupchar "$para_indent" ' ' )
+    local indent
+    indent=$( dupchar "$para_indent" ' ' )
 
     local word
     local -a line=( )
