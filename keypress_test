@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+source keypress
+
+echo "Keypress test mode.  Type any key to see the emitted character string."
+echo "Type 'q' to quit."
+declare keyp
+declare -i count=0
+while : ; do
+    get_keypress "keyp"
+    if [ "$keyp" == 'q' ]; then
+        exit
+    else
+        printf "\n%6d: keypress was %s." $(( ++count )) "${keyp///\\e}"
+    fi
+done
