@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
-source list_ui
-source keypress
-source small_stuff
-source block_text
+# Load appropriate sources even if script is a symlink:
+declare -a SOURCES=( list_ui keypress small_stuff block_text )
+declare SFOLDER=$( readlink -f "$0" ); SFOLDER="${folder%/*}"
+declare source
+for source in "${SOURCES[@]}"; do
+    source "${SFOLDER}/$source"
+done
+
 
 declare FILE_COLOR=$'\e[48;5;4;1;38;5;15;1m'
 declare FUNC_COLOR=$'\e[36;1m'
@@ -30,6 +34,11 @@ declare FILENAME=
 #    (string):       entry name
 #    (string):       first description line
 #    (packed_array): string with multiple lines delimited with $DESC_DELIM
+
+
+
+# Statement into function to enable standard
+set_app_window_title() { set_window_title "bashdox:  $FILENAME"; }
 
 
 
@@ -241,10 +250,11 @@ entry_show_details()
     local indent="   "
 
     local -i top count
+    local entry_intro entry_type
 
     local -a row
     if lui_list_copy_row "row" "$list_name" "$ndx"; then
-        reset_screen
+
         local name="${row[0]}"
 
         # Break down the description
@@ -264,17 +274,25 @@ entry_show_details()
         local color
         if [[ "$name" =~ .*\(\) ]]; then
             entry_intro="function $FUNC_COLOR"
+            entry_type="function"
         else
             entry_intro="definition $DEF_COLOR"
+            entry_type="definition"
         fi
 
         entry_intro="${entry_intro}${name}$END_COLOR from script ${FILE_COLOR}${FILENAME}$END_COLOR"
 
         lines=( "$entry_intro" " " "${lines[@]}" )
 
+        reset_screen
+
+        set_window_title "$FILENAME  ->   $name  ($entry_type)"
+
         block_text_display "lines"
 
         reset_screen
+
+        set_app_window_title
 
         return 3
     fi
@@ -340,6 +358,8 @@ EOF
             lui_list_init "entry_list" "${entry_list[0]}"
 
             reset_screen
+
+            set_app_window_title
 
             local -a list_args=(
                 "selected"            # name of selection variable
