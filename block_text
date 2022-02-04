@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2034 # don't warn about nameref variables that are only read by caller
+
 # @def Script to print dimensionally-constrained text.
 #
 # Calculates a centered position for the contents of an array
@@ -74,8 +76,6 @@ block_text_print()
         curwide=$( string_len_sans_csi "$line" )
         if [ "$curwide" -lt "$cols" ]; then
             line="$line$( dupchar $(( cols - curwide )) ' ')"
-        else
-            line="$line"
         fi
 
         # newline BEFORE printing to avoid extra newline at end
