@@ -12,12 +12,15 @@
 # For example, enter Control-Esc, press and hold Control-q,
 # the press the ESCAPE key.
 
+# @def This script contains mostly one-liners that don't need documentation
+
 pause_for_keypress() { read -n 1 -p "Press any key to continue."; }
 erase_screen()       { echo -n "[2J"; }
 goto_origin()        { echo -n "[0;0f"; }
 moveto()             { echo -n "[${1};${2}f"; }
 
-# Text color settings
+# @def The next batch of functions affect text color settings
+
 set_bold()         { echo -n "[1m"; }
 unset_bold()       { echo -n "[21m"; }
 set_dim()          { echo -n "[2m"; }
@@ -45,6 +48,9 @@ set_magenta_bg()   { echo -n "[45m"; }
 set_cyan_bg()      { echo -n "[46m"; }
 set_white_bg()     { echo -n "[47m"; }
 
+# Scans all resident functions for _fg suffix (ie for one example
+# of each color), then displays the versions of each color for a
+# hopefully informative display.
 collect_funcs()
 {
     local IFS=$'\n'
