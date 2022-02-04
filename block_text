@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 
-block_text_line_len()
-{
-    # echo -n "${#1}"
-    string_len_sans_csi "$1"
-}
+# @def Script to print dimensionally-constrained text.
+#
+# Calculates a centered position for the contents of an array
+# of text strings, then displays the text within the constraints.
+#
+# Line lengths are calculated by counting characters that are not
+# part of CSI-prefixed codes, so lines may include color-highlighted
+# text without ruining the block display.
+#
+# Look at script 'block_text_test' for a usage example.
 
+# @def Script dependencies
+# This script uses functions found in 'small_stuff' and 'keypress'.
+
+# Returns the size of a text block in rows and columns.
+#
+# Args
+#    (name):     name of integer in which the row count is returned.
+#    (name):     name of integer in which the column count is returned.
+#    (name):     name of array of text strings to print
 block_text_get_size()
 {
     local -n gbd_rows="$1"
@@ -18,23 +32,34 @@ block_text_get_size()
     local -i curlen maxlen
     local line
     for line in "${btgs_lines[@]}"; do
-        curlen=$( block_text_line_len "$line" )
+        curlen=$( string_len_sans_csi "$line" )
         (( maxlen = curlen > maxlen ? curlen : maxlen ))
     done
 
     gbd_cols="$maxlen"
 }
 
+# Prints the text block and handles the scrolling
+#
+# Lines with ANSI codes near the end may 
+#
+# Args
+#    (name):     name of array of text strings to be printed
+#    (integer):  index of the first line to print in text strings array
+#    (integer):  row position from which to start printing text
+#    (integer):  column position from which to start printing text
+#    (integer):  number of rows to print at once
+#    (integer):  number of columns to print (padded to end, cut if too long)
 block_text_print()
 {
     local -n btp_lines="$1"
     local -i top="$2"
-    local -i ptb_origin_row="$3"
-    local -i ptb_origin_col="$4"
+    local -i btp_origin_row="$3"
+    local -i btp_origin_col="$4"
     local -i rows="$5"
     local -i cols="$6"
 
-    set_cursor_position "$ptb_origin_row" "$ptb_origin_col"
+    set_cursor_position "$btp_origin_row" "$btp_origin_col"
 
     local -a tarray=( "${btp_lines[@]:$top:$rows}" )
 
@@ -46,7 +71,7 @@ block_text_print()
     disable_autowrap
 
     for line in "${tarray[@]}"; do
-        curwide=$( block_text_line_len "$line" )
+        curwide=$( string_len_sans_csi "$line" )
         if [ "$curwide" -lt "$cols" ]; then
             line="$line$( dupchar $(( cols - curwide )) ' ')"
         else
@@ -57,7 +82,7 @@ block_text_print()
         if (( count++ > 0 )); then
             echo
         fi
-        set_cursor_column "$ptb_origin_col"
+        set_cursor_column "$btp_origin_col"
         echo -n "$line"
     done
 
@@ -67,6 +92,10 @@ block_text_print()
 }
 
 # Block text interaction manager
+#
+# Given an array of text lines and row and column constraints, this
+# function calculates a screen-centered position then manages an
+# event loop to allow a scrolling interaction with the contents.
 #
 # Args
 #    (name):     name of array of text lines
