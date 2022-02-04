@@ -27,6 +27,8 @@ enable_autowrap() { echo -n $'\e[?7h'; }
 # Move cursor to specified column of current row.
 set_cursor_column() { echo -n $'\e['"${1}G"; }
 
+set_window_title() { echo -ne $'\e]2;'"$1"$'\a'; }
+
 # Get the current cursor position from the terminal, returning the
 # values in nameref variables
 # Args
