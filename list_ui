@@ -177,7 +177,9 @@ lui_list_row_in_range()
 #
 # Args
 #    (name):   name of lui_list array
-#    (name):   name of callback function
+#    (name):   name of callback function. The callback function receives
+#              $1    (integer):  the row number
+#              $2... (various):  the fields of the current row
 lui_list_iterate()
 {
     local -i rows columns
@@ -188,7 +190,7 @@ lui_list_iterate()
     local luili_callback="$2"
 
     for (( ndx=2, row=0; row<rows; ++row, ndx+=columns )); do
-        if ! "$luili_callback" "${luili_list[@]:$ndx:$columns}"; then
+        if ! "$luili_callback" "$row" "${luili_list[@]:$ndx:$columns}"; then
             break
         fi
     done
@@ -198,21 +200,31 @@ lui_list_iterate()
 #
 # Args
 #    (name):     name of a lui_list for nameref access
-#    (name):     name of row length comparison function
+#    (name):     name of a gauge function that counts displayable characters
+#                The gauge function should accept the following arguments:
+#                $1    (name):    name of integer value in which the count is returned
+#                $2... (various): the fields of the current row
 lui_list_max_len()
 {
     local list_name="$1"
-    local func_name="${2:-lui_list_line_length_column}"
+    local gauge_func="${2:-lui_list_line_length_column}"
 
     local -i limit maxlen=0
 
+    # "closure" function that accesses a variable of the outer function (maxlen)
     llml_calc()
     {
+        # ignore the row number for this purpose
+        local -a row
+        row=( "${@:2}" )
+
         local -i len
-        "$func_name" "len" "$@"
+        "$gauge_func" "len" "${row[@]}"
         if (( len > maxlen )); then
             (( maxlen = len ))
         fi
+
+        return 0
     }
 
     lui_list_iterate "$list_name" "llml_calc"
@@ -830,7 +842,11 @@ lui_list_generic()
     local line_displayer="${7:-lui_list_display_line}"
     local term_keys_list_name="${8:-LUI_DEFAULT_TERM_KEYS}"
     local head_array_name="$9"
-    local -a extra_args=( "${@:8}" )
+
+    local -a extra_args
+    if [ "$#" -gt 9 ]; then
+        extra_args=( "${@:10}" )
+    fi
 
     if [ "$line_count" -lt 2 ]; then
         echo "Invalid line count: $line_count" >&2
