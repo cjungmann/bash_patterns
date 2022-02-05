@@ -72,6 +72,15 @@ test_padding()
     local -a lrow
     local -i rows
     lui_list_row_count "rows" "MYLIST"
+
+    echo "This is a simple test to confirm reasonable output"
+    echo "of the 'hilite_pad' function, which should add spaces"
+    echo "to a given length."
+    echo
+    echo "The purpose of 'hilite_pad' is to enable justified"
+    echo "columns for multi-column data."
+    echo
+
     for (( ndx=0; ndx<rows; ++ndx )); do
         lui_list_copy_row "lrow" "MYLIST" "$ndx"
         echo -n $'\e[45m'
@@ -445,6 +454,19 @@ main_menu()
 
     local -i selected=0
     local -i maxlen=$( lui_list_max_len "MAIN_MENU" )
+    if [ "$maxlen" -lt 50 ]; then
+        maxlen=50
+    fi
+
+    local -a header_text
+    bind_paragraphs "header_text" <<EOF
+This collection of tests is itself a demonstration of
+list_ui usage.
+
+Use arrow keys to indicate a test, then ENTER to execute
+the test.  You will return to this menu upon completion
+of the test.  Press 'q' or ESC to quit.
+EOF
 
     local list_args=(
         "selection"           # name of selection variable
@@ -454,6 +476,7 @@ main_menu()
         "$maxlen"             # size of list in characters (columns)
         ""                    # use default line displayer
         "keylist"             # name of keystroke functions list
+        "header_text"         # name of array of header text"
     )
 
     reset_screen
