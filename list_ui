@@ -66,6 +66,23 @@ lui_list_validate()
     (( ((colcount * rowcount) + 2 ) == full_count ))
 }
 
+# Tool to help discern why a lui_list might be invalid
+lui_list_describe()
+{
+    local -n lld_list="$1"
+    local -i full_count="${#lld_list[@]}"
+    if [ "$full_count" -lt 3 ]; then
+        echo "In '$1', too few ($full_count) elements to be a lui_list."
+        return 1
+    fi
+
+    local -i colcount="${lld_list[0]}"
+    local -i rowcount="${lld_list[1]}"
+
+    echo "lui_list '$1' contains $full_count total elements,"
+    echo "with $colcount columns in $rowcount rows."
+}
+
 # Checks and updates row count of properly-constructed lui_list.
 # 
 # Sets the row-count element (list[1]) by calculating the number
@@ -711,6 +728,32 @@ lui_list_calc_top_row()
     fi
 }
 
+# Determine the safest content width.
+#
+# First get largest of requested width and content width, then
+# reduce to fit in screen if necessary.  Returns the calculated
+# width in a nameref variable of $1.
+#
+# Args
+#    (name):    name of integer variable in which to store result
+#    (name):    name of lui_list from which the list is printed
+#    (integer): requested width
+lui_list_calc_suitable_width()
+{
+    local -n best_width="$1"
+    local list_name="$1"
+    local -i cols="$2"
+
+    # Get largest of requests
+    local -i maxlen=$( lui_list_max_len "$list_name" "lui_list_line_length_selection" )
+    (( cols = (cols==0 || maxlen > cols) ? maxlen : cols ))
+
+    # possibly constrain width by screen width
+    local -i srows scols
+    get_screen_size "srows" "scols"
+    (( best_width = ( cols > scols ) ? scols : cols ))
+}
+
 # Display a screen-full of list items.
 #
 # This function prints out a screenful of item lines based on various
@@ -966,15 +1009,48 @@ lui_list_generic()
 # These functions perform their basic duties, but also serve as examples
 # of proper usage of lui_list_generic() for custom tasks.
 
+# Menu interaction implemented with lui_list_generic
+#
+# Args
+#    (name):     name of integer variable in which the selection will be saved
+#    (name):     name of lui_list containing the menu options
+#    (integer):  maximum number of rows to display
+#    (integer):  maximum number of characters per line
+#    (name):     optional name of array of paragraphs for a header
 lui_list_menu()
 {
     local llm_selected_name="$1"
     local llm_list_name="$2"
-    local -i line_count="${3:-10}"
+    local -i rows="${3:-10}"
+    local -i cols_requested="$4"
+    local llm_header_name="$5"
 
-    lui_list_generic "$llm_selected_name" "$llm_list_name" 1 1 10 "$line_count"
+    local -i cols
+    lui_list_calc_suitable_width "cols" "$llm_list_name" "$cols_requested"
+
+    local -a args=(
+        "$llm_selected_name"
+        "$llm_list_name"
+        0                   # row location
+        0                   # column location
+        "$rows"
+        "$cols"
+        ""                  # list displayer
+        ""                  # keystroke list
+        "$llm_header_name"
+    )
+
+
+    lui_list_generic "${args[@]}"
 }
 
+# Radio-button interaction implemented with lui_list_generic
+#
+# Args
+#    (name):     name of lui_list containing the menu options
+#    (integer):  maximum number of rows to display
+#    (integer):  maximum number of characters per line
+#    (name):     optional name of array of paragraphs for a header
 lui_list_radio()
 {
     if ! lui_list_validate "$1"; then
@@ -983,40 +1059,58 @@ lui_list_radio()
     fi
 
     local llr_list_name="$1"
-    local -i lines="${2:-10}"
-    local -i selected=0
+    local -i rows="${2:-10}"
+    local -i cols_requested="$3"
 
-    local -i maxlen=$( lui_list_max_len "$llr_list_name" "lui_list_line_length_selection" )
+    local -i cols
+    lui_list_calc_suitable_width "cols" "$llr_list_name" "$cols_requested"
 
     local -a keylist=(
         "${LUI_DEFAULT_TERM_KEYS[@]}"
         $' :lui_list_action_radio_select'
     )
 
+    # Ignored for calling function
+    local -i selected=0
+
     local -a list_args=(
         "selected"
         "$llr_list_name"
         0         0            # row, column (0s to center dialog)
-        "$lines" "$maxlen"     # height, width in characters
+        "$rows" "$cols"        # height, width in characters
         "lui_list_display_selectable_line"
         "keylist"
     )
 
+    if [ "$4" ]; then
+        list_args+=( "$4" )
+    fi
+
     lui_list_generic "${list_args[@]}"
 }
 
+# Checkbox interaction implemented with lui_list_generic
+#
+# Args
+#    (name):     name of lui_list containing the menu options
+#    (integer):  maximum number of rows to display
+#    (integer):  maximum number of characters per line
+#    (name):     optional name of array of paragraphs for a header
 lui_list_checkbox()
 {
     if ! lui_list_validate "$1"; then
-        echo "Invalid lui_list submited to lui_list_checkbox." >&2
+        echo "Invalid lui_list submited to lui_list_checkbox" >&2
+        lui_list_describe "$1" >&2
         exit 1
     fi
 
     local llc_list_name="$1"
-    local -i lines="${2:-10}"
+    local -i rows="${2:-10}"
+    local -i cols_requested="$3"
     local -i selected=0
 
-    local -i maxlen=$( lui_list_max_len "$llc_list_name" "lui_list_line_length_selection" )
+    local -i cols
+    lui_list_calc_suitable_width "cols" "$llc_list_name" "$cols_requested"
 
     local -a keylist=(
         "${LUI_DEFAULT_TERM_KEYS[@]}"
@@ -1027,10 +1121,14 @@ lui_list_checkbox()
         "selected"
         "$llc_list_name"
         0         0          # row, column (0s for centered dialog)
-        "$lines" "$maxlen"   # height, width in characters
+        "$rows" "$cols"   # height, width in characters
         "lui_list_display_selectable_line"
         "keylist"
     )
+
+    if [ "$4" ]; then
+        list_args+=( "$4" )
+    fi
 
     lui_list_generic "${list_args[@]}"
 }
