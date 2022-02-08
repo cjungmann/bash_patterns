@@ -490,3 +490,11 @@ format_paragraphs()
     done
 }
 
+# Silently test if a builtin script function exists
+#
+# Rather than check for a version number or something else,
+# it may be better to simply confirm that a function works.
+#
+# Args
+#    (name):    name of builtin function to be sought
+test_builtin() { help "$1" > /dev/null 2>&1; }
