@@ -56,7 +56,7 @@ lui_list_validate()
 {
     local -n llv_list="$1"
     local -i full_count="${#llv_list[@]}"
-    if [ "$full_count" -lt 3 ]; then
+    if [ "$full_count" -lt 2 ]; then
         return 1
     fi
 
@@ -937,29 +937,49 @@ lui_list_list_keys()
     done
 }
 
+# Create a lui_list of translated keys and action descriptions
+#
+# Args
+#    (name):     name of lui_list array in which the output will be written
+#    (name):     name of keylist array of actions from which info will be taken
+lui_list_key_advice_list()
+{
+    local infolist_name="$1"
+    local keylist_name="$2"
+
+    local -n llka_infolist="$infolist_name"
+    local -n llka_keylist="$keylist_name"
+
+    # initialise output lui_list to empty, 2-column list
+    llka_infolist=( 2 0 )
+
+    local keyline
+    local -a keydec newrow
+    local keytext
+
+    local IFS=':'
+
+    for keyline in "${llka_keylist[@]}"; do
+        keydec=( $keyline )
+        if [ "${#keydec[@]}" -gt 2 ]; then
+            keytext=$( lui_list_list_keys "${keydec[0]}" )
+            newrow=( "$keytext" "${keydec[2]}" )
+            lui_list_append_row "$infolist_name" "newrow"
+        fi
+    done
+}
+
 # Presents an explanation of available keys.
 #
 # Args
 #    (name):    name of the current keylist array
 lui_list_advise_keys()
 {
-    local -n keylist="$1"
-    local -a lines=()
+    local keylist_name="$1"
 
-    local keyline
-    local -a keydec
+    local -a infolist
 
-    local IFS=':'
-
-    for keyline in "${keylist[@]}"; do
-        keydec=( $keyline )
-        if [ "${#keydec[@]}" -gt 2 ]; then
-            lui_list_list_keys "${keydec[0]}"
-            echo -n "    "
-            echo "${keydec[2]}"
-        fi
-    done
-
+    lui_list_key_advice_list "infolist" "$keylist_name"
     read -n1 -p "Press any key"
 }
 
