@@ -896,14 +896,29 @@ lui_list_name_key()
 {
     local keyp="$1"
     local name=""
+    local letter
+    local -i numeral
     case "$keyp" in
-        $' '    )  name="SPACE"    ;;
-        $'\n'   )  name="ENTER"    ;;
-        $'\e'   )  name="ESCAPE"   ;;
-        $'\eOp' )  name="F1"       ;;
-        $'\eOq' )  name="F2"       ;;
-        $'\eOr' )  name="F3"       ;;
-        $'\eOs' )  name="F4"       ;;
+        $' '      ) name="SPACE"  ;;
+        $'\n'     ) name="ENTER"  ;;
+        $'\e'     ) name="ESCAPE" ;;
+        $'\eOP'   ) name="F1"     ;;
+        $'\eOQ'   ) name="F2"     ;;
+        $'\eOR'   ) name="F3"     ;;
+        $'\eOS'   ) name="F4"     ;;
+        $'\e[15~' ) name="F5"     ;;
+        $'\e[17~' ) name="F6"     ;;
+        $'\e[18~' ) name="F7"     ;;
+        $'\e[19~' ) name="F9"     ;;
+        $'\e[H'   ) name="HOME"   ;;
+        $'\e[F'   ) name="END"    ;;
+        $'\e[2~'  ) name="INSERT" ;;
+        $'\e[3~'  ) name="DELETE" ;;
+        $'\t'     ) name="TAB"    ;;
+        $'\eOp'   ) name="F1"     ;;
+        $'\eOq'   ) name="F2"     ;;
+        $'\eOr'   ) name="F3"     ;;
+        $'\eOs'   ) name="F4"     ;;
         * )
             if [ "${#keyp}" -eq 1 ]; then
                 name="$keyp"
@@ -939,13 +954,20 @@ lui_list_list_keys()
 
 # Create a lui_list of translated keys and action descriptions
 #
+# The returned values from this function provides information to make
+# a formatted user hints display.
+#
 # Args
 #    (name):     name of lui_list array in which the output will be written
+#    (name):     name of integer in which max key string length will be set
+#    (name):     name of integer in which max action string length will be set
 #    (name):     name of keylist array of actions from which info will be taken
 lui_list_key_advice_list()
 {
     local infolist_name="$1"
-    local keylist_name="$2"
+    local -n llka_max_key="$2"
+    local -n llka_max_act="$3"
+    local keylist_name="$4"
 
     local -n llka_infolist="$infolist_name"
     local -n llka_keylist="$keylist_name"
@@ -953,9 +975,13 @@ lui_list_key_advice_list()
     # initialise output lui_list to empty, 2-column list
     llka_infolist=( 2 0 )
 
+    llka_max_key=0
+    llka_max_act=0
+    local -i cur_key cur_act
+
     local keyline
     local -a keydec newrow
-    local keytext
+    local keytext acttext
 
     local IFS=':'
 
@@ -963,7 +989,16 @@ lui_list_key_advice_list()
         keydec=( $keyline )
         if [ "${#keydec[@]}" -gt 2 ]; then
             keytext=$( lui_list_list_keys "${keydec[0]}" )
-            newrow=( "$keytext" "${keydec[2]}" )
+            cur_key="${#keytext}"
+            acttext="${keydec[2]}"
+            cur_act="${#acttext}"
+
+
+            newrow=( "$keytext" "$acttext" )
+
+            (( llka_max_key = ( cur_key > llka_max_key ) ? cur_key : llka_max_key ))
+            (( llka_max_act = ( cur_act > llka_max_act ) ? cur_act : llka_max_act ))
+
             lui_list_append_row "$infolist_name" "newrow"
         fi
     done
@@ -978,9 +1013,26 @@ lui_list_advise_keys()
     local keylist_name="$1"
 
     local -a infolist
+    local -i maxkey maxact
 
-    lui_list_key_advice_list "infolist" "$keylist_name"
-    read -n1 -p "Press any key"
+    lui_list_key_advice_list "infolist" "maxkey" "maxact" "$keylist_name"
+    local llak_format="%${maxkey}s: %${maxact}s"
+
+    local -a blocktext=()
+
+    # Process all rows to make block text:
+    line_adder()
+    {
+        local line=$( printf "$llak_format" "$2" "$3" )
+        blocktext+=( "$line" )
+    }
+    lui_list_iterate "infolist" "line_adder"
+
+    for line in "${blocktext[@]}"; do
+        echo "$line"
+    done
+
+    return 3
 }
 
 # @def primary list interaction
