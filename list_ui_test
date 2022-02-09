@@ -207,7 +207,7 @@ test_generic_menu()
     local list_args=(
         "selection"           # name of selection variable
         "list_menu"           # name of lui_list
-        20 20                 # row, column
+        20 20                 # location by row and column
         "$rows"               # size of list in lines (rows)
         "$maxlen"             # size of list in characters (columns)
     )
@@ -219,7 +219,9 @@ test_generic_menu()
     lui_list_generic "${list_args[@]}"
     local -i ecode="$?"
     if [ "$ecode" -eq 0 ]; then
-        echo "You selected '${list_menu[$selection]}'"
+        local -i menu_index
+        (( menu_index = selection + 2 ))
+        echo "You selected '${list_menu[$menu_index]}'"
         to_continue
     fi
 }
@@ -228,11 +230,72 @@ test_simple_menu()
 {
     local -i selected_index
 
-    if lui_list_menu "selected_index" "MYLIST"; then
+    local -a header_text
+
+    bind_paragraphs "header_text" <<EOF
+This is a simple menu, the code for which is a demonstration
+of how to use a simple menu with header text (what you're now
+reading).
+EOF
+
+    local -a args=(
+        "selected_index"
+        "MYLIST"
+        ""                 # empty string triggers default value
+        40                 # set value because the default value is too narrow for header
+        "header_text"
+    )
+
+    if lui_list_menu "${args[@]}"; then
         echo "You selected index $selected_index"
     else
         echo "You cancelled the selection."
     fi
+}
+
+demo_lui_list_iterate()
+{
+    local -a header_texts
+    bind_paragraphs "header_text" <<EOF
+This demo shows how to use the lui_list_iterate function.
+It is a pull-type iterator, calling a function you provide
+in order to process each row of a list.
+
+In a trivial task, this just finds the longest number name
+from the LONGLIST lui_list.
+
+In this demo, the callback is embedded like a closure.
+EOF
+
+    local -i maxlen_index=-1
+    local -i maxlen=0
+    local maxlen_name
+
+    dlli_callback()
+    {
+        # The row values follow the row number.  For
+        # convenience and consistency, I'm recasting the
+        # row values as new array to maintain the value
+        # index numbers.
+        local -i ndx="$1"
+        local -a vals
+        vals=( "${@:2}" )
+        local -i curlen="${#vals[0]}"
+
+        if [ "$curlen" -gt "$maxlen" ]; then
+            maxlen_index="$ndx"
+            maxlen_name="${vals[0]}"
+            maxlen="$curlen"
+        fi
+
+        # return TRUE to prevent early termination:
+        return 0
+    }
+
+    lui_list_iterate "LONGLIST" "dlli_callback"
+
+    echo "The longest number is '$maxlen_name' at row $maxlen_index of $maxlen characters."
+    to_return
 }
 
 test_custom_menu()
@@ -409,18 +472,82 @@ test_lui_list_max_len()
     to_continue
 }
 
+dump_lui_list()
+{
+    local -n dll_list="$1"
+    local -i dll_rows dll_cols
+    lui_list_column_count "dll_cols" "$1"
+    lui_list_row_count "dll_rows" "$1"
+    echo "The list has $dll_rows dll_rows and $cols columns."
+
+    row_printer()
+    {
+        local -a rp_row=( "${@:2}" )
+        printf "%3d " "$1"
+        local IFS='|'
+        echo "${rp_row[*]}"
+    }
+
+    lui_list_iterate "$1" "row_printer"
+    echo "---------------------"
+    echo
+}
+
+test_append_row()
+{
+    local -a start=(
+        1   one   first
+        2   two   second
+        3   three third
+        4   four  fourth
+        5   five  fifth
+    )
+
+    local -a newrow=()
+
+    local -a numbers
+    lui_list_convert "numbers" "start" 3 3
+
+    echo "Starting lui_list:"
+    dump_lui_list "numbers"
+
+    newrow=( 6 six sixth )
+    echo "Adding a matching row ( ${newrow[*]} ):"
+    lui_list_append_row "numbers" "newrow"
+    dump_lui_list "numbers"
+
+    newrow=( 7 seven )
+    echo "Adding a short row ( ${newrow[*]} ):"
+    lui_list_append_row "numbers" "newrow"
+    dump_lui_list "numbers"
+
+    newrow=( 8 eight eighth eight,baby )
+    echo "Adding a long row ( ${newrow[*]} ):"
+    lui_list_append_row "numbers" "newrow"
+    dump_lui_list "numbers"
+
+    newrow=( 9 nine ninth )
+    echo "Adding a normal row ( ${newrow[*]} ):"
+    lui_list_append_row "numbers" "newrow"
+    dump_lui_list "numbers"
+
+    to_continue
+}
+
 ##############
 #    Main    #
 ##############
 
 declare -a MAIN_MENU=(
     2 0
+    "test append row"       test_append_row
     "test padding"          test_padding
     "test ls_colors"        test_ls_colors
     "test generic menu"     test_generic_menu
     "test simple menu"      test_simple_menu
     "test edit ls_colors"   test_edit_ls_colors
 
+    "demo lui_list_iterate" demo_lui_list_iterate
     "test custom menu"      test_custom_menu
     "test radio list"       test_radio_list
     "test checkbox list"    test_checkbox_list
@@ -444,7 +571,8 @@ main_menu()
 
         reset_screen
 
-        return 0
+        # 3 says to replot header along with the list
+        return 3
     }
 
     local -a keylist=(
