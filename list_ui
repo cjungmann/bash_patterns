@@ -300,9 +300,10 @@ lui_list_copy_row()
 lui_list_replace_row()
 {
     local list_name="$1"
-    local -n luii_list="$list_name"
     local -n source_row="$2"
     local -i target_row_num="$3"
+
+    local -n luii_list="$list_name"
 
     if lui_list_row_in_range "$1" "$3"; then
         local -i columns="${luii_list[0]}"
@@ -318,6 +319,44 @@ lui_list_replace_row()
     fi
 
     return 1
+}
+
+# Add a row to an existing lui_list.
+#
+# Mismatches between the column count of the lui_list and the new
+# row will be done by adding (empty) or ignoring extra columns to
+# maintain the integrity of the target lui_list.
+#
+# Args
+#    (name):    name of lui_list into which the row will be appended
+#    (name):    name of row array that will be appended to the lui_list
+lui_list_append_row()
+{
+    local list_name="$1"
+    local -n source_row="$2"
+
+    local -n llar_list="$list_name"
+
+    local -i list_cols
+    lui_list_column_count "list_cols" "$list_name"
+    local -i row_cols="${#source_row[@]}"
+    local -a new_row=()
+
+    if lui_list_validate "$list_name"; then
+        if [ "$row_cols" -ge "$list_cols" ]; then
+            new_row=( "${source_row[@]:0:$list_cols}" )
+        else
+            new_row=( "${source_row[@]}" )
+            for (( ndx=row_cols; ndx<list_cols; ++ndx )); do
+                new_row+=( "" )
+            done
+        fi
+        llar_list+=( "${new_row[@]}" )
+        (( ++llar_list[1] ))
+    else
+        echo "Invalid lui_list: not able to append."
+        exit 1
+    fi
 }
 
 # @def line_length functions
@@ -501,8 +540,8 @@ lui_list_display_selectable_line()
 # functions are called.
 
 declare -a LUI_DEFAULT_TERM_KEYS=(
-    $'\e|q:LUI_ABORT'
-    $'\n:LUI_SELECT'
+    $'\e|q:LUI_ABORT:Quit immediately'
+    $'\n:LUI_SELECT:Save and Quit'
     )
 
 # @def key action functions
@@ -849,6 +888,81 @@ lui_list_process_key()
     return 0
 }
 
+# Translate non-typeable keystroke strings to the triggering key.
+#
+# Args
+#    (string):    keystroke string from get_keypress (in keypress script)
+lui_list_name_key()
+{
+    local keyp="$1"
+    local name=""
+    case "$keyp" in
+        $' '    )  name="SPACE"    ;;
+        $'\n'   )  name="ENTER"    ;;
+        $'\e'   )  name="ESCAPE"   ;;
+        $'\eOp' )  name="F1"       ;;
+        $'\eOq' )  name="F2"       ;;
+        $'\eOr' )  name="F3"       ;;
+        $'\eOs' )  name="F4"       ;;
+        * )
+            if [ "${#keyp}" -eq 1 ]; then
+                name="$keyp"
+            else
+                name="${name//\\e/\\\\e}"
+            fi
+            ;;
+    esac
+    echo -n "$name"
+}
+
+
+# Writes a list of keys for lui_list_advise_keys
+#
+# Args
+#   (string):   the keys list element of a line from a keylist array
+lui_list_list_keys()
+{
+    local IFS='|'
+    local -a keys=( $1 )
+    local key
+    local comma=0
+    for key in "${keys[@]}"; do
+        if [ "$comma" -gt 0 ]; then
+            echo -n ", "
+        else
+            (( ++comma ))
+        fi
+
+        lui_list_name_key "$key"
+    done
+}
+
+# Presents an explanation of available keys.
+#
+# Args
+#    (name):    name of the current keylist array
+lui_list_advise_keys()
+{
+    local -n keylist="$1"
+    local -a lines=()
+
+    local keyline
+    local -a keydec
+
+    local IFS=':'
+
+    for keyline in "${keylist[@]}"; do
+        keydec=( $keyline )
+        if [ "${#keydec[@]}" -gt 2 ]; then
+            lui_list_list_keys "${keydec[0]}"
+            echo -n "    "
+            echo "${keydec[2]}"
+        fi
+    done
+
+    read -n1 -p "Press any key"
+}
+
 # @def primary list interaction
 #
 # The function lui_list_generic() is the simple and flexible consolidation
@@ -969,6 +1083,13 @@ lui_list_generic()
         lui_list_show_lines "${show_lines_args[@]}"
 
         if get_keypress "keyp"; then
+            # Show 'help' for '?' or F1 key:
+            if [ "$keyp" == $'\eOP' ] || [ "$keyp" == '?' ]; then
+                lui_list_advise_keys "$term_keys_list_name"
+                plot_head=1
+                continue
+            fi
+
             key_args=( "$keyp" "$llg_selected" "$top_row" "$line_count" "$row_count" )
             if ! llg_selected=$( lui_list_key_move_selection "${key_args[@]}" ); then
                 proc_args=( "$keyp" "$term_keys_list_name" "$lui_list_name" "$llg_selected" )
@@ -1067,7 +1188,7 @@ lui_list_radio()
 
     local -a keylist=(
         "${LUI_DEFAULT_TERM_KEYS[@]}"
-        $' :lui_list_action_radio_select'
+        $' :lui_list_action_radio_select:Toggle current selection'
     )
 
     # Ignored for calling function
@@ -1114,7 +1235,7 @@ lui_list_checkbox()
 
     local -a keylist=(
         "${LUI_DEFAULT_TERM_KEYS[@]}"
-        $' :lui_list_action_checkbox_select'
+        $' :lui_list_action_checkbox_select:Toggle current selection'
     )
 
     local -a list_args=(
