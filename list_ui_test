@@ -472,6 +472,10 @@ test_lui_list_max_len()
     to_continue
 }
 
+# Displays a lui_list for test_append_row()
+#
+# Args
+#    (name):   name of lui_list to be dumped
 dump_lui_list()
 {
     local -n dll_list="$1"
@@ -493,6 +497,7 @@ dump_lui_list()
     echo
 }
 
+# Test various potential problems using new function lui_list_append_row().
 test_append_row()
 {
     local -a start=(
@@ -540,7 +545,6 @@ test_append_row()
 
 declare -a MAIN_MENU=(
     2 0
-    "test append row"       test_append_row
     "test padding"          test_padding
     "test ls_colors"        test_ls_colors
     "test generic menu"     test_generic_menu
@@ -553,6 +557,7 @@ declare -a MAIN_MENU=(
     "test checkbox list"    test_checkbox_list
     "test_screen_position"  test_screen_position
     "test lui_list_max_len" test_lui_list_max_len
+    "test append row"       test_append_row
     )
 
 lui_list_init "MAIN_MENU"
