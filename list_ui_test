@@ -539,12 +539,35 @@ test_append_row()
     to_continue
 }
 
+test_key_advice_list()
+{
+    local -a keylist=(
+        $'\eOp|q:quit:Leave current context'
+        $' |\n:select:Toggle current selection'
+        $'\e[H:go_home:Return to home screen'
+    )
+
+    local -a infolist
+    local -i max_key max_act
+
+    lui_list_key_advice_list "infolist" "max_key" "max_act" "keylist"
+
+    local -i max_col1 max_col2
+
+    dump_lui_list "infolist"
+    echo
+    echo "max_key = $max_key, max_act = $max_act"
+
+    to_continue
+}
+
 ##############
 #    Main    #
 ##############
 
 declare -a MAIN_MENU=(
     2 0
+    "test key_advice_list"  test_key_advice_list
     "test padding"          test_padding
     "test ls_colors"        test_ls_colors
     "test generic menu"     test_generic_menu
