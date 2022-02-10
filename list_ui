@@ -525,19 +525,159 @@ lui_list_display_selectable_line()
     echo $'\e[m'
 }
 
-# @def key action list
+# @def key actions
 #
-# A key action list is an array of function names, each associated with
-# one or more keypress strings.  For each action, there is a list of
-# keypress strings separated by the pipe character '|', followed by a
-# function name, separated from the keypress strings with a colon ':'.
+# A key action entry indicates what function to call if one of a set
+# of keys is pressed.  The key action entry may optionally include a
+# short description of key action's purpose for generating an key
+# action.  Here are some key action entry examples:
 #
-# A key action list is used by the function lui_list_process_key(),
-# which in turn calls the key action function associated with a keypress
-# string that matches the key just pressed by the user.
+# (ESCAPE or 'q' to quit)
+# $'\e|q:LUI_ABORT:Terminate current context'
+#
+# (F1 or '?' to display help)
+# $'\eOP|?:show_help:Show help display'
+#
+# Colons (':') separate the three key action elements, which are
+# a key list, a function name, and an optional help string.
+#
+# The key list may contain multiple keystrokes separated by the pipe
+# character ('|').  Non-printable keys are often represented by
+# multi-character strings, like '\e[A' for the up arrow key or '\eOP'
+# for the F1 key.  You can use the script `keypress_test` to find
+# other keystroke strings.
+#
+# A key action list is an array of key action entries.  The central
+# function of this script, lui_list_generic(), calls lui_list_process_key()
+# with a key action list to respond to user key presses.  Preparing a
+# custom key action list for lui_list_generic() allows a developer to
+# create useful Bash applications.
 #
 # Refer to 'key action functions' for details about how key action list
 # functions are called.
+
+# @def key processing functions
+#
+# This script gets user input through the keyboard, and this group of
+# functions converts user keystrokes into action, from scrolling the
+# contents to acting on selection.
+#
+# There is one fixed-key processing function, lui_list_key_move_selection(),
+# which handles moving the selection in response to arrow or page keys.
+#
+# The second key processing function, lui_list_process_key(), handles
+# developer-designed key responses, triggering function calls as a
+# response to designated keystrokes.
+
+# Processes movement keypresses for lui_list_generic().
+#
+# If the keypress an arrow or page movement key, this function will
+# determine which item is to be selected, the value of which is
+# echo-ed to the calling function.  The return value is 0 (true)
+# if the user has typed a recognized key, so the calling function
+# knows if the user made a move.
+#
+# Args
+#    (string):   string representing a keypress
+#    (integer):  index of currently-selected list element
+#    (integer):  index of top/first element displayed on screen
+#    (integer):  maximum number of lines to display
+#    (integer):  number of elements in the lui_list
+lui_list_key_move_selection()
+{
+    local keyp="$1"
+    local -i selected="$2"
+    local -i top_row="$3"
+    local -i line_count="$4"
+    local -i row_count="$5"
+
+    local -i bottom_row=$(( top_row + line_count - 1 ))
+    local -i matched=0
+
+    case "$keyp" in
+        "$LUI_KEY_DN" )
+            (( ++selected, ++matched ))
+            if [ "$selected" -ge "$row_count"  ]; then
+                selected=$(( row_count-1 ))
+            fi
+            ;;
+        "$LUI_KEY_UP" )
+            (( --selected, ++matched ))
+            if [ "$selected" -lt 0 ]; then
+                selected=0
+            fi
+            ;;
+        "$LUI_KEY_PGUP" )
+            (( ++matched ))
+            if [ "$selected" -eq "$top_row" ]; then
+                selected=$(( selected - line_count ))
+            else
+                selected="$top_row"
+            fi
+            if [ "$selected" -lt 0 ]; then
+                selected=0
+            fi
+            ;;
+        "$LUI_KEY_PGDN" )
+            (( ++matched ))
+            if [ "$selected" -eq "$bottom_row" ]; then
+                selected=$(( selected + line_count ))
+            else
+                selected="$bottom_row"
+            fi
+            if [ "$selected" -ge "$row_count" ]; then
+                selected=$(( row_count - 1 ))
+            fi
+            ;;
+    esac
+
+    echo "$selected"
+    [ "$matched" -gt 0 ]
+}
+
+# Finds and executes a key action entry that matches a keystroke.
+#
+# Look at the key actions section to learn about key actions and
+# how to use them.
+#
+# Args
+#    (string):     string representation of a keypress
+#    (name):       name of a key array
+#    (name):       name of lui_list in use
+#    (integer):    index into the lui_list of the indicated item
+#    (various):    extra arguments passed to lui_list_generic(),
+#                  that is $6 and above
+#
+# Returns 0 if no key matched, 1 to terminate 
+lui_list_process_key()
+{
+    local keyp="$1"
+    local -n key_arr="$2"
+    local list_name="$3"
+    local -i row_number="$4"
+    local -a extra_args=( "${@:5}" )
+
+    local -a entry keys
+    local k IFS key cmd
+    # shellcheck disable=SC2206  # don't warn for unquoted variable array initialization
+    for k in "${key_arr[@]}"; do
+        IFS=':'; entry=( $k )
+        IFS="|"; keys=( ${entry[0]} )
+        cmd="${entry[1]}"
+
+        for key in "${keys[@]}"; do
+            if [ "$key" == "$keyp" ]; then
+                "$cmd" "$keyp" "$list_name" "$row_number" "${extra_args[@]}"
+                return "$?"
+            fi
+        done
+    done
+
+    # zero return value means that we didn't match the key
+    return 0
+}
+
+
 
 declare -a LUI_DEFAULT_TERM_KEYS=(
     $'\e|q:LUI_ABORT:Quit immediately'
@@ -546,12 +686,12 @@ declare -a LUI_DEFAULT_TERM_KEYS=(
 
 # @def key action functions
 #
-# These functions used by lui_list_generic() through a call to the
-# function lui_list_process_key().  Even though an action may or may not
-# target the indicated row, the lui_list and row number is passed to the
-# key action function.
+# When running lui_list_generic(), user keypresses are processed through
+# lui_list_process_key(), which attempts to find a matching key action entry
+# (refer to the `key actions` topic).  If the keystroke is matched, the
+# key action function is called to execute the developer's intention.
 #
-# When triggered, the key action function will receive the following
+# lui_list_process_key() will call a key action function with the following
 # parameters:
 #
 # $1 (string)          A character string representing the keypress that
@@ -574,7 +714,6 @@ declare -a LUI_DEFAULT_TERM_KEYS=(
 #   LUI_SELECT
 #   lui_list_action_radio_select
 #   lui_list_action_checkbox_select
-
 
 # Built-in term-keys function for ESC or 'q'
 LUI_ABORT()  { return 1; }
@@ -687,66 +826,6 @@ lui_list_plot_head()
 }
 
 
-# Internal function processes selection keypresses for lui_list_generic().
-#
-# Args
-#    (string):   string representing a keypress
-#    (integer):  index of currently-selected list element
-#    (integer):  index of top/first element displayed on screen
-#    (integer):  maximum number of lines to display
-#    (integer):  number of elements in the lui_list
-lui_list_key_move_selection()
-{
-    local keyp="$1"
-    local -i selected="$2"
-    local -i top_row="$3"
-    local -i line_count="$4"
-    local -i row_count="$5"
-
-    local -i bottom_row=$(( top_row + line_count - 1 ))
-    local -i matched=0
-
-    case "$keyp" in
-        "$LUI_KEY_DN" )
-            (( ++selected, ++matched ))
-            if [ "$selected" -ge "$row_count"  ]; then
-                selected=$(( row_count-1 ))
-            fi
-            ;;
-        "$LUI_KEY_UP" )
-            (( --selected, ++matched ))
-            if [ "$selected" -lt 0 ]; then
-                selected=0
-            fi
-            ;;
-        "$LUI_KEY_PGUP" )
-            (( ++matched ))
-            if [ "$selected" -eq "$top_row" ]; then
-                selected=$(( selected - line_count ))
-            else
-                selected="$top_row"
-            fi
-            if [ "$selected" -lt 0 ]; then
-                selected=0
-            fi
-            ;;
-        "$LUI_KEY_PGDN" )
-            (( ++matched ))
-            if [ "$selected" -eq "$bottom_row" ]; then
-                selected=$(( selected + line_count ))
-            else
-                selected="$bottom_row"
-            fi
-            if [ "$selected" -ge "$row_count" ]; then
-                selected=$(( row_count - 1 ))
-            fi
-            ;;
-    esac
-
-    echo "$selected"
-    [ "$matched" -gt 0 ]
-}
-
 # Used by lui_list_generic() to discern the top/first display row.
 #
 # Args
@@ -848,45 +927,6 @@ lui_list_show_lines()
     stty $ostty
 }
 
-
-# Process a key array, calling a function according to matched keys.
-#
-# Args
-#    (string):     string representation of a keypress
-#    (name):       name of a key array
-#    (name):       name of lui_list in use
-#    (integer):    index into the lui_list of the indicated item
-#    (various):    extra arguments passed to lui_list_generic(),
-#                  that is $6 and above
-#
-# Returns 0 if no key matched, 1 to terminate 
-lui_list_process_key()
-{
-    local keyp="$1"
-    local -n key_arr="$2"
-    local list_name="$3"
-    local -i row_number="$4"
-    local -a extra_args=( "${@:5}" )
-
-    local -a entry keys
-    local k IFS key cmd
-    # shellcheck disable=SC2206  # don't warn for unquoted variable array initialization
-    for k in "${key_arr[@]}"; do
-        IFS=':'; entry=( $k )
-        IFS="|"; keys=( ${entry[0]} )
-        cmd="${entry[1]}"
-
-        for key in "${keys[@]}"; do
-            if [ "$key" == "$keyp" ]; then
-                "$cmd" "$keyp" "$list_name" "$row_number" "${extra_args[@]}"
-                return "$?"
-            fi
-        done
-    done
-
-    # zero return value means that we didn't match the key
-    return 0
-}
 
 # Translate non-typeable keystroke strings to the triggering key.
 #
