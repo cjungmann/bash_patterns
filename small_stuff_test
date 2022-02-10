@@ -50,7 +50,7 @@ test_strstrndx()
         fi
     done
 
-    return 3
+    return 0
 }
 
 test_hilite_substr()
@@ -72,7 +72,7 @@ test_hilite_substr()
 
     to_return
 
-    return 3
+    return 0
 }
 
 test_hilite_pad()
@@ -94,7 +94,7 @@ test_hilite_pad()
 
     to_return
 
-    return 3
+    return 0
 }
 
 test_heredoc_paragraphs()
@@ -122,7 +122,7 @@ EOF
 
     to_return
 
-    return 3
+    return 0
 }
 
 test_markdown_paragraphs()
@@ -140,7 +140,7 @@ test_markdown_paragraphs()
 
     to_return
 
-    return 3
+    return 0
 }
 
 
@@ -159,7 +159,7 @@ test_indent_print()
 
     to_return
 
-    return 3
+    return 0
 }
 
 # Print simple two-line ruler to compare with line output
@@ -203,7 +203,7 @@ test_string_len_sans_csi()
 
     to_return
 
-    return 3
+    return 0
 }
 
 test_csi_aware_paragraphs()
@@ -238,7 +238,7 @@ EOF
 
     to_continue
 
-    return 3
+    return 0
 }
 
 

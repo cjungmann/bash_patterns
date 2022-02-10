@@ -599,8 +599,7 @@ main_menu()
 
         reset_screen
 
-        # 3 says to replot header along with the list
-        return 3
+        return 0
     }
 
     local -a keylist=(
