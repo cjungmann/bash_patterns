@@ -1,0 +1,352 @@
+#!/usr/bin/env bash
+
+source list_ui
+source keypress
+source small_stuff
+
+declare COL_FILE=$'\e[32;1m'
+declare COL_FUNC=$'\e[33;1m'
+declare COL_KEYWORD=$'\e[34;1m'
+declare COL_DEF=$'\e[35;1m'
+declare COL_END=$'\e[m'
+
+declare -a FILE_MENU=(
+    New
+    Open
+    Close
+    Save
+    Exit
+)
+
+# Print positioned text on current line
+#
+# This function will center the submitted text on the current line
+# unless the caller provides a column number, in which case the text
+# will be print the text at that value's column.
+#
+# Args
+#    (string):    text to plot
+#    (integer):   optional, column position at which to print the text
+place_text_line()
+{
+    local ptext="$1"
+    local col
+
+    if [ "$#" -lt 2 ]; then
+        local -i plen="${#ptext}"
+        local -i rows cols
+        get_screen_size "rows" "cols"
+        (( col = ( cols - plen ) / 2 ))
+    else
+        col="$2"
+    fi
+
+    set_cursor_column "$col"
+    echo "$ptext"
+}
+
+# Shortcut to use text as a prompt for a keypress
+place_prompt()
+{
+    place_text_line "$1" "${@:2}"
+    read -n1
+}
+
+# Wait for key 'to continue.'
+to_continue() { place_prompt "Press any key to continue." "${@:1}"; }
+
+# wait for key 'to return.'
+to_return()   { place_prompt "Press any key to return." "${@:1}"; }
+
+# Introduction to the demo program as well as a demonstration of
+# the topic of paragraph formatting.
+demo_paragraph_formatting()
+{
+    local -i row col
+    local -i rows cols
+
+    # Calculate column position for centered content:
+    local -i width=70
+    get_screen_size "rows" "cols"
+    (( col = (cols - width) / 2 ))
+
+    local -a paras
+    bind_paragraphs "paras" <<EOF
+This first demo shows how to use ${COL_FILE}bash_patterns${COL_END} paragraph formatting.
+
+While this demo program is ostensibly about ${COL_FILE}list_ui${COL_END}, this demo
+showcases functions found in ${COL_FILE}small_stuff${COL_END}.  However, mastery of this
+process is useful for "${COL_FUNC}lui_list_generic${COL_END}, which uses these functions
+to restore a list page when returning from somewhere.
+
+This demo uses functions found in script file ${COL_FILE}small_stuff${COL_END}.
+
+The main function is ${COL_FUNC}format_paragraphs${COL_END}, which fills an array with
+text strings whose display length (which ignores color code sequences) fits within a
+width constraint.  It takes as input an array of strings of unconstrained length, each
+string element understood to be a paragraph.  In most cases, the input array will be
+prepared with the function ${COL_FUNC}bind_paragraphs${COL_END}, but some situations
+may call for a bespoke paragraphs array.
+
+${COL_FUNC}bind_paragraphs${COL_END} discards newlines to organizes raw text into
+unformatted single-line paragraphs.  Lines of text are combined into a single string
+array paragraphs until two consecutive newlines signals a new paragraph.  The function
+expects to receive text through ${COL_KEYWORD}stdin${COL_END}, and this demo uses a
+Bash ${COL_DEF}heredoc${COL_END} with ${COL_FUNC}find_paragraphs${COL_END}.
+
+${COL_FUNC}indent_print${COL_END} prints a block of text, starting at a row/column
+position, with all lines starting at the specified column without disturbing the
+screen in the margin.
+
+You may notice that the lines are roughly right-justified despite the apparent use
+of several color changes.  ${COL_FUNC}format_paragraphs${COL_END} recognizes the
+color codes, ignoring them while counting the other characters in each paragraph line
+to create text lines whose display length fits the constraint even though the string
+length might be much longer.
+EOF
+
+    local -a lines
+
+    format_paragraphs "lines" "paras" "$width"
+
+    # Down 1/3rd, top-bias for block text
+    (( row = ( rows - "${#lines[@]}" ) / 3 ))
+
+    reset_screen
+    indent_print "lines" "$row" "$col"
+
+    to_return "$col"
+}
+
+# Basic menu using built-in function lui_list_menu()
+demo_simple_menu()
+{
+    local -a marray
+    lui_list_convert "marray" "FILE_MENU" 1 1
+
+    local -i selection
+    local -a args=(
+        "selection"
+        "marray"
+        10 30           # lines, columns to display
+    )
+
+    if lui_list_menu "${args[@]}"; then
+        place_text_line "You selected '$selection' (${FILE_MENU[$selection]})."
+    else
+        place_text_line "You aborted the selection."
+    fi
+
+    to_return
+}
+
+demo_headered_menu()
+{
+    local -a marray
+    lui_list_convert "marray" "FILE_MENU" 1 1
+
+    # Two-step process to format paragraphs.  First parse text to
+    # identify paragraphs, then format according to a output width.
+    local -a paras
+    bind_paragraphs "paras" <<EOF
+This demo is the same as demo_simple_menu with the only
+difference being this header.
+EOF
+
+    local -i selection
+    local -a args=(
+        "selection"
+        "marray"
+        10 30           # lines, columns to display
+        "paras"
+    )
+
+    if lui_list_menu "${args[@]}"; then
+        place_text_line "You selected '$selection' (${FILE_MENU[$selection]})."
+    else
+        place_text_line "You aborted the selection."
+    fi
+
+    to_return
+}
+
+demo_checkboxes()
+{
+    local -a paras
+    bind_paragraphs "paras" <<EOF
+Use checkboxes when a user is expected to select more than
+one item on the list.
+
+What did you eat for breakfast this morning?
+EOF
+
+    local -a bfoods=(
+        cereal
+        oatmeal
+        grits
+        bacon
+        sausage
+        eggs
+        hashbrowns
+        grapefruit
+        "orange juice"
+        milk
+    )
+
+    # Create a two-column lui_list from the 1 column array,
+    # we need the extra column to store the selections.
+    local -a bselections
+    lui_list_convert "bselections" "bfoods" 1 2
+
+    local -i selection
+    local -a args=(
+        "bselections"
+        20
+        60      # Submit more pleasing header width.
+        "paras"
+    )
+
+    lui_list_checkbox "${args[@]}"
+}
+
+demo_radio_buttons()
+{
+    local -a paras
+    bind_paragraphs "paras" <<EOF
+Use radio buttons when a user is begin asked to select one
+option out of many.
+
+Which is your favorite Beatle?
+EOF
+
+    local -a bbeatles=(
+        John
+        Paul
+        George
+        Ringo
+    )
+
+    # Create a two-column lui_list from the 1 column array,
+    # we need the extra column to store the selections.
+    local -a bselections
+    lui_list_convert "bselections" "bbeatles" 1 2
+
+    local -i selection
+    local -a args=(
+        "bselections"
+        20
+        60      # Submit more pleasing header width.
+        "paras"
+    )
+
+    lui_list_radio "${args[@]}"
+}
+
+demo_browse_history()
+{
+
+    local hfilename="${HISTFILE:-${HOME}/.bash_history}"
+
+    local -a rawhist
+
+    set -o history
+    # Read history file with best available tool
+    if test_builtin mapfile; then
+        mapfile -t -d $'\n' "histlist" < "$hfilename"
+    else
+        while IFS= read -r line || [[ "$line" ]]; do
+            rawhist+=( "$line" )
+        done < "$hfilename"
+    fi
+    set +o history
+
+    local -a histlist
+    lui_list_convert "histlist" "rawhist" 1 1
+
+    local -i selection
+
+    lui_list_generic "selection" "histlist" 0 0 25 60 "" "" ""
+    to_return
+}
+
+
+
+# Collect the names of demo functions
+#
+# Args
+#    (name):    name of array in which to store function names
+get_demo_function_list()
+{
+    local -n gdfl_list="$1"
+    local IFS=$'\n'
+    gdfl_list=( $( grep -Po '^demo[[:alnum:]-_]+(?=\(\))' "list_ui_demo" ) )
+}
+
+# Key action function for function main()
+#
+# Args
+#    (name):    ignored keystroke string
+#    (name):    name of lui_list that drives the interaction
+#    (integer): index of selected lui_list row
+main_show_demo()
+{
+    local list_name="$2"
+    local -i ndx="$3"
+    local -a row
+
+    reset_screen
+
+    lui_list_copy_row "row" "$list_name" "$ndx"
+    "${row[0]}"
+
+    reset_screen
+
+    return 0
+}
+
+
+# Present a list of demonstrations to execute
+main()
+{
+    local -a flist
+    local -i exit_code selection
+
+    if ! get_demo_function_list "flist"; then
+        echo "Error getting function list." >&2
+        exit 1
+    fi
+
+    # Make a list of demo_ prefix functions from
+    # which the user can execute demonstrations.
+    local -a dlist
+    lui_list_convert "dlist" "flist" 1 1
+
+    # Need a custom keystroke functions list
+    local -a main_keys=(
+        $'\e|q:LUI_ABORT:Return one level'
+        $'\n:main_show_demo:Show selected demo'
+    )
+
+    local -a args=(
+        "selection"
+        "dlist"
+        0 0         # display row column
+        10 40       # display lines, columns
+        ""          # default line displayer
+        "main_keys" # keystroke functions
+    )
+
+    while :; do
+        reset_screen
+        lui_list_generic "${args[@]}"
+        exit_code="$?"
+
+        if [ "$exit_code" -gt 0 ]; then
+            break
+        fi
+    done
+}
+
+hide_cursor
+main
+show_cursor
