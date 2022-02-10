@@ -152,7 +152,6 @@ block_text_display()
     reset_screen
 
     disable_echo
-    hide_cursor
     while :; do
         block_text_print "${text_block_args[@]}"
         if get_keypress "keyp"; then
@@ -169,6 +168,5 @@ block_text_display()
             text_block_args[1]="$top"
         fi
     done
-    show_cursor
     enable_echo
 }
