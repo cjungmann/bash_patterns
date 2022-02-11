@@ -836,7 +836,7 @@ lui_list_name_key()
             if [ "${#keyp}" -eq 1 ]; then
                 name="$keyp"
             else
-                name="${name//\\e/\\\\e}"
+                name="${keyp///\\e}"
             fi
             ;;
     esac
@@ -907,7 +907,6 @@ lui_list_key_advice_list()
             acttext="${keydec[2]}"
             cur_act="${#acttext}"
 
-
             newrow=( "$keytext" "$acttext" )
 
             (( llka_max_key = ( cur_key > llka_max_key ) ? cur_key : llka_max_key ))
@@ -930,9 +929,15 @@ lui_list_display_keys_help()
     local -i maxkey maxact
 
     lui_list_key_advice_list "infolist" "maxkey" "maxact" "$keylist_name"
-    local llak_format="%${maxkey}s: %${maxact}s"
+    local llak_format="%${maxkey}s: %-${maxact}s"
 
-    local -a blocktext=()
+    local -a blocktext=(
+        "Currently Active Keys"
+        ""
+        "Up and Down arrow keys and PgUp and PgDn keys"
+        "work as expected."
+        ""
+    )
 
     # Process all rows to make block text:
     line_adder()
@@ -942,9 +947,7 @@ lui_list_display_keys_help()
     }
     lui_list_iterate "infolist" "line_adder"
 
-    for line in "${blocktext[@]}"; do
-        echo "$line"
-    done
+    block_text_display "blocktext"
 
     return 0
 }
@@ -1205,7 +1208,7 @@ lui_list_generic()
         lui_list_show_lines "${show_lines_args[@]}"
 
         if get_keypress "keyp"; then
-            # Show 'help' for '?' or F1 key:
+            # Show 'help' for F1 or '?' key:
             if [ "$keyp" == $'\eOP' ] || [ "$keyp" == '?' ]; then
                 lui_list_display_keys_help "$term_keys_list_name"
                 plot_head=1
