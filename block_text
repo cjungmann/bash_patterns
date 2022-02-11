@@ -97,6 +97,10 @@ block_text_print()
 # function calculates a screen-centered position then manages an
 # event loop to allow a scrolling interaction with the contents.
 #
+# If either or both of the second and third parameters are 0,
+# the respective limits will be set according to the content of
+# the nameref array.
+#
 # Args
 #    (name):     name of array of text lines
 #    (integer):  display block size in rows
@@ -156,7 +160,7 @@ block_text_display()
         block_text_print "${text_block_args[@]}"
         if get_keypress "keyp"; then
             case "$keyp" in
-                $'\e' | 'q' ) break ;;
+                $'\e' | 'q' | $'\n' ) break ;;
                 $'\e[A' ) # up arrow
                     (( top = (top > 0 ? --top : top) ))
                     ;;
