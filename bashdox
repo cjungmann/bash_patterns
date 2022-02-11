@@ -236,8 +236,7 @@ entry_display_line()
 #    (integer)     row number of the currently indicated lui_list row
 #
 # Returns
-#     0 if row not found
-#     3 if commentary was displayed (trigger header replot)
+#     0 to continue
 entry_show_details()
 {
     local keyp="$1"
@@ -256,7 +255,6 @@ entry_show_details()
 
     local -a row
     if lui_list_copy_row "row" "$list_name" "$ndx"; then
-
         local name="${row[0]}"
 
         # Break down the description
@@ -283,20 +281,13 @@ entry_show_details()
         fi
 
         entry_intro="${entry_intro}${name}$END_COLOR from script ${FILE_COLOR}${FILENAME}$END_COLOR"
-
         lines=( "$entry_intro" " " "${lines[@]}" )
 
         reset_screen
-
         set_window_title "$FILENAME  ->   $name  ($entry_type)"
-
         block_text_display "lines"
-
         reset_screen
-
         set_app_window_title
-
-        return 3
     fi
 
     return 0
@@ -333,6 +324,7 @@ display_entry_by_value()
     }
 
     lui_list_iterate "$list_name" "gebv_row"
+
     return "$exit_val"
 }
 
@@ -388,8 +380,8 @@ EOF
 
     if mapfile -t main_lines_list < "$FILE"; then
         local -a main_keys_array=(
-            $'\e|q:LUI_ABORT'
-            $'\n:entry_show_details'
+            $'\e|q:LUI_ABORT:Return from context'
+            $'\n:entry_show_details:View topic'
         )
 
         if parse "entry_list" "main_lines_list"; then
