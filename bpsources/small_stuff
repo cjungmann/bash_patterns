@@ -330,6 +330,26 @@ force_length()
 # One function, bind_paragraphs(), scans text to group paragraphs,
 # and another, format_paragraphs(), splits the bound paragraphs
 # into length-limited lines.
+#
+# The functions are designed to work together to present a nicely
+# formatted text display.
+#
+#    # create an array of paragraphs from a text file:
+#    local -a paras
+#    bind_paragraphs "paras" < "text.txt"
+#
+#    # convert the paragraphs into a length-constrained array of text lines:
+#    local -a lines
+#    format_paragraphs "lines" "paras" 60
+#
+#    # Directly print the lines, or use a 'block_text' script function:
+#    block_text_display "lines"
+#
+#    This section also includes support function format_paragraph().  This
+#    function is called by format_paragraphs() for each paragraph line and
+#    is not meant for to be called directly.
+
+
 
 # Parses text to make an array of single-line paragraphs.
 #
@@ -424,40 +444,6 @@ format_paragraph()
     fi
 }
 
-# Sumbits text lines from an array to format_paragraph() to wrap lines
-# as necessary to fit within the space limites.  Use this function on
-# paragraph arrays prepared with bind_paragraphs().
-#
-# Args
-#    (name):     name of array of paragraph strings
-#    (integer):  number of characters permitted per line
-#    (integer):  number of characters to indent the first line
-#                of a paragraph.
-write_format_paragraphs()
-{
-    local -n paras="$1"
-    local -i width="${2:-50}"
-    local -i para_indent="$3"
-
-    local -a lines
-    local -i count=0
-    local line
-    local para
-    for para in "${paras[@]}"; do
-        format_paragraph "lines" "$para" "$width" "$para_indent"
-
-        # Add extra line between paragraphs if not indenting
-        if [ $(( count++ )) -gt 0 ]; then
-            if [ "$para_indent" -eq 0 ]; then
-                echo
-            fi
-        fi
-        for line in "${lines[@]}"; do
-            echo "$line"
-        done
-    done
-}
-
 # Breaks paragraphs into an array of length-limited lines
 #
 # Args
@@ -489,6 +475,10 @@ format_paragraphs()
         fps_output+=( "${fps_lines[@]}" )
     done
 }
+
+# @def Miscellaneous Stuff
+#
+# The following functions don't fit in neat categotries.
 
 # Silently test if a builtin script function exists
 #
