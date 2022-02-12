@@ -1211,6 +1211,7 @@ lui_list_generic()
             # Show 'help' for F1 or '?' key:
             if [ "$keyp" == $'\eOP' ] || [ "$keyp" == '?' ]; then
                 lui_list_display_keys_help "$term_keys_list_name"
+                reset_screen
                 plot_head=1
                 continue
             fi
