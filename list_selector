@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source keypress
+source bpsources/keypress
 
 reset_screen() { echo -n "[2J[1;1H"; }
 

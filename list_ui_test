@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-source list_ui
-source keypress
-source small_stuff
+source bpsources/list_ui
+source bpsources/keypress
+source bpsources/small_stuff
+source bpsources/block_text
 source cocolors
 
 declare -a MYLIST=(

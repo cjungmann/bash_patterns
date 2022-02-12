@@ -2,7 +2,7 @@
 
 # Load appropriate sources even if script is a symlink:
 declare -a SOURCES=( list_ui keypress small_stuff block_text )
-declare SFOLDER=$( readlink -f "$0" ); SFOLDER="${SFOLDER%/*}"
+declare SFOLDER=$( readlink -f "$0" ); SFOLDER="${SFOLDER%/*}/bpsources"
 declare source
 for source in "${SOURCES[@]}"; do
     source "${SFOLDER}/$source"

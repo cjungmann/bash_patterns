@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-source small_stuff
+source bpsources/small_stuff
 
 # For interface
-source list_ui
-source keypress
+source bpsources/list_ui
+source bpsources/keypress
 
 declare -a HL_TEST=(
     "one"         "_"    "na"

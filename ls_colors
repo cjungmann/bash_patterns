@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source keypress
+source bpsources/keypress
 source cocolors
 
 declare KP_UP_ARROW=$'\e[A'

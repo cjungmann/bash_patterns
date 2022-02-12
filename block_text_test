@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-source keypress
-source small_stuff
-source block_text
+source bpsources/keypress
+source bpsources/small_stuff
+source bpsources/block_text
 
 declare -a TEXT_BLOCK
 mapfile -t "TEXT_BLOCK" <<EOF
@@ -60,4 +60,6 @@ main()
     block_text_display "TEXT_BLOCK"
 }
 
+hide_cursor
 main
+show_cursor
