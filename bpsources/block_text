@@ -167,6 +167,13 @@ block_text_display()
                 $'\e[B' ) # down arrow
                     (( top = (top < maxtop) ? ++top : top ))
                     ;;
+                $'\e[5~') # PgUp
+                    (( top -= print_rows,  top = (top < 0) ? 0 : top ))
+                    ;;
+                $'\e[6~') # PgDn
+                    (( top += print_rows, top = (top > maxtop) ? maxtop : top ))
+                    ;;
+
             esac
 
             text_block_args[1]="$top"
