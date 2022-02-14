@@ -10,10 +10,6 @@
 
 # Clear screen, cursor to origin
 reset_screen() { echo -n "[2J[1;1H"; }
-# Console-code that prevent display of cursor.
-hide_cursor() { echo -n $'\e[?25l'; }
-# Console-code that enables display of cursor.
-show_cursor() { echo -n $'\e[?25h'; }
 
 # Turn OFF console echo without regard to current echo setting
 disable_echo() { stty -echo; }
@@ -28,11 +24,32 @@ disable_autowrap() { echo -n $'\e[?7l'; }
 # the right of the screen, continue printing on the next line.
 enable_autowrap() { echo -n $'\e[?7h'; }
 
-# Move cursor to specified column of current row.
-set_cursor_column() { echo -n $'\e['"${1}G"; }
-
 set_window_title() { echo -ne $'\e]2;'"$1"$'\a'; }
 
+# @def Cursor manipulation
+#
+# The following functions hide, show, or move the cursor.  It
+# includes the function get_screen_size() because it informs
+# many cursor positioning decisions.
+
+# Console-code that prevent display of cursor.
+hide_cursor() { echo -n $'\e[?25l'; }
+# Console-code that enables display of cursor.
+show_cursor() { echo -n $'\e[?25h'; }
+
+# Returns rows and columns size of screen in nameref variables
+# 
+# Args
+#    (string):  name of variable for rows value
+#    (string):  name of variable for columns value
+get_screen_size()
+{
+    local -i csave rsave
+    get_cursor_position "rsave" "csave"
+    printf $'\e[999;999H'
+    get_cursor_position "$1" "$2"
+    printf $'\e['"${rsave};${csave}f"
+}
 
 # Get the current cursor position from the terminal, returning the
 # values in nameref variables
@@ -80,19 +97,8 @@ set_cursor_position()
     printf $'\e['"${row};${col}H"
 }
 
-# Returns rows and columns size of screen in nameref variables
-# 
-# Args
-#    (string):  name of variable for rows value
-#    (string):  name of variable for columns value
-get_screen_size()
-{
-    local -i csave rsave
-    get_cursor_position "rsave" "csave"
-    printf $'\e[999;999H'
-    get_cursor_position "$1" "$2"
-    printf $'\e['"${rsave};${csave}f"
-}
+# Move cursor to specified column of current row.
+set_cursor_column() { echo -n $'\e['"${1}G"; }
 
 # @def Conversion functions
 
