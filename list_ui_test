@@ -562,12 +562,46 @@ test_key_advice_list()
     to_continue
 }
 
+test_lui_list_ndx_from_row_cell()
+{
+    local -a mylist=(
+        2 0
+        men   0
+        women 0
+        other 0
+    )
+
+    lui_list_init "mylist"
+
+    echo "To start, mylist is "
+    test_dump_list "mylist"
+
+    local -i ndx
+    if ndx=$( lui_list_ndx_from_row_cell "mylist" 0 1 ); then
+        (( ++mylist[$ndx] ))
+    fi
+    echo "After incrementing row 1, cell 1:"
+    test_dump_list "mylist"
+
+    echo "Attemping to access out-of-range index:"
+    if ndx=$( lui_list_ndx_from_row_cell "mylist" -5 1 ); then
+        echo "Unexpectedly, out-of-range request caused no error (yet...)."
+        echo "The index value returned is '$ndx'"
+        (( ++mylist[$ndx] ))
+    else
+        echo "Out-of-range ($ndx), ignore result."
+    fi
+
+    to_continue
+}
+
 ##############
 #    Main    #
 ##############
 
 declare -a MAIN_MENU=(
     2 0
+    "test lui_list_ndx_from_row_cell" test_lui_list_ndx_from_row_cell
     "test key_advice_list"  test_key_advice_list
     "test padding"          test_padding
     "test ls_colors"        test_ls_colors
@@ -586,58 +620,17 @@ declare -a MAIN_MENU=(
 
 lui_list_init "MAIN_MENU"
 
-main_menu()
-{
-    run_test()
-    {
-        local -a row=()
-        lui_list_copy_row "row" "$2" "$3"
-
-        reset_screen
-
-        # Execute the command
-        "${row[1]}"
-
-        reset_screen
-
-        return 0
-    }
-
-    local -a keylist=(
-        $'\e|q:LUI_ABORT'
-        $'\n:run_test'
-    )
-
-    local -i selected=0
-    local -i maxlen=$( lui_list_max_len "MAIN_MENU" )
-    if [ "$maxlen" -lt 50 ]; then
-        maxlen=50
-    fi
-
-    local -a header_text
-    bind_paragraphs "header_text" <<EOF
+declare csi=$'\e['
+declare -a HEADER_PARAS
+bind_paragraphs "HEADER_PARAS" <<EOF
 This collection of tests is itself a demonstration of
-list_ui usage.
+${csi}34;1mlist_ui usage${csi}m.
 
 Use arrow keys to indicate a test, then ENTER to execute
 the test.  You will return to this menu upon completion
 of the test.  Press 'q' or ESC to quit.
 EOF
 
-    local list_args=(
-        "selection"           # name of selection variable
-        "MAIN_MENU"           # name of lui_list
-        0 0                   # row, column to zero for centering
-        "${#MAIN_MENU[@]}"    # size of list in lines (rows)
-        "$maxlen"             # size of list in characters (columns)
-        ""                    # use default line displayer
-        "keylist"             # name of keystroke functions list
-        "header_text"         # name of array of header text"
-    )
-
-    reset_screen
-    lui_list_generic "${list_args[@]}"
-}
 
 # Prepare console for appropriate behavior.
 # First draft of function mainly saves the state (for later restoring)
@@ -653,16 +646,12 @@ restore_console()
 {
     stty "$STARTING_STTY"
     show_cursor
+    echo
+    exit 1
 }
 
 prepare_console
 trap restore_console SIGINT
 trap restore_console EXIT
 
-hide_cursor
-main_menu
-show_cursor
-
-# leave cursor in expected column
-echo
-
+lui_list_runner "MAIN_MENU" "HEADER_PARAS"
