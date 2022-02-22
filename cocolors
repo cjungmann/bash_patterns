@@ -707,7 +707,7 @@ edit_color()
 # is executed directly (not sourced).
 if ! ( return 0 2>/dev/null ); then
     # shellcheck disable=SC1091
-    source bpsources/keypress
+    source sources/keypress
 
     if [ $# -gt 0 ]; then
         declare colarg="$1"

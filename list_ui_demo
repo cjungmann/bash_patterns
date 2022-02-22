@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-source bpsources/list_ui
-source bpsources/keypress
-source bpsources/small_stuff
-source bpsources/block_text
+source sources/list_ui
+source sources/keypress
+source sources/small_stuff
+source sources/block_text
 
 declare COL_FILE=$'\e[32;1m'
 declare COL_FUNC=$'\e[33;1m'

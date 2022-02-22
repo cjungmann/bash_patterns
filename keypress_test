@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source bpsources/keypress
+source sources/keypress
 
 echo "Keypress test mode.  Type any key to see the emitted character string."
 echo "Type 'q' to quit."

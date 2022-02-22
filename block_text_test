@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-source bpsources/keypress
-source bpsources/small_stuff
-source bpsources/block_text
+source sources/keypress
+source sources/small_stuff
+source sources/block_text
 
 declare -a TEXT_BLOCK
 mapfile -t "TEXT_BLOCK" <<EOF
