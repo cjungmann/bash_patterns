@@ -1163,13 +1163,17 @@ lui_list_show_lines()
 #    (name):       optional name of integer variable in which the selected index
 #                  can be read
 #    (name):       name of lui_list from which the widget will be constructed
-#    (integer):    row on which to start printing the list
-#    (integer):    column on which to start printing the list
-#    (integer):    size of list in lines
-#    (integer):    width of list in characters
-#    (name):       name of function that will display summary lines
-#    (name):       name of keystroke functions list
-#    (name):       name of paragraphs array to print above the list
+#    (integer):    row on which to start printing the list.  Set to 0 for a
+#                  display centered vertically.
+#    (integer):    column on which to start printing the list.  Set to 0 for a
+#                  display centered horizontally.
+#    (integer):    size of list in lines.  Will be constrained to screen height
+#                  if the value is too large.
+#    (integer):    width of list in characters.  Will be constrained to screen
+#                  width if the value is too large.
+#    (name):       optional name of function that will display summary lines
+#    (name):       optional name of keystroke functions list
+#    (name):       optional name of paragraphs array to print above the list
 #    (various...): Optional extra arguments that will be passed to keystroke functions.
 #                  These extra arguments can be exploited by custom widgets.
 lui_list_generic()
