@@ -1160,7 +1160,8 @@ lui_list_show_lines()
 # by providing custom line display and key list definitions.
 #
 # Args
-#    (name):       name of integer variable in which the selected index will be put
+#    (name):       optional name of integer variable in which the selected index
+#                  can be read
 #    (name):       name of lui_list from which the widget will be constructed
 #    (integer):    row on which to start printing the list
 #    (integer):    column on which to start printing the list
@@ -1173,8 +1174,9 @@ lui_list_show_lines()
 #                  These extra arguments can be exploited by custom widgets.
 lui_list_generic()
 {
+    local bogus
     # shellcheck disable=SC2155
-    local -n llg_selected="$1"
+    local -n llg_selected="${1:-bogus}"
     local lui_list_name="$2"
     local -i row="${3:-0}"
     local -i col="${4:-0}"
