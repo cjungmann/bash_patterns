@@ -37,8 +37,10 @@ hide_cursor() { echo -n $'\e[?25l'; }
 # Console-code that enables display of cursor.
 show_cursor() { echo -n $'\e[?25h'; }
 
-# Returns rows and columns size of screen in nameref variables
-# 
+# Returns rows and columns size of screen in nameref variables.
+#
+# WARNING/NOTE: won't work in subshell.  See get_cursor_position().
+#
 # Args
 #    (string):  name of variable for rows value
 #    (string):  name of variable for columns value
@@ -46,13 +48,18 @@ get_screen_size()
 {
     local -i csave rsave
     get_cursor_position "rsave" "csave"
-    printf $'\e[999;999H'
+    set_cursor_position 999 999
     get_cursor_position "$1" "$2"
-    printf $'\e['"${rsave};${csave}f"
+    set_cursor_position "$rsave" "$csave"
 }
 
 # Get the current cursor position from the terminal, returning the
 # values in nameref variables
+#
+# WARNING/NOTE: this function will not work in a subshell because
+# the console response to stdout will be redirected before we can
+# read it.
+#
 # Args
 #    (string):   name of rows variable
 #    (string):   name of columns variable
@@ -61,24 +68,19 @@ get_cursor_position()
     local -n gcp_rows="$1"
     local -n gcp_cols="$2"
 
-    local -a read_args=(
-        -s          # silent mode
-        -r          # don't escape backslash-prefixed characters
-        -dR         # read until 'R' (expecting '\e[n;nR')
-        -p $'\e[6n' # prompt, written to stdout, prompts terminal response
-    )
+    local reply
 
-    # shellcheck disable=SC2162 # don't warn missing -r: it's in read_args[@].
-    read "${read_args[@]}" REPLY
+    read -sr -dR -p $'\e[6n' REPLY
 
     IFS=';'
     local -a arr
-    arr=( ${REPLY#*[} )
+    REPLY="${REPLY#*[}"
+    arr=( $REPLY )
 
-    # discard any pending keypresses
-    while read -t 0; do
-        read -srN1
-    done
+    # # discard any pending keypresses
+    # while read -t 0; do
+    #     read -srN1
+    # done
 
     gcp_rows="${arr[0]}"
     gcp_cols="${arr[1]}"
@@ -94,11 +96,17 @@ set_cursor_position()
 {
     local -i row="${1:-1}"
     local -i col="${2:-1}"
+
+    if [ "$col" -lt 0 -o "$row" -lt 0 ]; then
+        echo "Unexpected missing parameter!" >&2
+        exit 1
+    fi
+
     printf $'\e['"${row};${col}H"
 }
 
 # Move cursor to specified column of current row.
-set_cursor_column() { echo -n $'\e['"${1}G"; }
+set_cursor_column() { echo -en $'\e['"${1}G"; }
 
 # @def Conversion functions
 
@@ -135,6 +143,13 @@ strstrndx()
     return 0
 }
 
+# Returns print length of string, having subtracted CSI values from total characters.
+#
+# Args
+#    (string):    string for which the count is needed
+#
+# Returns
+#    (echo) printed length of string
 string_len_sans_csi()
 {
     local raw="$1"
@@ -486,6 +501,27 @@ format_paragraphs()
 #
 # The following functions don't fit in neat categotries.
 
+# Returns row/column value to center a defined area
+#
+# Args
+#    (name):    row value variable name
+#    (name):    column value variable name
+#    (integer); number of rows in region to be centered
+#    (integer); number of columns in region to be centered
+get_centering_row_column()
+{
+    local -n gcrc_row="$1"
+    local -n gcrc_col="$2"
+    local -i rows="$3"
+    local -i cols="$4"
+
+    local -i srows scols
+    get_screen_size "srows" "scols"
+
+    (( gcrc_row = ( srows - rows ) / 2 ))
+    (( gcrc_col = ( scols - cols ) / 2 ))
+}
+
 # Silently test if a builtin script function exists
 #
 # Rather than check for a version number or something else,
@@ -494,3 +530,6 @@ format_paragraphs()
 # Args
 #    (name):    name of builtin function to be sought
 test_builtin() { help "$1" > /dev/null 2>&1; }
+
+
+in_subshell() { [ "$$" -ne "$BASHPID" ]; }
