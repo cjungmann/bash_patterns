@@ -55,6 +55,8 @@ main()
     local -i t_rows t_cols
     block_text_get_size "t_rows" "t_cols" "TEXT_BLOCK"
     echo "The block contains $t_rows rows and $t_cols columns."
+    read -n1 -p Press\ any\ key
+    reset_screen
 
     # block_text_print "TEXT_BLOCK" 10 60 0
     block_text_display "TEXT_BLOCK"
