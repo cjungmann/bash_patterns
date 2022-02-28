@@ -205,3 +205,26 @@ block_text_centered()
         set_cursor_column "$col"
     done
 }
+
+# Print spaces in described area to erase contents.
+#
+# Args
+#    (integer):   block origin row
+#    (integer):   block origin column
+#    (integer):   number of rows to erase
+#    (integer):   number of columns to erase
+block_erase()
+{
+    local -i row="$1"
+    local -i col="$2"
+    local -i rows="$3"
+    local -i cols="$4"
+
+    local estr=$( dupchar "$cols" ' ' )
+    set_cursor_position "$row" "$col"
+    for (( i=0; i<rows; ++i )); do
+        echo "$estr"
+        set_cursor_column "$col"
+    done
+    set_cursor_column 1
+}
