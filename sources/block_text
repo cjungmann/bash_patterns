@@ -16,7 +16,8 @@
 # @def Script dependencies
 # This script uses functions found in 'small_stuff' and 'keypress'.
 
-# Returns the size of a text block in rows and columns.
+# For CSI-containing text block, returns the printing size of a
+# text block in rows and columns.
 #
 # Args
 #    (name):     name of integer in which the row count is returned.
@@ -180,4 +181,27 @@ block_text_display()
         fi
     done
     enable_echo
+}
+
+# Simple function to center-print short text.
+#
+# Args
+#    (name):   name of array of formatted text strings
+block_text_centered()
+{
+    local -n btc_lines="$1"
+
+    local -i rows cols
+    block_text_get_size "rows" "cols" "$1"
+
+    local -i row col
+    get_array_centering_values "row" "col" "rows" "cols"
+
+    set_cursor_position "$row" "$col"
+
+    local line
+    for line in "${btc_lines[@]}"; do
+        echo "$line"
+        set_cursor_column "$col"
+    done
 }
