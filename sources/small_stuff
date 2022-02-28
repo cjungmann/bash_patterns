@@ -197,7 +197,7 @@ get_hilite_char()
     local str="$1"
     local -i pos
     if pos=$( strstrndx "$str" '_' ); then
-        echo "${str:$((pos+2)):1}"
+        echo "${str:$((pos+1)):1}"
         return 0
     else
         return 1
@@ -501,25 +501,58 @@ format_paragraphs()
 #
 # The following functions don't fit in neat categotries.
 
+# Returns row count and maximum line length from a simple array
+#
+# Args
+#    (name):    name of variable in which row count is returned
+#    (name):    name of variable in which maximum line length is returned
+#    (name):    name of simple array to be evaluated
+get_string_array_extent()
+{
+    local -n gsae_rows="$1"
+    local -n gsae_cols="$2"
+    local -n gsae_lines="$3"
+
+    gsae_rows="${#gsae_lines[@]}"
+    gsae_cols=0
+
+    local line
+    local -i curlen
+    for line in "${gsae_lines[@]}"; do
+        curlen="${#line}"
+        (( gsae_cols = ( curlen > gsae_cols ) ? curlen : gsae_cols ))
+    done
+}
+
 # Returns row/column value to center a defined area
 #
 # Args
 #    (name):    row value variable name
 #    (name):    column value variable name
-#    (integer); number of rows in region to be centered
-#    (integer); number of columns in region to be centered
-get_centering_row_column()
+#    (name);    number of rows in region to be centered
+#    (name);    number of columns in region to be centered
+#    (name):    optional array name whose extent is to be used
+#               for the rows and columns values
+get_array_centering_values()
 {
     local -n gcrc_row="$1"
     local -n gcrc_col="$2"
-    local -i rows="$3"
-    local -i cols="$4"
+    local -n gcrc_rows="$3"
+    local -n gcrc_cols="$4"
+
+    if [ "$#" -gt 4 ]; then
+        local -i lrows lcols
+        get_string_array_extent "lrows" "lcols" "$5"
+
+        (( gcrc_rows = ( gcrc_rows==0 ? lrows : gcrc_rows ) ))
+        (( gcrc_cols = ( gcrc_cols==0 ? lcols : gcrc_cols ) ))
+    fi
 
     local -i srows scols
     get_screen_size "srows" "scols"
 
-    (( gcrc_row = ( srows - rows ) / 2 ))
-    (( gcrc_col = ( scols - cols ) / 2 ))
+    (( gcrc_row = ( srows - gcrc_rows ) / 2 ))
+    (( gcrc_col = ( scols - gcrc_cols ) / 2 ))
 }
 
 # Silently test if a builtin script function exists
