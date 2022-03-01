@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+# rounded corders
+declare c_tl=$'\u256D'
+declare c_tr=$'\u256E'
+declare c_bl=$'\u2570'
+declare c_br=$'\u256F'
+
+declare c_side=$'\u2502'
+declare c_flat=$'\u2500'
+
+draw_horizontal()
+{
+    local -i count="$1"
+    local -i top="$2"
+
+    local cleft cright
+
+    if [ "$top" -eq 0 ]; then
+        cleft="$c_bl"
+        cright="$c_br"
+    else
+        cleft="$c_tl"
+        cright="$c_tr"
+    fi
+
+    local flat
+    printf -v flat "%0$((count-2))d" 0
+    flat="${flat//0/${c_flat}}"
+    echo "${cleft}${flat}${cright}"
+}
+
+draw_sides()
+{
+    local -i width="$1"
+    local empty
+    printf -v empty "%0$((width-2))d" 0
+    empty="${empty//0/ }"
+    echo "${c_side}${empty}${c_side}"
+}
+
+
+draw_box()
+{
+    local -i row="$1"
+    local -i col="$2"
+    local -i rows="$3"
+    local -i cols="$4"
+
+    set_cursor_position "$row" "$col"
+    draw_horizontal "$cols" 1
+
+    for (( i=0; i<rows-2; ++i )); do
+        set_cursor_column "$col"
+        draw_sides "$cols"
+    done
+
+    set_cursor_column "$col"
+    draw_horizontal "$cols" 0
+}
