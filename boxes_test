@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+source sources/small_stuff
+source sources/boxes
+
+draw_box 10 10 10 10
+draw_box 10 20 20 40

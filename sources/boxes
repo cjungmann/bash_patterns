@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# requires "small_stuff" module
+
 # rounded corders
 declare c_tl=$'\u256D'
 declare c_tr=$'\u256E'
