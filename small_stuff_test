@@ -241,6 +241,59 @@ EOF
     return 0
 }
 
+test_get_screen_size()
+{
+    local -i row="${1:-50}"
+    local -i col="${2:-50}"
+
+    local -i srows scols
+
+    echo -ne $'\e['"${row};${col}H" >&2
+    # set_cursor_position "$row" "$col"
+    echo "Printing text at row $row and column $col." >&2
+    get_cursor_position "srows" "scols" 
+    echo >&2
+    echo "set_cursor_position -> get_cursor_position returns $srows rows and $scols columns." >&2
+
+    get_screen_size "srows" "scols"
+    echo "get_screen_size returns $srows rows and $scols columns." >&2
+    to_continue
+    return 0
+}
+
+test_subshell_console_codes()
+{
+    reset_screen
+    # echo "The first test executes 'test_set_screen_size' directly."
+    # test_get_screen_size 25 50
+    # echo "The second test executes 'test_set_screen_size' in a subshell."
+    # local result=$( test_get_screen_size 30 50 )
+
+    local -i srow=25 scol=50
+
+    local -i grow gcol
+
+    echo "Testing set_cursor_position to row $srow and column $scol"
+    set_cursor_position "$srow" "$scol"
+    echo -n "See where I printed."
+    grow=0 gcol=0
+    get_cursor_position "grow" "gcol"
+    echo ", ending at $grow/$gcol"
+
+    echo
+    (( srow += 5 ))
+    echo "Testing set_cursor_position in subshell to row $srow and column $scol"
+    result=$( set_cursor_position "$srow" "$scol" )
+    echo -n "See where I printed, and result has ${#result} characters."
+    grow=0 gcol=0
+    result=$( get_cursor_position "grow" "gcol" )
+    echo ", ending at $grow/$gcol (result has ${#result} characters)"
+
+    to_continue
+
+    return 0
+}
+
 
 ##############
 #    MAIN    #
@@ -300,7 +353,7 @@ EOF
 # Prepare console for appropriate behavior.
 # First draft of function mainly saves the state (for later restoring)
 # and hides the cursor.
-prepare_console()
+ prepare_console()
 {
     STARTING_STTY=$( stty -g )
     hide_cursor
@@ -323,6 +376,8 @@ declare -a MAIN_MENU=(
     "test paragraph-formatting markdown" test_markdown_paragraphs
     "test indent_print"                  test_indent_print
     "test CSI aware paragraphs"          test_csi_aware_paragraphs
+    "test get_screen_size"               test_get_screen_size
+    "test subshell console codes"        test_subshell_console_codes
 )
 
 ##############
