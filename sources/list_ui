@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# requires boxes, small_stuff, keypress, and block_text
+
 # The contents of this file work with a _lui_list_.  A lui_list is
 # an array of data organized as a mini table.  The first element of
 # a lui_list is the column count, the number of elements per 'row'
@@ -250,6 +252,66 @@ lui_list_max_len()
     echo "$maxlen"
 }
 
+# @def Key Action List Construction Functions
+#
+# Simplify construction of compilcated lists.  Functions in this
+# section build useful key action lists from simpler hinted
+# data.
+
+# Returns array of underscore-hilited letters from array of strings.
+# 
+# Args
+#    (name):    name of array where result will be placed
+#    (name):    name of array of strings from which the letters
+#               will be harvested
+#    (integer): capitalization flag.  Default (0) is to convert upper-case
+#               letters to lower-case.  Non-zero values will preserve
+#               letters' cases to differentiate, for example, 'f' from 'F'.
+lui_list_build_letter_array()
+{
+    local -n llbla_letters="$1"
+    local -n llbla_entries="$2"
+    local -i allow_capitals="$3"
+
+    llbla_letters=()
+
+    local entry
+    for entry in "${llbla_entries[@]}"; do
+        letter=$( get_hilite_char "$entry" )
+        if [ "$allow_capitals" -eq 0 ]; then
+            letter="${letter,,?}"
+        fi
+        llbla_letters+=( "$letter" )
+    done
+}
+
+# Build a key action list from an array of letters.
+#
+# Created to support lui_list_auto_menu() for a quick
+# letter-enabled menu.
+#
+# Args
+#    (name):   name of array in which the keylist will be written
+#    (name):   name of array of letters that will trigger the callback
+#    (name):   name of callback function to be triggered with matching
+#              letters
+lui_list_build_menu_keylist()
+{
+    local -n llbmk_keylist="$1"
+    local -n llbmk_letters="$2"
+    local callback="$3"
+
+    local IFS='|'
+
+    llbmk_keylist=(
+        $'\e:LUI_ABORT:Quit menu'
+        $'\n:LUI_SELECT:Select'
+        "${llbmk_letters[*]}:${callback}:"
+    )
+
+    return 0
+}
+
 # @def list row action functions
 #
 # Access the lui_list contents with row action functions.
@@ -284,7 +346,7 @@ lui_list_copy_row()
         target_row=( "${luii_list[@]:$ndx:$columns}" )
         return 0
     else
-        echo "requested_row $3 is an out-of-range value for list '$2'" >&2
+        echo "requested_row $3 is an out-of-range copy value for list '$2'" >&2
     fi
 
     return 1
@@ -317,7 +379,7 @@ lui_list_replace_row()
         done
         return 0
     else
-        echo "requested_row $3 is an out-of-range value for list '$2'" >&2
+        echo "requested_row $3 is an out-of-range replace value for list '$2'" >&2
     fi
 
     return 1
@@ -1077,17 +1139,17 @@ lui_list_calc_top_row()
 lui_list_calc_suitable_width()
 {
     local -n best_width="$1"
-    local list_name="$1"
-    local -i cols="$2"
+    local list_name="$2"
+    local -i llcsw_cols="$3"
 
     # Get largest of requests
     local -i maxlen=$( lui_list_max_len "$list_name" "lui_list_line_length_selection" )
-    (( cols = (cols==0 || maxlen > cols) ? maxlen : cols ))
+    (( llcsw_cols = ( llcsw_cols==0 || maxlen > llcsw_cols ? maxlen : llcsw_cols ) ))
 
     # possibly constrain width by screen width
     local -i srows scols
     get_screen_size "srows" "scols"
-    (( best_width = ( cols > scols ) ? scols : cols ))
+    (( best_width = ( llcsw_cols > scols  ? scols : llcsw_cols ) ))
 }
 
 # Display a screen-full of list items.
@@ -1121,10 +1183,6 @@ lui_list_show_lines()
     local -i hilited
 
     set_cursor_position "$row" "$col"
-
-    local ostty=$( stty -g )
-    stty -echo
-
     for (( ; count < line_count; ++count, ++row_ndx )); do
         row_vals=()
         if [ "$row_ndx" -lt "$row_count" ]; then
@@ -1141,10 +1199,36 @@ lui_list_show_lines()
             echo
         fi
     done
-
-    stty $ostty
 }
 
+# Displays a warning if lui_list_generic() is called in a subshell.
+#
+# The lui_list_generic() calls get_screen_size(), which fails in a
+# subshell.  Without get_screen_size(), lui_list_generic() can't
+# validate the output size.
+lui_list_subshell_warning()
+{
+    local name=$'\e[32;1m'
+    local err=$'\e[31;1m'
+    local end=$'\e[m'
+
+    local -a paras
+    bind_paragraphs 'paras' <<EOF
+
+${name}lui_list_generic()${end} calls ${name}get_screen_size()${end},
+which cannot work in a subshell.  Press any key to continue.
+EOF
+
+    local -a lines
+    format_paragraphs "lines" "paras" 60
+
+    local line
+    for line in "${lines[@]}"; do
+        echo "$line" >&2
+    done
+
+    read -n1
+}
 
 
 # @def primary list interaction
@@ -1158,6 +1242,9 @@ lui_list_show_lines()
 #
 # Nearly any list-based user interaction can be build using this function
 # by providing custom line display and key list definitions.
+#
+# NOTE: With a warning, this function refuses to run in a subshell.  Please
+#       design your usage to prevent running in a subshell.
 #
 # Args
 #    (name):       optional name of integer variable in which the selected index
@@ -1178,7 +1265,13 @@ lui_list_show_lines()
 #                  These extra arguments can be exploited by custom widgets.
 lui_list_generic()
 {
-    local bogus
+    # Don't continue if in subshell
+    if in_subshell; then
+        lui_list_subshell_warning
+        exit 1
+    fi
+
+    local -i bogus=0
     # shellcheck disable=SC2155
     local -n llg_selected="${1:-bogus}"
     local lui_list_name="$2"
@@ -1223,7 +1316,9 @@ lui_list_generic()
     if [ "$head_array_name" ]; then
         format_paragraphs "head_text" "$head_array_name" "$chars_width" 0
         head_lines="${#head_text[@]}"
-        (( line_count -= head_lines ))
+        if [ "$line_count" -gt $(( head_lines + 2 )) ]; then
+            (( line_count -= head_lines ))
+        fi
 
         # Adjust rows for header
         (( head_row = row ))
@@ -1253,7 +1348,7 @@ lui_list_generic()
     local OSTTY=$( stty -g )
     stty -echo
 
-    top_row=1
+    top_row=0
 
     if [ "$head_lines" -gt 0 ]; then
         plot_head=1
@@ -1302,11 +1397,11 @@ lui_list_generic()
             elif (( key_proc_exit == 1 || key_proc_exit == 2 )); then
                 break
             elif (( key_proc_exit > 2 )); then
-                echo "Gotcha, you have to figure out a custom response."
+                echo "Gotcha, you have to figure out a custom response." ?&2
                 read -n1 -p "Press any key to continue without custom response."
             fi
         else
-            echo "get_keypress unexpectedly returned without getting a key!"
+            echo "get_keypress unexpectedly returned without getting a key!" >&2
             stty $OSTTY
             exit 1
         fi
@@ -1340,6 +1435,7 @@ lui_list_menu()
     local llm_header_name="$5"
 
     local -i cols
+    # cols="$cols_requested"
     lui_list_calc_suitable_width "cols" "$llm_list_name" "$cols_requested"
 
     local -a args=(
@@ -1354,8 +1450,105 @@ lui_list_menu()
         "$llm_header_name"
     )
 
+    lui_list_generic "${args[@]}"
+}
+
+lui_list_build_menu_list()
+{
+    local options_name="$1"
+    local strings_name="$2"
+    local -i pad="$3"
+
+    local -n llbml_options="$options_name"
+    local -n llbml_strings="$strings_name"
+
+    local string entry
+
+    llbml_options=(1 0)
+    for string in "${llbml_strings[@]}"; do
+        entry=$( hilite_pad "$string" "$pad" )
+        llbml_options+=( "$entry" )
+    done
+
+    lui_list_init "$options_name"
+}
+
+# Generates a centered menu from an array of strings.
+#
+# Intended for rather short lists of options for context
+# menues.  Indicate that a letter triggers a match by preceding
+# a letter with an underscore.  The pre-underscored letter will
+# be color highlighted.
+#
+# Args
+#    (name):    name of variable in which the selection is returned
+#    (name):    name of array of menu option strings
+#    (integer): flag to allow capital triggers. By default, letters
+#               are converted to lower-case so uses don't need to
+#               capitalize their responses.  If you need to
+#               distinguish between 'f' and 'F', set this parameter
+#               to 1 (or any non-zero integer).
+lui_list_auto_menu()
+{
+    local selected_name="$1"
+    local strings_name="$2"
+    local -i allow_capitals="$3"
+
+    local -i row col rows cols
+    get_array_centering_values "row" "col" "rows" "cols" "$strings_name"
+
+    # inscribe a box around the menu:
+    local -i brow=$((row-1)) bcol=$((col-1)) brows=$((rows+2)) bcols=$((cols+2))
+    draw_box "$brow" "$bcol" "$brows" "$bcols"
+
+    # Build a keylist from letters extracted from option strings:
+    local -a letters=()
+    lui_list_build_letter_array "letters" "$strings_name" "$allow_capitals"
+
+    # Make searchable list of letters
+    local oifs="$IFS"
+    IFS=''
+    local letterarray="${letters[*]}"
+    IFS="$oifs"
+
+    llam_key_action()
+    {
+        local keyp="$1"
+        local -n llam_selected="$selected_name"
+        local -i ndx
+        if ndx=$( strstrndx "$letterarray" "$keyp" ); then
+            llam_selected="$ndx"
+            return 2
+        fi
+
+        return 0
+    }
+
+    local -a mkeylist=()
+    lui_list_build_menu_keylist "mkeylist" "letters" "llam_key_action"
+
+    # Build the menu entries lui_list from the option strings:
+    local -a options_list=()
+    lui_list_build_menu_list "options_list" "$strings_name" "$cols"
+
+    # Minimal line display for formated strings
+    llam_line_display()
+    {
+        if [ "$1" -ne 0 ]; then echo -n $'\e[48;2;64;64;64m'; fi
+        echo "$3"$'\e[m'
+    }
+
+    local -a args=(
+        "$selected_name"
+        "options_list"
+        "$row" "$col" "$rows" "$cols"
+        "llam_line_display"
+        "mkeylist"
+    )
 
     lui_list_generic "${args[@]}"
+
+    block_erase "$brow" "$bcol" "$brows" "$bcols"
 }
 
 # Radio-button interaction implemented with lui_list_generic
