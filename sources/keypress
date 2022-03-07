@@ -55,6 +55,9 @@ get_keypress_echo()
 
 # This keypress function stores the array of characters
 # to a named variable in order to preserve IFS characters.
+#
+# Args
+#    (name):    name of variable in which the keypress string is returned
 get_keypress()
 {
     local -n charlist="$1"
