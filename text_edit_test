@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+source sources/small_stuff
+source sources/keypress
+source sources/text_edit
+
+declare svalue="this is a string"
+
+
+
+main()
+{
+    hide_cursor
+    echo -n "Fill in the blank: "
+    if edit_text "svalue" 40; then
+        echo "The string value is '$svalue'"
+    else
+        echo "You didn't change the string"
+    fi
+    show_cursor
+}
+
+
+main
+
+

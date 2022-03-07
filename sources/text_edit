@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+# needs small_stuff, keypress
+
+
+edit_text()
+{
+   local -n et_strvalue="$1"
+   local -i length="$2"
+
+   local COLON=$'\e[48;5;238m'
+   local COLOFF=$'\e[m'
+
+   local empty=$( dupchar "$length" ' ' )
+
+   # status variables
+   local keyp
+   local -i keyp_len strlen
+   local str="$et_strvalue"
+   local -i keyval
+   local -i retval=2
+
+   # Will frequently return to starting position
+   local -i row col
+   get_cursor_position "row" "col"
+
+   # Prepare and display entry area
+   echo -n "${COLON}"
+   echo -n "$empty"
+   set_cursor_position "$row" "$col"
+   echo -n "$str"
+   show_cursor
+
+   while :; do
+       if get_keypress "keyp"; then
+           keyp_len="${#keyp}"
+           if [ "$keyp" == $'\e' ]; then
+               retval=1
+               break
+           elif [ "$keyp" == $'\n' ]; then
+               retval=0
+               et_strvalue="$str"
+               break
+           elif [ "$keyp_len" -eq 1 ]; then
+               keyval=$( val_from_char "$keyp" )
+               if [ "$keyval" == 127 ]; then
+                   # fix value
+                   strlen="${#str}"
+                   str="${str:0:$(( strlen-1 ))}"
+                   # fix display
+                   echo -n $'\e[1D \e[1D'
+               elif [ "$keyval" -ge 32 ]; then
+                   str="${str}$keyp"
+                   echo -n "$keyp"
+               fi
+           fi
+           # ignore mult-char keystrokes for new
+       fi
+   done
+
+   hide_cursor
+   echo "$COLOFF"
+
+   return "$retval"
+}
