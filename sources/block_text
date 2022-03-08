@@ -195,7 +195,7 @@ block_text_centered()
     block_text_get_size "rows" "cols" "$1"
 
     local -i row col
-    get_array_centering_values "row" "col" "rows" "cols"
+    get_block_centering_values "row" "col" "rows" "cols"
 
     set_cursor_position "$row" "$col"
 

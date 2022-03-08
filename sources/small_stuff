@@ -533,7 +533,7 @@ get_string_array_extent()
 #    (name);    number of columns in region to be centered
 #    (name):    optional array name whose extent is to be used
 #               for the rows and columns values
-get_array_centering_values()
+get_block_centering_values()
 {
     local -n gcrc_row="$1"
     local -n gcrc_col="$2"

@@ -1495,7 +1495,7 @@ lui_list_auto_menu()
     local -i allow_capitals="$3"
 
     local -i row col rows cols
-    get_array_centering_values "row" "col" "rows" "cols" "$strings_name"
+    get_block_centering_values "row" "col" "rows" "cols" "$strings_name"
 
     # inscribe a box around the menu:
     local -i brow=$((row-1)) bcol=$((col-1)) brows=$((rows+2)) bcols=$((cols+2))
