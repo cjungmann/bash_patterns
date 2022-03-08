@@ -11,6 +11,41 @@ declare c_br=$'\u256F'
 declare c_side=$'\u2502'
 declare c_flat=$'\u2500'
 
+
+# Draws an empty box at the specified position and extent
+#
+# Args
+#    (integer):    row position of upper-left corner of box
+#    (integer):    column position of upper-left corner of box
+#    (integer):    number of rows over which the box extends
+#    (integer):    number of columns over which the box extends
+draw_box()
+{
+    local -i row="$1"
+    local -i col="$2"
+    local -i rows="$3"
+    local -i cols="$4"
+
+    set_cursor_position "$row" "$col"
+    draw_horizontal "$cols" 1
+
+    for (( i=0; i<rows-2; ++i )); do
+        set_cursor_column "$col"
+        draw_sides "$cols"
+    done
+
+    set_cursor_column "$col"
+    draw_horizontal "$cols" 0
+}
+# Internal function draws the corners and the horizontal line beween.
+#
+# Printing begins at the current cursor position.  Make sure the
+# cursor is in the appropriate position before calling the function
+#
+# Args
+#    (integer):   number of characters wide, including corners
+#    (integer):   top-or-bottom flag to determine orientation of
+#                 corner characters.  0 for top, non-zero for bottom.
 draw_horizontal()
 {
     local -i count="$1"
@@ -32,6 +67,14 @@ draw_horizontal()
     echo "${cleft}${flat}${cright}"
 }
 
+# Internal function draws one line of border vertical characters with
+# empty spaces between
+#
+# Printing begins at the current cursor position.  Make sure the
+# cursor is in the appropriate position before calling the function
+#
+# Args
+#    (integer):    characters wide
 draw_sides()
 {
     local -i width="$1"
@@ -41,22 +84,3 @@ draw_sides()
     echo "${c_side}${empty}${c_side}"
 }
 
-
-draw_box()
-{
-    local -i row="$1"
-    local -i col="$2"
-    local -i rows="$3"
-    local -i cols="$4"
-
-    set_cursor_position "$row" "$col"
-    draw_horizontal "$cols" 1
-
-    for (( i=0; i<rows-2; ++i )); do
-        set_cursor_column "$col"
-        draw_sides "$cols"
-    done
-
-    set_cursor_column "$col"
-    draw_horizontal "$cols" 0
-}
