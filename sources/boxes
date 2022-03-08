@@ -11,8 +11,36 @@ declare c_br=$'\u256F'
 declare c_side=$'\u2502'
 declare c_flat=$'\u2500'
 
+# @def Using boxes
+#
+# The motive of drawing a box is to provide separation from
+# underlying content when putting a context dialog on the
+# screen.  It makes it easier to read, and it looks a lot
+# nicer.
+#
+# The primary function, draw_box() takes four arguments,
+# the top-left corner's row and column values, followed by
+# the number of rows and columns to which the box is printed.
+#
+# One preliminary step is to determine the values of the four
+# arguments.  There are tools for doing that in the block_text
+# module (block_text_get_size()) and module small_stuff
+# (get_block_centering_values()).
+#
+# Here is an example (you can also find the example in "boxes_test").
+#
+# declare str="This is a message."
+# declare -i row col rows=5 cols=$(( "${#str}" + 2 ))
+# get_block_centering_values "row" "col" "rows" "cols"
+# draw_box "$row" "$col" "$rows" "$cols"
+# set_cursor_position $(( row+2 )) $(( col+1 ))
+# echo -n "$str"
+# # Move cursor out of box to avoid disturbing the box borders:
+# echo
 
-# Draws an empty box at the specified position and extent
+
+
+# Draws an empty box at the specified position and extent.
 #
 # Args
 #    (integer):    row position of upper-left corner of box
@@ -37,6 +65,7 @@ draw_box()
     set_cursor_column "$col"
     draw_horizontal "$cols" 0
 }
+
 # Internal function draws the corners and the horizontal line beween.
 #
 # Printing begins at the current cursor position.  Make sure the
