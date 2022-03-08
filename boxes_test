@@ -3,5 +3,12 @@
 source sources/small_stuff
 source sources/boxes
 
+reset_screen
+
 draw_box 10 10 10 10
 draw_box 10 20 20 40
+
+
+declare -i row col rows=5 cols=60
+get_block_centering_values "row" "col" "rows" "cols"
+draw_box "$row" "$col" "$rows" "$cols"
