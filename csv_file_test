@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+source sources/small_stuff
+source sources/keypress
+source sources/list_ui
+source sources/csv_file
+
+to_continue() { read -n1 -p "Press any key"; }
+
+test_parse_csv_line()
+{
+    local -a csv_lines=(
+        "Master Category,Subcategory,Date,Location,Payee,Description,Payment Method,Amount"
+        "here,\"Plymouth,MN\",there,everywhere"
+        "\"here, there, and everywhere\",my home,your home,chez sa maison"
+        "monopoly,scrabble,boggle,candyland,\"snakes, and ladders\""
+    )
+
+    local -a row
+    local line el
+
+    for line in "${csv_lines[@]}"; do
+        array_from_csv_line "row" "$line"
+        reset_screen
+        echo "For [33;1m$line[m, there are ${#row[@]} elements"
+        for el in "${row[@]}"; do
+            echo "   $el"
+        done
+        to_continue
+    done
+}
+
+test_read_csv_file()
+{
+    local filename="Chuck_CreditCard.csv"
+    local -a ll_data
+    local -a ll_raw
+
+    if csv_read_file "ll_data" "ll_raw" "$filename"; then
+        echo "Read the file, baby!"
+        echo "There are ${ll_data[1]} rows of ${ll_data[0]} fields."
+        to_continue
+    fi
+}
+
+
+declare -a MAIN_MENU=(
+    2 0
+    "test parse_csv_line" test_parse_csv_line
+    "test read_csv_file"  test_read_csv_file
+)
+lui_list_init "MAIN_MENU"
+
+lui_list_runner "MAIN_MENU"
+
