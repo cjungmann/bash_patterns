@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+source sources/small_stuff
+source sources/keypress
+source sources/list_ui
+source sources/csv_file
+source sources/block_text
+
+declare csi=$'\e['
+
+# Date example used throughout this demo
+declare DStr=$( date )
+
 # This script will apply regular expressions to the output of various
 # and sundry commands.  In most cases, there are MUCH more efficient
 # methods to extract information, but in the interest of demonstrating
@@ -15,17 +26,14 @@
 # GREP uses the PCRE (Perl-compatible regular expressions).
 # PCRE is documented in man(3) pcresyntax and man(3) pcrepattern
 
+to_continue() { read -n1 -p "Press any key to continue."; }
+
 show_funcname()
 {
     fname="$1"
     echo -n "[2J[1;1H"
     echo "Running function [1;36m$fname[0m"
     echo
-}
-
-prompt_pause()
-{
-    read -s -p "Press ENTER to continue"
 }
 
 # Often used display of a successful match:
@@ -47,12 +55,17 @@ canonical_extract_time()
 
     local rePosix='([[:digit:]]{2}):([[:digit:]]{2}):([[:digit:]]{2})'
 
+    echo "Using ${csi}36;1m${rePosix}${csi}m to parse date string"
+    echo "${csi}36;1m${DStr}${csi}m"
+    echo
+
     if [[ "$DStr" =~ $rePosix ]]; then
         show_matches
     else
         echo "Posix Not matched"
     fi
-    echo
+
+    to_continue
 }
 
 
@@ -90,7 +103,7 @@ raw_extract_time()
         echo "Not matched"
     fi
 
-    echo
+    to_continue
 }
 
 # Using an array to document and build a full regular expression
@@ -150,7 +163,7 @@ canonical_extract_date()
         echo "Not matched"
     fi
 
-
+    to_continue
 }
 
 # In the raw expression, the only escaped characters are the spaces.
@@ -164,7 +177,7 @@ raw_extract_date()
         echo "Not matched"
     fi
 
-    echo
+    to_continue
 }
 
 # Contrived example to demonstrate a grep regular expression
@@ -185,25 +198,93 @@ grep_unescaped()
     echo
     local IFS=$'\n'
     echo "${raw_vars[*]}"
-    echo
+
+    to_continue
 }
 
-grep_unescaped
-exit 1
+compare_posix_vs_pcre()
+{
+    declare target="I show an asterisk (*), a plus (+) and a dollar sign ($)."
+
+    declare -a paras
+    bind_paragraphs "paras" <<EOF
+This demo will use ${csi}37;1mgrep${csi}m with different flags
+to demonstrate how the regex flavor accects that matches a given
+regular expression makes.
+
+The target string for all of the tests is:
+
+${csi}36;1m${target}${csi}m
+EOF
+
+    declare -a lines
+    format_paragraphs "lines" "paras" 70
+
+    local -a regexes=(
+        2 0
+        "Find a dollar sign in apostrophes"           '$'
+        "Find an escaped dollar sign in apostrophes"  '\$'
+        "Find a period in apostrophes"                '.'
+        "Find an escaped period in apostrophes"       '\.'
+        "Find a plus in apostrophes"                  '+'
+        "Find an escaped plus in apostrophes"         '\+'
+        "Find a parenthesis in apostrophes"           '('
+        "Find an escaped parenthesis in apostrophes"  '\('
+        )
+    lui_list_init "regexes"
+
+    doit()
+    {
+        local -i ndx="$1"
+        local descrip="$2"
+        local regex="$3"
+
+        echo "Running test ${csi}37;1m${descrip}${csi}m"
+        echo
+        echo "Using regex: ${csi}36;1m${regex}${csi}m on target:"
+        echo "${csi}37;1m${target}${csi}m"
+        echo
+        to_continue
+
+        echo "${csi}33;1mgrep with BRE:${csi}m"
+        grep -os $regex <<< "$target"
+        to_continue
+        echo "${csi}33;1mgrep with ERE:${csi}m"
+        grep -E -os $regex <<< "$target"
+        to_continue
+        echo "${csi}33;1mgrep with PCRE:${csi}m"
+        grep -P -os $regex <<< "$target"
+        echo
+
+        to_continue
+        reset_screen
+    }
 
 
-declare DStr=$( date )
-echo "Extracting the parts of the time expression:"
-echo "[1;36m'$DStr'[0m"
-echo
+    lui_list_iterate "regexes" "doit"
+}
 
-# canonical_extract_time
-# prompt_pause
+declare csi=$'\e['
 
-# raw_extract_time
-# prompt_pause
+declare -a HEADER_PARAS
+bind_paragraphs "HEADER_PARAS" <<EOF
+This test script runs experiments with regular expressions
+in order to better understand their construction in different
+settings and flavors.
 
-# raw_extract_date
-# prompt_pause
+The string representation of today's date, ${csi}36;1m${DStr}${csi}m,
+be used for some of the tests.
+EOF
 
-canonical_extract_date
+
+declare -a MAIN_MENU=(
+    2 0
+    "compare posix vs pcre"       compare_posix_vs_pcre
+    "test canonical_extract_time" canonical_extract_time
+    "test raw_extract_time"       raw_extract_time
+    "test raw_extract_date"       raw_extract_date
+    "test unescaped grep"         grep_unescaped
+)
+lui_list_init "MAIN_MENU"
+
+lui_list_runner "MAIN_MENU" "HEADER_PARAS"
