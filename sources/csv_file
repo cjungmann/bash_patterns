@@ -121,3 +121,36 @@ csv_read_file()
         return 1
     fi
 }
+
+write_csv_to_file()
+{
+    local target="$1"
+    local source_name="$2"
+
+    local -n source="$source_name"
+    local -i cols="${source[0]}"
+
+    write_line()
+    {
+        local -i ndx="$1"
+        shift
+        local -i first=0
+        local arg
+        for arg in "$@"; do
+            if [ $(( first++ )) -gt 0 ]; then
+                echo -n ','          >> "$target"
+            fi
+
+            if [[ "$arg" =~ ',' ]]; then
+                echo -n "\"${arg}\"" >> "$target"
+            else
+                echo -n "$arg"       >> "$target"
+            fi
+        done
+        echo >> "$target"
+    }
+
+    echo -n > "$target"
+
+    lui_list_iterate "$source_name" "write_line"
+}
