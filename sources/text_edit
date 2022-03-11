@@ -2,6 +2,35 @@
 
 # needs small_stuff, keypress
 
+edit_text_dialog()
+{
+    local value_name="$1"
+    local -n etd_value="$1"
+    local -i limit="$2"
+    local prompt="${3:-Edit the value}"
+
+    local -i margin=2
+    local -i prompt_len="${#prompt}"
+
+    local -i row=0 col=0 rows=5 cols=$(( limit + margin ))
+    get_block_centering_values row col rows cols
+    draw_box "$row" "$col" "$rows" "$cols"
+
+    local -i center_col=$(( cols/2 + col ))
+    local -i prompt_col=$(( center_col - (prompt_len/2) ))
+
+    local -i trow=$(( row + 1 ))
+    local -i tcol=$(( col + 1 ))
+    set_cursor_position "$trow" "$prompt_col"
+    echo "${prompt}"
+    set_cursor_position $(( ++trow )) "$tcol"
+
+    edit_text "$value_name" "$limit"
+    local -i retval="$?"
+
+    block_erase "$row" "$col" "$rows" "$cols"
+}
+
 
 edit_text()
 {
