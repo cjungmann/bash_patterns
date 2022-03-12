@@ -1,0 +1,31 @@
+# -*- mode: sh; sh-shell: bash -*-
+
+process_include_files()
+{
+    # Grab directory from submitted source file value
+    local bs="$1"
+    local root="${bs%/*}"
+
+    shift
+
+    local -a files
+    if [ "$1" == "*all*" ]; then
+        cd "$root"
+        files=( * )
+        cd ..
+    else
+        files=( "$@" )
+    fi
+
+    echo "files are ${files[*]}"
+
+    local filename
+    for filename in "${files[@]}"; do
+        if ! [[ "$filename" =~ ^.*\.md ]] && [ "$filename" != "include" ]; then
+            source "${root}/$filename"
+        fi
+    done
+}
+
+process_include_files "${BASH_SOURCE[0]}" "$@"
+
