@@ -3,16 +3,12 @@
 process_include_files()
 {
     # Grab directory from submitted source file value
-    local bs="$1"
+    local bs="${BASH_SOURCE[0]}"
     local root="${bs%/*}"
-
-    shift
 
     local -a files
     if [ "$1" == "*all*" ]; then
-        cd "$root"
-        files=( * )
-        cd ..
+        files=( $( ls -1 "$root" ) )
     else
         files=( "$@" )
     fi
@@ -25,5 +21,5 @@ process_include_files()
     done
 }
 
-process_include_files "${BASH_SOURCE[0]}" "$@"
+process_include_files "$@"
 
