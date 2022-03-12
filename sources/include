@@ -17,8 +17,6 @@ process_include_files()
         files=( "$@" )
     fi
 
-    echo "files are ${files[*]}"
-
     local filename
     for filename in "${files[@]}"; do
         if ! [[ "$filename" =~ ^.*\.md ]] && [ "$filename" != "include" ]; then
