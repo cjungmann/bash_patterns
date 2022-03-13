@@ -497,6 +497,51 @@ format_paragraphs()
     done
 }
 
+# @def Variable Validation Functions
+#
+# In an effort to shorten debugging time by identifying problems
+# with function arguments, these functions aim to verify the
+# existence and types of variables, especially variable names
+# to be used as nameref variables.
+#
+# I justify the use of Bash-only tests because this is
+# 'bash_patterns', and much of this set of scripts are
+# dependent on Bash arrays and other Bash-specific stuff.
+
+# Tests if named variable has been declared
+#
+# Args
+#    (name):   name of variable to test
+named_var_exists() { declare -p "$1" &>/dev/null; }
+
+
+# Tests if a named variable is of a given type
+#
+# Args
+#    (name):      name of variable to test
+#    (character): letter of declare type: 'a' for array, 'i' for int
+named_var_is_type()
+{
+    if named_var_exists "$1"; then
+        local type="-$2"
+        local result
+        if result=$( declare -p "$1" ); then
+            if [ "${result:8:2}" == "$type" ]; then
+                return 0
+            fi
+        fi
+    fi
+
+    return 1
+}
+
+# Alias for named_var_is_type $1 'i'
+named_var_is_int() { named_var_is_type "$1" "i"; }
+
+# Alias for named_var_is_type $1 'a'
+named_var_is_array() { named_var_is_type "$1" "a"; }
+
+
 # @def Miscellaneous Stuff
 #
 # The following functions don't fit in neat categotries.

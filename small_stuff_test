@@ -294,6 +294,52 @@ test_subshell_console_codes()
     return 0
 }
 
+test_variable_validation()
+{
+    local -i intvar
+    echo "Testing named_var_exists."
+    if named_var_exists "intvar"; then
+        echo "expected positive result is positive."
+    else
+        echo "expected positive result is negative."
+    fi
+    if named_var_exists "int_var"; then
+        echo "expected negative result is positive."
+    else
+        echo "expected negative result is negative."
+    fi
+
+    local -a myarr
+    echo "Testing named_var_is_array."
+    if named_var_is_array "myarr"; then
+        echo "expected positive result is positive."
+    else
+        echo "expected positive result is negative."
+    fi
+    local my_non_arr=1
+    if named_var_is_array "my_non_arr"; then
+        echo "expected negative result is positive."
+    else
+        echo "expected negative result is negative."
+    fi
+
+    local -i myint
+    echo "Testing named_var_is_int."
+    if named_var_is_int "myint"; then
+        echo "expected positive result is positive."
+    else
+        echo "expected positive result is negative."
+    fi
+    local my_non_int=1
+    if named_var_is_int "my_non_int"; then
+        echo "expected negative result is positive."
+    else
+        echo "expected negative result is negative."
+    fi
+
+    to_continue
+}
+
 
 ##############
 #    MAIN    #
@@ -368,6 +414,7 @@ restore_console()
 
 declare -a MAIN_MENU=(
     2 0
+    "test variable validation"           test_variable_validation
     "test string len sans csi"           test_string_len_sans_csi
     "test strstrndx"                     test_strstrndx
     "test hilite substring"              test_hilite_substr
