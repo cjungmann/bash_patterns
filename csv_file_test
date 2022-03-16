@@ -43,11 +43,29 @@ test_read_csv_file()
     fi
 }
 
+test_write_csv_file()
+{
+    local filename="Chuck_CreditCard.csv"
+    local newfilename="${filename/./1.}"
+    local -a ll_data
+    local -a ll_raw
+
+    if csv_read_file "ll_data" "ll_raw" "$filename"; then
+        echo "There are ${ll_data[1]} rows of ${ll_data[0]} fields."
+        echo "About to write contents to $newfilename" 
+        write_csv_to_file "${newfilename}" "ll_data"
+    else
+        echo "failed to open '$filename'"
+    fi
+
+    to_continue
+}
 
 declare -a MAIN_MENU=(
     2 0
     "test parse_csv_line" test_parse_csv_line
     "test read_csv_file"  test_read_csv_file
+    "test write_csv_file" test_write_csv_file
 )
 lui_list_init "MAIN_MENU"
 
