@@ -13,11 +13,21 @@ get_csv_regex()
 
     # parentheses must be quoted or escaped to avoid being interpreted
     # as a Bash token.
+
+    # This regular expression matches double-quote enclosed fields that
+    # contain a comma in order to temporarily replace the enclosed comma
+    # with another character until the other commas are used to split the
+    # string into array elements.
+    # 
+    # The non-optional double-quote in this regular expression is
+    # appropriate because the expression doesn't try to match un-enclosed
+    # fields: they won't contain a comma 
     local -a re_parts=(
         '(.*)'      # optional preceding characters
         '(,?)'      # optional comma (not before the first field)
         \"          # introducing the quote-enclosed field
-        \(          # introducing a match group
+        \(          # introducing a match group   NOTE: this and other parentheses
+                    # must be escaped or quoted to prevent unwanted Bash interpretation.
         [^,\"]+     # match characters that are neither a close-quote or a comma
         \)          # concluding first match group
         ,           # match a comma within the enclosing quotes
@@ -26,7 +36,7 @@ get_csv_regex()
         \)          # conclusion of second match group
         \"          # conclusion of quote-enclosed field
         '(,?)'      # optional comma (not after the last field)
-        '(.*)'      # succeeding characters
+        '(.*)'      # optionaal succeeding characters
     )
     IFS=
     echo "${re_parts[*]}"
@@ -116,6 +126,8 @@ csv_read_file()
 
             lui_list_append_row "$name_lui_list" "currow"
         done < "$filepath"
+
+        return 0
     else
         echo "Error opening file $filepath" >&2
         return 1
