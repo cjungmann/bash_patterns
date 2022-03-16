@@ -574,12 +574,14 @@ lui_list_display_line()
 {
     local -i hilite="$1"
     local -i padding="$2"
-    local -a els=( "${@:3}" )
+
+    # Shift to make function parameters positions match row elements
+    shift 2
 
     if [ "$hilite" -ne 0 ]; then
         echo -n $'\e[44m'
     fi
-    force_length "${els[0]}" "$padding"
+    force_length "$1" "$padding"
     echo $'\e[m'
 }
 
@@ -600,12 +602,14 @@ lui_list_menu_display_line()
 {
     local -i hilite="$1"
     local -i padding="$2"
-    local -a els=( "${@:3}" )
+
+    # Shift to make function parameters positions match row elements
+    shift 2
 
     if [ "$hilite" -ne 0 ]; then
         echo -n $'\e[44m'
     fi
-    hilite_pad "${els[0]}" "$padding"
+    hilite_pad "$1" "$padding"
     echo $'\e[m'
 }
 
@@ -622,15 +626,17 @@ lui_list_display_selectable_line()
 {
     local -i hilite="$1"
     local -i padding="$2"
-    local -a row=( "${@:3}" )
 
-    local entry="${row[0]}"
+    # Shift to make function parameters positions match row elements
+    shift 2
+
+    local entry="$1"
     local -i len_entry="${#entry}"
     local -i spaces_needed=$(( padding - ( 3 + len_entry ) ))
 
     if [ "$hilite" -ne 0 ]; then echo -n $'\e[43m'; fi
 
-    if [ "${row[1]}" -eq 0 ]; then
+    if [ "$2" -eq 0 ]; then
         echo -n '[ ]'
     else
         echo -n '[x]'
@@ -782,6 +788,7 @@ lui_list_process_key()
     local k IFS key cmd
     # shellcheck disable=SC2206  # don't warn for unquoted variable array initialization
     for k in "${key_arr[@]}"; do
+
         IFS=':'; entry=( $k )
         IFS="|"; keys=( ${entry[0]} )
         cmd="${entry[1]}"
@@ -803,7 +810,7 @@ lui_list_process_key()
 declare -a LUI_DEFAULT_TERM_KEYS=(
     $'\e|q:LUI_ABORT:Quit immediately'
     $'\n:LUI_SELECT:Save and Quit'
-    )
+)
 
 # @def key action functions
 #
@@ -1006,7 +1013,7 @@ lui_list_key_advice_list()
 
     local -n llka_infolist="$infolist_name"
     local -n llka_keylist="$keylist_name"
-
+                  
     # initialise output lui_list to empty, 2-column list
     llka_infolist=( 2 0 )
 
@@ -1230,6 +1237,57 @@ EOF
     read -n1
 }
 
+# @def Debugging Aids
+#
+# There isn't much here at the start except for a function to
+# test parameters submitted to lui_list_generic().  Since all
+# interactions pass through lui_list_generic(), it's a good place
+# to test.
+
+named_var_is_lui_list()
+{
+    if named_var_is_array "$1"; then
+        if lui_list_validate "$1"; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Test lui_list_generic function arguments.
+#
+# Do some sanity checking for several of the arguments, particularly
+# ensuring that names of lui_lists and arrays exist and are valid.
+#
+# Args:  see argument list from lui_list_generic()...
+lui_list_confirm_arguments()
+{
+    local -i count=0
+    if [ -n "$1" ] && ! named_var_is_int "$1"; then
+        (( ++count ))
+        echo "Parameter 1 ($1) must be an integer" >&2
+    fi
+    if ! named_var_is_lui_list "$2"; then
+        (( ++count ))
+        echo "Parameter 2 ($2) must be a lui_list." >&2
+    fi
+    if [ -n "$7" ] && ! named_var_is_function "$7"; then
+        (( ++count ))
+        echo "Parameter 7 ($2) must be a function." >&2
+    fi
+    if [ -n "$8" ] && ! named_var_is_array "$8"; then
+        (( ++count ))
+        echo "Parameter 8 ($8) must be a keys array." >&2
+    fi
+    if [ -n "$9" ] && ! named_var_is_array "$9"; then
+        (( ++count ))
+        echo "Parameter 9 ($9) must be a paragraphs array." >&2
+    fi
+
+    [ "$count" -eq 0 ]
+}
+
 
 # @def primary list interaction
 #
@@ -1271,13 +1329,17 @@ lui_list_generic()
         exit 1
     fi
 
+    if ! lui_list_confirm_arguments "$@"; then
+        exit 1
+    fi
+
     local -i bogus=0
     # shellcheck disable=SC2155
     local -n llg_selected="${1:-bogus}"
     local lui_list_name="$2"
     local -i row="${3:-0}"
     local -i col="${4:-0}"
-    local -i line_count="${5:-10}"
+    local -i line_count="$5"
     local -i chars_width="${6:-40}"
     local line_displayer="${7:-lui_list_display_line}"
     local term_keys_list_name="${8:-LUI_DEFAULT_TERM_KEYS}"
@@ -1286,6 +1348,13 @@ lui_list_generic()
     local -a extra_args
     if [ "$#" -gt 9 ]; then
         extra_args=( "${@:10}" )
+    fi
+
+    # Use row count as line_count if line_count not defined (==0)
+    if [ "$line_count" -eq 0 ]; then
+        local -n temp_list="$lui_list_name"
+        line_count="${temp_list[1]}"
+        unset -n temp_list
     fi
 
     if [ "$line_count" -lt 2 ]; then
@@ -1297,7 +1366,7 @@ lui_list_generic()
     get_screen_size "scrn_rows" "scrn_cols"
 
     # Adjust values if terminal too small
-    (( line_count = scrn_rows < line_count ? scrn_rows : line_count ))
+    (( line_count = (scrn_rows-4) < line_count ? (scrn_rows-4) : line_count ))
     (( chars_width = scrn_cols < chars_width ? scrn_cols : chars_width ))
 
     # Centering image if indicated by position value of 0:
@@ -1368,6 +1437,7 @@ lui_list_generic()
         lui_list_show_lines "${show_lines_args[@]}"
 
         if get_keypress "keyp"; then
+
             # Show 'help' for F1 or '?' key:
             if [ "$keyp" == $'\eOP' ] || [ "$keyp" == '?' ]; then
                 lui_list_display_keys_help "$term_keys_list_name"
@@ -1430,7 +1500,7 @@ lui_list_menu()
 {
     local llm_selected_name="$1"
     local llm_list_name="$2"
-    local -i rows="${3:-10}"
+    local -i rows="$3"
     local -i cols_requested="$4"
     local llm_header_name="$5"
 
@@ -1566,7 +1636,7 @@ lui_list_radio()
     fi
 
     local llr_list_name="$1"
-    local -i rows="${2:-10}"
+    local -i rows="$2"
     local -i cols_requested="$3"
 
     local -i cols
@@ -1612,7 +1682,7 @@ lui_list_checkbox()
     fi
 
     local llc_list_name="$1"
-    local -i rows="${2:-10}"
+    local -i rows="$2"
     local -i cols_requested="$3"
     local -i selected=0
 
