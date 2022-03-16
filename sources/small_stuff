@@ -541,6 +541,9 @@ named_var_is_int() { named_var_is_type "$1" "i"; }
 # Alias for named_var_is_type $1 'a'
 named_var_is_array() { named_var_is_type "$1" "a"; }
 
+# Indicates if a given name is a function
+named_var_is_function() { [ $( type -t "$1" ) == "function" ]; }
+
 
 # @def Miscellaneous Stuff
 #
