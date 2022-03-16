@@ -40,8 +40,8 @@ The main control characters are:
 - **[** and **]** for identifying a collection of characters
   (AKA a character class)
 - **{** and **}** enclose match count instructions
-- __?__, __+__, and __*__ for indicating the number of matches
-  that can be accepted in a target string
+- __?__, __+__, and __*__ quantifier meta characters for indicating
+  the number of matches that can be accepted in a target string
 - __^__ and __$__ to match the beginning and end of a string or
   line
 - __|__ separates alternate equivalent matches
@@ -125,8 +125,7 @@ reference section to aid writing regular expressions.
 
 - **BRE man reference**: `man 7 regex`
 
-- BRE is the default for Posix **grep** and **sed**, but not for
-  GNU grep.
+- BRE is the default for Posix **grep** and **sed**
 
 ## Other Construction Considerations
 
