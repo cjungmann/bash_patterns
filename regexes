@@ -264,7 +264,41 @@ EOF
     lui_list_iterate "regexes" "doit"
 }
 
-declare csi=$'\e['
+variations_on_grep()
+{
+    local hilite="${csi}35;1m"
+    local cmdcol="${csi}36;1m"
+
+    local -a res=(
+        [[:digit:]]{2}
+        \\d{2}
+        [[:digit:]]*
+        [[:digit:]]\\*
+        [[:alpha:]]+
+        [[:alpha:]]\\+
+        
+    )
+
+    local re
+
+    for re in "${res[@]}"; do
+        reset_screen
+        echo "Using regex ${hilite}${re}${csi}m to parse ${hilite}$( date )${csi}m"
+        echo "Executing (default) ${cmdcol}date | grep -o ${hilite}${re}${csi}m"
+        date | grep -o $re
+        echo
+        echo "Executing (BRE)     ${cmdcol}date | grep -Go ${hilite}${re}${csi}m"
+        date | grep -Go $re
+        echo
+        echo "Executing (ERE)     ${cmdcol}date | grep -Eo ${hilite}${re}${csi}m"
+        date | grep -Eo $re
+        echo
+        echo "Executing (PCRE)    ${cmdcol}date | grep -Po ${hilite}${re}${csi}m"
+        date | grep -Po $re
+        echo
+        to_continue
+    done
+}
 
 declare -a HEADER_PARAS
 bind_paragraphs "HEADER_PARAS" <<EOF
@@ -279,6 +313,7 @@ EOF
 
 declare -a MAIN_MENU=(
     2 0
+    "show variations on grep"     variations_on_grep
     "compare posix vs pcre"       compare_posix_vs_pcre
     "test canonical_extract_time" canonical_extract_time
     "test raw_extract_time"       raw_extract_time
