@@ -16,10 +16,15 @@ process_include_files()
     local filename
     for filename in "${files[@]}"; do
         if ! [[ "$filename" =~ ^.*\.md ]] && [ "$filename" != "include" ]; then
-            source "${root}/$filename"
+            echo "${root}/$filename"
         fi
     done
 }
 
-process_include_files "$@"
+declare -a include_files_array
+include_files_array=( $( process_include_files "$@" ) )
+declare include_file
+for include_file in "${include_files_array[@]}"; do
+    source "$include_file"
+done
 
