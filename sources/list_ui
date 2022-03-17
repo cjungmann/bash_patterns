@@ -1350,52 +1350,45 @@ lui_list_generic()
         extra_args=( "${@:10}" )
     fi
 
+    local -i row_count
+    lui_list_row_count "row_count" "$lui_list_name"
+
     # Use row count as line_count if line_count not defined (==0)
     if [ "$line_count" -eq 0 ]; then
-        local -n temp_list="$lui_list_name"
-        line_count="${temp_list[1]}"
-        unset -n temp_list
+        line_count="$row_count"
     fi
 
+    # No choice to be made if fewer than 2 choices
     if [ "$line_count" -lt 2 ]; then
         echo "Invalid line count: $line_count" >&2
         exit 1
+    fi
+
+    # Account for head lines when adjusting the line_count
+    local -a head_text=()
+    local -i head_lines=0
+    local -i plot_head=0
+    if [ "$head_array_name" ]; then
+        format_paragraphs "head_text" "$head_array_name" "$chars_width" 0
+        (( head_lines = "${#head_text[@]}" + 1 ))
     fi
 
     local -i scrn_rows scrn_cols
     get_screen_size "scrn_rows" "scrn_cols"
 
     # Adjust values if terminal too small
-    (( line_count = (scrn_rows-4) < line_count ? (scrn_rows-4) : line_count ))
     (( chars_width = scrn_cols < chars_width ? scrn_cols : chars_width ))
+    if (( (line_count + head_lines) > (scrn_rows-2) )); then
+        (( line_count = scrn_rows - 2 - head_lines ))
+    fi
 
     # Centering image if indicated by position value of 0:
     if (( row==0 )); then
-        (( row = (scrn_rows - line_count) / 2 ))
+        (( row = (scrn_rows - (line_count+head_lines)) / 2 ))
     fi
     if (( col==0 )); then
         (( col = (scrn_cols - chars_width) / 2 ))
     fi
-
-    local -a head_text
-    local -i head_row head_lines=0
-    local -i plot_head=0
-
-    # Adjust for head array, if necessary
-    if [ "$head_array_name" ]; then
-        format_paragraphs "head_text" "$head_array_name" "$chars_width" 0
-        head_lines="${#head_text[@]}"
-        if [ "$line_count" -gt $(( head_lines + 2 )) ]; then
-            (( line_count -= head_lines ))
-        fi
-
-        # Adjust rows for header
-        (( head_row = row ))
-        (( row += head_lines + 1 ))
-    fi
-
-    local -i row_count
-    lui_list_row_count "row_count" "$lui_list_name"
 
     local -i top_row
     local -a key_args proc_args
@@ -1406,7 +1399,8 @@ lui_list_generic()
         "$lui_list_name"
         0                 # top_row, calculated and set with each iteration
         0                 # index of selected item, set with each iteration
-        "$row"
+        # "$row"
+        $(( row + head_lines ))
         "$col"
         "$line_count"
         "$chars_width"
@@ -1430,7 +1424,7 @@ lui_list_generic()
         show_lines_args[2]="$llg_selected"
 
         if [ "$plot_head" -ne 0 ]; then
-            indent_print "head_text" "$head_row" "$col"
+            indent_print "head_text" "$row" "$col"
             plot_head=0
         fi
 
