@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+
+source sources/include
+
+# @def Script template for creating selectable test
+#
+# Create functions that can be called to perform tests.
+#
+# The library function lui_list_runner() will clear the
+# screen before and after running the test.
+#
+# The test functions need to pause before returning or
+# the output will disappear.
+
+to_continue() { read -n1 -p Press\ any\ key\ to\ continue.; }
+
+test_one()
+{
+    echo "This is test one."
+    to_continue
+}
+
+test_two()
+{
+    echo "This is test two."
+    to_continue
+}
+
+
+
+
+# @def Terminal State restoration code
+#
+# Use a global variable (STARTING_STTY) to save the state, then set
+# traps to restore the state.
+declare STARTING_STTY
+
+# Save state and hide cursor upon entry to program
+prepare_console()
+{
+    STARTING_STTY=$( stty -g )
+    hide_cursor
+}
+
+# Restores the console from state saved in prepare_console()
+restore_console()
+{
+    stty "$STARTING_STTY"
+    show_cursor
+    # leave cursor in expected left-most column
+    echo
+}
+
+
+
+###########################
+#          MAIN           #
+#  Execution Begins Here  #
+###########################
+
+prepare_console
+trap restore_console SIGINT
+trap restore_console EXIT
+
+
+# @def The menu lui_list array
+#
+# lui_list_runner() only uses the first two columns
+# of a row, the first column is what is displayed in the
+# list interaction, and the second column is the function
+# to call.
+declare -a MAIN_MENU=(
+    2 0
+    "perform first test"   test_one
+    "perform second test"  test_two
+)
+lui_list_init "MAIN_MENU"
+
+declare -a paras
+bind_paragraphs "paras" <<EOF
+Select a test and press ENTER to perform the test.
+
+Press ESC or 'q' to terminate the program."
+EOF
+
+# The following function call will run the whole program.
+# The `paras` parameter is optional.
+lui_list_runner "MAIN_MENU" "paras"
+
