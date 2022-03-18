@@ -117,6 +117,24 @@ char_from_val() { printf $(printf "\\%03o" "$1"); }
 # Returns an integer value associated with an ASCII character
 val_from_char() { LC_CTYPE=C; printf '%d' "'$1"; }
 
+# Recursive function to add commas to a whole number.
+#
+# Args
+#    (integer):   integer value to be formatted
+commaize_number()
+{
+    local -i val="$1"
+    local -i locpart=$(( val % 1000 ))
+    local -i passpart=$(( val / 1000 ))
+    if [ "$passpart" -gt 0 ]; then
+        (( locpart += 1000 ))
+        commaize_number "$passpart"
+        echo -n ",${locpart:1}"
+    else
+        echo -n "${locpart}"
+    fi
+}
+
 # @def String search functions
 
 # Gets 0-based character position in first string of the first
