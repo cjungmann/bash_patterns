@@ -396,6 +396,23 @@ EOF
     lui_list_generic "${list_args[@]}"
 }
 
+declare -a MAIN_MENU=(
+    2 0
+    "test variable validation"           test_variable_validation
+    "test string len sans csi"           test_string_len_sans_csi
+    "test strstrndx"                     test_strstrndx
+    "test hilite substring"              test_hilite_substr
+    "test hilite pad"                    test_hilite_pad
+    "test paragraph-formatting heredoc"  test_heredoc_paragraphs
+    "test paragraph-formatting markdown" test_markdown_paragraphs
+    "test indent_print"                  test_indent_print
+    "test CSI aware paragraphs"          test_csi_aware_paragraphs
+    "test get_screen_size"               test_get_screen_size
+    "test subshell console codes"        test_subshell_console_codes
+)
+
+declare STARTING_STTY
+
 # Prepare console for appropriate behavior.
 # First draft of function mainly saves the state (for later restoring)
 # and hides the cursor.
@@ -411,21 +428,6 @@ restore_console()
     stty "$STARTING_STTY"
     show_cursor
 }
-
-declare -a MAIN_MENU=(
-    2 0
-    "test variable validation"           test_variable_validation
-    "test string len sans csi"           test_string_len_sans_csi
-    "test strstrndx"                     test_strstrndx
-    "test hilite substring"              test_hilite_substr
-    "test hilite pad"                    test_hilite_pad
-    "test paragraph-formatting heredoc"  test_heredoc_paragraphs
-    "test paragraph-formatting markdown" test_markdown_paragraphs
-    "test indent_print"                  test_indent_print
-    "test CSI aware paragraphs"          test_csi_aware_paragraphs
-    "test get_screen_size"               test_get_screen_size
-    "test subshell console codes"        test_subshell_console_codes
-)
 
 ##############
 #    MAIN    #
