@@ -1,30 +1,40 @@
 # -*- mode: sh; sh-shell: bash -*-
 
-process_include_files()
+collect_source_files()
 {
     # Grab directory from submitted source file value
     local bs="${BASH_SOURCE[0]}"
     local root="${bs%/*}"
 
+    local filename
     local -a files
-    if [ "$1" == "*all*" ]; then
-        files=( $( ls -1 "$root" ) )
+    if [ "$#" == 0 ]; then
+        files=( $( ls -1 $root/* ) )
     else
         files=( "$@" )
+        local -i ndx limit="$#"
+        for (( ndx=0; ndx<limit; ++ndx )); do
+            files[$ndx]="${root}/${files[$ndx]}"
+        done
     fi
 
-    local filename
     for filename in "${files[@]}"; do
-        if ! [[ "$filename" =~ ^.*\.md ]] && [ "$filename" != "include" ]; then
-            echo "${root}/$filename"
+        if ! [[ "$filename" =~ ^.*\.md ]] && [ "${filename##*/}" != "include" ]; then
+            echo "$filename"
         fi
     done
 }
 
+# source files in global space to preserve contents
+
 declare -a include_files_array
-include_files_array=( $( process_include_files "$@" ) )
+include_files_array=( $( collect_source_files "$@" ) )
 declare include_file
 for include_file in "${include_files_array[@]}"; do
     source "$include_file"
 done
+
+# Leave the campsite as we found it
+unset include_files_array include_file
+
 
