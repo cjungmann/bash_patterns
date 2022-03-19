@@ -621,6 +621,24 @@ get_block_centering_values()
     (( gcrc_col = ( scols - gcrc_cols ) / 2 ))
 }
 
+# Get set or unset (-s or -u) for a shopt option.
+#
+# Use this function to preserve the state in order to
+# restore it after a local shopt setting.
+#
+# Args
+#    (string): shopt option to query
+get_shopt_setting()
+{
+    local opt="$1"
+    if [[ $( shopt -p "$opt" ) =~ -([us]) ]]; then
+        echo "${BASH_REMATCH[1]}"
+        return 0
+    fi
+
+    return 1
+}
+
 # Silently test if a builtin script function exists
 #
 # Rather than check for a version number or something else,
