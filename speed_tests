@@ -1,0 +1,458 @@
+#!/usr/bin/env bash
+
+source sources/include
+
+to_continue() { read -n1 -p Press\ any\ key\ to\ continue. >&2; }
+
+declare -a CURRENCY_ARRAY
+
+currencyize_numbers()
+{
+    local -i sign="$1"
+    local -i dollars="$2"
+    local -i cents="$3"
+
+    if [ $(( dollars + cents )) -ne 0 ] && [ "$sign" -ne 0 ]; then
+        echo -n "-"
+    fi
+    (( cents += 100 ))
+    echo -n '$'$( commaize_number "$dollars" )".${cents:1}"
+}
+
+
+# @def Three different methods for processing a currency string.
+#
+# Two of these methods are significant for decisions on how to
+# iterate over characters in a string.  The third method is a
+# shortcut tailored to the conversion which out-performs the
+# character-by-character methods
+
+# Currency to cents using 'read' builtin function.
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_read()
+{
+    local out=""
+    local chr
+    while IFS= read -rn1 chr; do
+        if ! [[ "$chr"  =~ [,$.] ]]; then
+            out="${out}${chr}"
+        fi
+    done <<< "$1"
+
+    echo "$out"
+}
+
+# Currency to cents using ${val:$ndx:1} to pick-off characters.
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_loop()
+{
+    local out=''
+    local chr
+    local max="${#1}"
+    for (( i=0; i<max; ++i )); do
+        chr="${1:$i:1}"
+        if ! [[ "$chr" =~ [,$.] ]]; then
+            out="${out}${chr}"
+        fi
+    done
+
+    echo "$out"
+}
+
+# Currency to cents using a series of substitutions to remove punctuation.
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_replace()
+{
+    local val="${1/$/}"
+    val="${val/,/}"
+    val="${val/./}"
+
+    echo "$val"
+}
+
+in_cent_ivize_glob()
+{
+    shopt -s extglob
+    local -i val="${1//*([,.$])/}"
+    shopt -u extglob
+    echo "$val"
+}
+
+
+
+generate_random_currency()
+{
+    currencyize_numbers $(( $RANDOM % 2 )) "$RANDOM" $(( $RANDOM % 100 ))
+}
+
+generate_currency_array_plus_equal()
+{
+    local -n gca_array="$1"
+    local -i limit="$2"
+    local -i report_interval="$3"
+
+    # Two reporting functions, one makes report, the other is a no-op.
+    report_progress()
+    {
+        if (( $1 % report_interval == 0 )); then
+            set_cursor_position 1 1
+            echo "On $1 of $limit iterations.";
+        fi
+    }
+
+    # Near zero-time, no-op function
+    fake_report_progress() { :; }
+
+    local report_func
+
+    if [ "$report_interval" -eq 0 ]; then
+        report_func=fake_report_progress
+    else
+        report_func=report_progress
+    fi
+
+    for (( i=0; i<limit; ++i )); do
+        "$report_func" "$i"
+        gca_array+=( $( generate_random_currency ) )
+    done
+}
+
+generate_currency_array_copy_add()
+{
+    local -n gca_array="$1"
+    local -i limit="$2"
+    local -i report_interval="$3"
+
+    # Two reporting functions, one makes report, the other is a no-op.
+    report_progress()
+    {
+        if (( $1 % report_interval == 0 )); then
+            set_cursor_position 1 1
+            echo "On $1 of $limit iterations.";
+        fi
+    }
+
+    # Near zero-time, no-op function
+    fake_report_progress() { :; }
+
+    local report_func
+
+    if [ "$report_interval" -eq 0 ]; then
+        report_func=fake_report_progress
+    else
+        report_func=report_progress
+    fi
+
+    for (( i=0; i<limit; ++i )); do
+        "$report_func" "$i"
+        gca_array=( "${gca_array[@]}" $( generate_random_currency ) )
+    done
+}
+
+generate_global_currency_array_plus_equal()
+{
+    local -i paracount=1000
+    local -a paras
+    bind_paragraphs "paras" <<EOF
+We will create a reusable currency values array with 10,000 entries.
+It will be saved for use by other "test" cases so multiple test
+cases can use the same data in order to allow meaningful comparisons.
+
+There are two version of this function, one builds the array using
+the plus-equal notation: `array+=( new_element )`, and the other
+version uses the copy-add notation: `array=( "${array[@]}" new_element )`.
+
+This particular test is of the plus-equal variety.
+EOF
+
+    paragraphs_interaction "paras" 60
+
+    local -i start_time=$( get_time_in_tenthous )
+    generate_currency_array_plus_equal "CURRENCY_ARRAY" "$paracount" 250
+    local -i end_time=$( get_time_in_tenthous )
+
+    local elapsed_time=$( show_tenthous_as_floating_seconds $(( end_time - start_time )) )
+
+    bind_paragraphs "paras" <<EOF
+Generating and saving $paracount currency values took $elapsed_time
+seconds using the plus-equal method.
+
+The just-generated $paracount currency value array can be used
+for several timed processing events.
+EOF
+
+    paragraphs_interaction "paras" 60
+}
+
+generate_global_currency_array_copy_add()
+{
+    local -i paracount=1000
+    local -a paras
+    bind_paragraphs "paras" <<EOF
+We will create a reusable currency values array with 10,000 entries.
+It will be saved for use by other "test" cases so multiple test
+cases can use the same data in order to allow meaningful comparisons.
+
+There are two version of this function, one builds the array using
+the plus-equal notation: `array+=( new_element )`, and the other
+version uses the copy-add notation: `array=( "${array[@]}" new_element )`.
+
+This particular test is of the copy-add variety.
+EOF
+
+    paragraphs_interaction "paras" 60
+
+    echo -n "Enter the desired number of array values: "
+    if ! edit_text "paracount" 20; then
+        echo "Opps! Bye!" >&2
+        exit 1
+    fi
+
+    local -i start_time=$( get_time_in_tenthous )
+    generate_currency_array_copy_add "CURRENCY_ARRAY" "$paracount" 250
+    local -i end_time=$( get_time_in_tenthous )
+
+    local elapsed_time=$( show_tenthous_as_floating_seconds $(( end_time - start_time )) )
+
+    bind_paragraphs "paras" <<EOF
+Generating and saving $paracount currency values took $elapsed_time
+seconds using the copy-add method.
+
+The just-generated $paracount currency value array can be used
+for several timed processing events.
+EOF
+
+    paragraphs_interaction "paras" 60
+}
+
+
+convert_currency_read()
+{
+    if [ "${#CURRENCY_ARRAY[@]}" -lt 10 ]; then
+        echo "Please generate the currency values." >&2
+        to_continue
+        return 0
+    fi
+
+    local -i start_time=$( get_time_in_tenthous )
+    local val
+    local -a result=()
+    for val in "${CURRENCY_ARRAY[@]}"; do
+        result+=( $( in_cent_ivize_read "$val" ) )
+    done
+    local -i end_time=$( get_time_in_tenthous )
+
+    echo "The process took $( show_tenthous_as_floating_seconds $(( end_time - start_time)) ) seconds."
+    to_continue
+}
+
+convert_currency_loop()
+{
+    if [ "${#CURRENCY_ARRAY[@]}" -lt 10 ]; then
+        echo "Please generate the currency values." >&2
+        to_continue
+        return 0
+    fi
+
+    local -i start_time=$( get_time_in_tenthous )
+    local val
+    local -a result=()
+    for val in "${CURRENCY_ARRAY[@]}"; do
+        result+=( $( in_cent_ivize_loop "$val" ) )
+    done
+    local -i end_time=$( get_time_in_tenthous )
+
+    echo "The process took $( show_tenthous_as_floating_seconds $(( end_time - start_time)) ) seconds."
+    to_continue
+}
+
+convert_currency_replace()
+{
+    if [ "${#CURRENCY_ARRAY[@]}" -lt 10 ]; then
+        echo "Please generate the currency values." >&2
+        to_continue
+        return 0
+    fi
+
+    local -i start_time=$( get_time_in_tenthous )
+    local val
+    local -a result=()
+    for val in "${CURRENCY_ARRAY[@]}"; do
+        result+=( $( in_cent_ivize_replace "$val" ) )
+    done
+    local -i end_time=$( get_time_in_tenthous )
+
+    echo "The process took $( show_tenthous_as_floating_seconds $(( end_time - start_time)) ) seconds."
+    to_continue
+}
+
+convert_currency_glob()
+{
+    if [ "${#CURRENCY_ARRAY[@]}" -lt 10 ]; then
+        echo "Please generate the currency values." >&2
+        to_continue
+        return 0
+    fi
+
+    local -i start_time=$( get_time_in_tenthous )
+    local val
+    local -a result=()
+    for val in "${CURRENCY_ARRAY[@]}"; do
+        result+=( $( in_cent_ivize_glob "$val" ) )
+    done
+    local -i end_time=$( get_time_in_tenthous )
+
+    echo "The process took $( show_tenthous_as_floating_seconds $(( end_time - start_time)) ) seconds."
+    to_continue
+}
+
+random_currency_test()
+{
+    local -a amounts=()
+    local -i limit=10000
+    local filename="speed_tests_amounts"
+
+    local -i start_time=$( get_time_in_tenthous )
+    generate_currency_array_plus_equal "amounts" "$limit" 100
+    local -i end_time=$( get_time_in_tenthous )
+
+    echo "It took $( show_tenthous_as_floating_seconds $(( end_time - start_time )) ) seconds." >&2
+
+    # Write results out to a file
+    local IFS=$'\n'
+    echo "${amounts[*]}" > "$filename"
+    echo "Generated $limit currency values to $filename"
+    to_continue
+}
+
+test_get_time_in_tenthous()
+{
+    local -i thous thous_end
+    local -i seconds_to_wait
+    local -i limit=10
+    local floater
+    for (( i=0;  i < limit; ++i )); do
+        thous=$( get_time_in_tenthous )
+        floater=$( show_tenthous_as_floating_seconds "$thous" )
+        printf "test %d of %d: thous is %d, floater is %s\n" $(( i+1 )) "$limit" "$thous" "$floater"
+        seconds_to_wait=$(( 1 + $RANDOM % 5 ))
+        printf "   ...waiting %d seconds to rerun test.\n" "$seconds_to_wait"
+        sleep "$seconds_to_wait"
+        thous_end=$( get_time_in_tenthous )
+        echo "      Elapsed sleep time was "$( show_tenthous_as_floating_seconds $(( thous_end - thous )) )
+    done
+    to_continue
+}
+
+test_commaize_number()
+{
+    local -a values=(
+        100
+        1000
+        10000
+        100000
+        1000000
+        10000000
+    )
+
+    local -i val
+    local commaized
+    for val in "${values[@]}"; do
+        commaized=$( commaize_number "$val" )
+        echo "For commaized string for $val is $commaized"
+    done
+
+    to_continue
+}
+
+
+# @def Terminal State restoration code
+#
+# Use a global variable (STARTING_STTY) to save the state, then set
+# traps to restore the state.
+declare STARTING_STTY
+
+# Save state and hide cursor upon entry to program
+prepare_console()
+{
+    STARTING_STTY=$( stty -g )
+    hide_cursor
+}
+
+# Restores the console from state saved in prepare_console()
+restore_console()
+{
+    stty "$STARTING_STTY"
+    show_cursor
+    # leave cursor in expected left-most column
+    echo
+}
+
+###########################
+#          MAIN           #
+#  Execution Begins Here  #
+###########################
+
+test_tenthous_as_floating()
+{
+    local -a vals=(
+        100500
+        500000
+        611000
+        37610100
+        36610010
+        863990001
+    )
+
+    local val
+    for val in "${vals[@]}"; do
+        echo "Converting $val to seconds."
+        show_tenthous_as_floating_seconds "$val"
+    done
+
+    to_continue
+}
+
+run_subshell_vs_nameref()
+{
+    local path="speed_tests.d/subshell_nameref"
+    if [ -f "$path" ]; then
+        source "$path"
+        sn_subshell_vs_nameref
+    else
+        echo "failed to find directory $path"
+    fi
+
+    to_continue
+}
+
+prepare_console
+trap restore_console SIGINT
+trap restore_console EXIT
+
+declare -a MAIN_MENU=(
+    2 0
+    "generate currency values with plus-equal array (faster)"  generate_global_currency_array_plus_equal
+    "generate currency values with copy-add array (slower)"  generate_global_currency_array_copy_add
+    "convert currency with 'read'"    convert_currency_read
+    "convert currency with 'loop'"    convert_currency_loop
+    "convert currency with 'replace'"    convert_currency_replace
+    "convert currency with 'glob'"    convert_currency_glob
+    "test commaize_number"    test_commaize_number
+    "get_time_in_tenthous test"  test_get_time_in_tenthous
+    "random_currency test"    random_currency_test
+    "test show_tenthous_as_floating" test_tenthous_as_floating
+    "run subshell_vs_nameref"  run_subshell_vs_nameref
+)
+lui_list_init "MAIN_MENU"
+
+lui_list_runner "MAIN_MENU"
+
+
+

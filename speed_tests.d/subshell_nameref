@@ -1,0 +1,91 @@
+# -*- mode: sh; sh-shell: bash -*-
+
+declare RN_FORMAT="%d.%02d"
+
+sn_random_subshell()
+{
+   dollars=$(( $RANDOM / 100 ))
+   cents=$(( $RANDOM % 100 ))
+   printf "$RN_FORMAT" "$dollars" "$cents"
+}
+
+sn_random_nameref()
+{
+   local -n srn_val="$1"
+   dollars=$(( $RANDOM / 100 ))
+   cents=$(( $RANDOM % 100 ))
+   printf -v "srn_val" "$RN_FORMAT" "$dollars" "$cents"
+   # srn_val="${dollars}.${cents}"
+}
+
+sn_random_indirect()
+{
+   dollars=$(( $RANDOM / 100 ))
+   cents=$(( $RANDOM % 100 ))
+   printf -v "$1" "$RN_FORMAT" "$dollars" "$cents"
+}
+
+
+sn_subshell_vs_nameref()
+{
+   local -i reps=10000
+   local -i i
+   local randval
+
+   echo "Testing performance differences between functions returning"
+   echo "values through `echo` versus returning values by setting the"
+   echo "value of a nameref variable."
+   echo
+   echo "This includes two functions that generate two random numbers"
+   echo "to create a money value in dollars and cents.  The difference"
+   echo "between them is how the result is returned, either through `echo`"
+   echo "or a nameref."
+   echo
+   echo "The test consists of timing the running $reps repititions for"
+   echo "each function."
+   echo
+   echo "(The test may take some time.  Please wait patiently.)"
+   echo
+
+   echo "generating $reps values using subshell."
+   local -i start_subshell=$( get_time_in_tenthous )
+   for (( i=0; i<reps; ++i )); do
+       randvar=$( sn_random_subshell )
+   done
+   local -i end_subshell=$( get_time_in_tenthous )
+
+   echo "generating $reps values using nameref."
+   local -i start_nameref=$( get_time_in_tenthous )
+   for (( i=0; i<reps; ++i )); do
+       sn_random_nameref "randval"
+   done
+   local -i end_nameref=$( get_time_in_tenthous )
+
+   echo "generating $reps values using indirect assignment (`printf -v $1 %d.%02d`)"
+   local -i start_indirect=$( get_time_in_tenthous )
+   for (( i=0; i<reps; ++i )); do
+       sn_random_indirect "randval"
+   done
+   local -i end_indirect=$( get_time_in_tenthous )
+
+   local subshell_time=$( show_tenthous_as_floating_seconds $(( end_subshell - start_subshell )) )
+   local nameref_time=$( show_tenthous_as_floating_seconds $(( end_nameref - start_nameref )) )
+   local indirect_time=$( show_tenthous_as_floating_seconds $(( end_indirect - start_indirect )) )
+
+   echo "Using subshell for $reps repititions took $subshell_time"
+   echo "Using nameref for $reps repititions took $nameref_time"
+   echo "Using indirect for $reps repititions took $indirect_time"
+
+   echo
+   echo "Indirect methods (nameref and indirect) are 30 to 50 times"
+   echo "faster than the subshell version.  With 10,000 repititions,"
+   echo "subshell takes a bit more than 10 seconds, nameref takes"
+   echo "about 0.33 seconds, and indirect takes around 0.22 seconds."
+   echo
+   echo "For performance, indirect methods are clearly preferred."
+   echo "However, pure indirect is limited, ${!name} notation does"
+   echo "not work work for assignment.  There are few functions that"
+   echo "support setting variables by name.  Namerefs, on the hand,"
+   echo "are extremely flexible, and only slightly slower relative to"
+   echo "subshell methods."
+}
