@@ -340,6 +340,23 @@ test_variable_validation()
     to_continue
 }
 
+test_in_cent_ivize()
+{
+    local -a values=(
+        "-$12,345.67"
+        "$9,876.54"
+        "$100"
+    )
+    local -i result
+
+    local val
+    for val in "${values[@]}"; do
+        in_cent_ivize "result" "$val"
+        echo "$val was converted to $result"
+    done
+
+    to_continue
+}
 
 ##############
 #    MAIN    #
@@ -375,7 +392,7 @@ EOF
         $'\n:run_test'
     )
 
-    local -i selected=0
+    local -i selection=0
     local -i maxlen=$( lui_list_max_len "MAIN_MENU" )
     if [ "$maxlen" -lt 60 ]; then
         maxlen=60
@@ -396,6 +413,7 @@ EOF
     lui_list_generic "${list_args[@]}"
 }
 
+
 declare -a MAIN_MENU=(
     2 0
     "test variable validation"           test_variable_validation
@@ -409,6 +427,7 @@ declare -a MAIN_MENU=(
     "test CSI aware paragraphs"          test_csi_aware_paragraphs
     "test get_screen_size"               test_get_screen_size
     "test subshell console codes"        test_subshell_console_codes
+    "test in_cent_ivize"                 test_in_cent_ivize
 )
 
 declare STARTING_STTY
