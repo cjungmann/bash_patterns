@@ -88,7 +88,7 @@ test_tenthous_as_floating()
 
     local val
     for val in "${vals[@]}"; do
-        echo "Converting $val to seconds."
+        echo "Converting $val to time since midnight."
         show_tenthous_as_floating_seconds "$val"
     done
 
