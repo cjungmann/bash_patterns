@@ -140,6 +140,7 @@ in_cent_ivize_replace()
 # Currency to cents using a series of substitutions to remove punctuation.
 #
 # Args
+#    (name):     name of variable in which the answer is returned
 #    (string):   string representation of currency value
 in_cent_ivize_nameref_conversion()
 {
