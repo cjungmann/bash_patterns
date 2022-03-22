@@ -343,9 +343,9 @@ test_variable_validation()
 test_in_cent_ivize()
 {
     local -a values=(
-        "-$12,345.67"
-        "$9,876.54"
-        "$100"
+        "-\$12,345.67"
+        "\$9,876.54"
+        "\$100"
     )
     local -i result
 
