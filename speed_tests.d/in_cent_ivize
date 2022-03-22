@@ -37,6 +37,9 @@ icv_make_currency_array()
         fi
         ca+=( $( icv_make_currency_string ) )
     done
+
+    echo
+    echo
 }
 
 # Test for populated array, issues warning for empty array.
