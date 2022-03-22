@@ -1,0 +1,54 @@
+# -*- mode: sh; sh-shell: bash -*-
+
+declare -i APPEND_REPS=10000
+
+aa_append_plus_equal()
+{
+   local -a array=()
+   for (( i=0; i<APPEND_REPS; ++i )); do
+       array+=( 1 )
+   done
+}
+
+aa_append_copy_plus()
+{
+   local -a array=()
+   for (( i=0; i<APPEND_REPS; ++i )); do
+       array=( "${array[@]}" 1 )
+   done
+}
+
+aa_run_array_race()
+{
+    local -i start_plus end_plus start_copy end_copy
+    local elapsed_plus elapsed_copy
+
+    echo "Running array append tests, where a time elapsed"
+    echo "value will be stored for running each of two different"
+    echo "array-filling functions.  The value will always be '1'"
+    echo "to minimize non-array-append processing."
+    echo
+    echo "It make take some time to append $APPEND_REPS array elements."
+
+    echo
+    echo "Starting test for plus method \`array+=( 1 )\`"
+    start_plus=$( get_time_in_tenthous )
+    aa_append_plus_equal
+    end_plus=$( get_time_in_tenthous )
+    elapsed_plus=$( show_tenthous_as_floating_seconds $(( end_plus - start_plus )) )
+    echo "$elapsed_plus elapsed time in \'minutes?:seconds\` for plus method \`array+=( 1 )\`"
+
+    echo
+    echo "Starting test for copy method \`array=( \"\${array[@]}\" 1 )\`"
+    start_copy=$( get_time_in_tenthous )
+    aa_append_copy_plus
+    end_copy=$( get_time_in_tenthous )
+    elapsed_copy=$( show_tenthous_as_floating_seconds $(( end_copy - start_copy )) )
+    echo "$elapsed_copy elapsed time in \`minutes?:seconds\` for copy method \`array=( \"\${array[@]}\" 1 )\`"
+
+    echo
+    echo "There is a clear performance benefit to using the plus method."
+    echo "Furthermore, the performance advantage of the plus method increases"
+    echo "as the iterations increase.  In other words, the burden of copying"
+    echo "existing elements to new arrays is huge."
+}

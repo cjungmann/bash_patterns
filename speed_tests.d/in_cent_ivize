@@ -1,0 +1,236 @@
+# -*- mode: sh; sh-shell: bash -*-
+
+# @def Shared array of currency values `CURRENCY_ARRAY`
+# Since we will want to compare elapsed time results for different
+# currency, we must run each test with the same set of data.  In
+# the interest of running consistent tests, let's fill a global
+# array with a set of test numbers against which each of the methods
+# can be applied.
+declare -a CURRENCY_ARRAY
+
+icv_make_currency_string()
+{
+    local -i dollars=$RANDOM
+    local -i cents=$(( $RANDOM % 100 ))
+
+    if (( dollars + cents == 0 )); then
+        echo "0.00"
+    else
+        if [ $(( $RANDOM % 2 )) -ne 0 ]; then echo -n "-"; fi
+        (( cents += 100 ))
+        echo "\$"$( commaize_number "$dollars" )".${cents:1}"
+    fi
+}
+
+icv_make_currency_array()
+{
+    local -i limit="${1:-1000}"
+    local -i report="${2:-250}"
+
+    local -n ca="CURRENCY_ARRAY"
+    ca=()
+
+    for (( i=0; i<limit; ++i )); do
+        if (( i % report == 0 )); then
+            printf "%5d elements generated out of %5d requested." "$i" "$limit"
+            echo -n $'\e[1G'
+        fi
+        ca+=( $( icv_make_currency_string ) )
+    done
+}
+
+# Test for populated array, issues warning for empty array.
+icv_array_is_populated()
+{
+    if [ "${#CURRENCY_ARRAY[@]}" -eq 0 ]; then
+        echo "No currency values to convert."
+        return 1
+    fi
+    return 0
+}
+
+# @def Three different methods for processing a currency string.
+#
+# Two of these methods are significant for decisions on how to
+# iterate over characters in a string.  The third method is a
+# shortcut tailored to the conversion which out-performs the
+# character-by-character methods
+
+# Currency to cents using ${val:$ndx:1} to pick-off characters.
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_loop()
+{
+    local out=''
+    local chr
+    local max="${#1}"
+    for (( i=0; i<max; ++i )); do
+        chr="${1:$i:1}"
+        if ! [[ "$chr" =~ [,$.] ]]; then
+            out="${out}${chr}"
+        fi
+    done
+
+    echo "$out"
+}
+
+# Currency to cents using 'read' builtin function.
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_read()
+{
+    local out=""
+    local chr
+    while IFS= read -rn1 chr; do
+        if ! [[ "$chr"  =~ [,$.] ]]; then
+            out="${out}${chr}"
+        fi
+    done <<< "$1"
+
+    echo "$out"
+}
+
+# Currency to cents removing multiple characters with one substitution using extglob
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_glob()
+{
+    local val sign=""
+    if [ "${1:0:1}" == '-' ]; then
+        sign="-"
+        val="${1:1}"
+    else
+        val="$1"
+    fi
+
+    shopt -s extglob
+    val="${val//*([,.$])/}"
+    val="${val##*0}"
+    shopt -u extglob
+    echo "${sign}$val"
+}
+
+# Currency to cents using a series of substitutions to remove punctuation.
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_replace()
+{
+    local val sign=""
+    if [ "${1:0:1}" == "-" ]; then
+        sign="-"
+        val="${1:1}"
+    else
+        val="$1"
+    fi
+
+    val="${val/\$/}"
+    val="${val/,/}"
+    val="${val/./}"
+
+    echo "$sign"$(( 10#$val ))
+}
+
+# Currency to cents using a series of substitutions to remove punctuation.
+#
+# Args
+#    (string):   string representation of currency value
+in_cent_ivize_nameref_conversion()
+{
+    local -n icvnc_val="$1"
+
+    local val sign=""
+    if [ "${2:0:1}" == "-" ]; then
+        sign="-"
+        val="${2:1}"
+    else
+        val="$2"
+    fi
+
+    val="${val/\$/}"
+    val="${val/,/}"
+    val="${val/./}"
+
+    icvnv_val="$sign"$(( 10#$val ))
+}
+
+
+icv_populate_array()
+{
+    echo "We're about to generate the global CURRENCY_ARRAY array"
+    echo "in preparation of testing several conversion methods against"
+    echo "a common set of data."
+
+    icv_make_currency_array 1000 250
+
+    to_continue
+}
+
+icv_run_named_conversion()
+{
+    local method_type="$1"
+    local convertor="in_cent_ivize_${method_type}"
+    if icv_array_is_populated; then
+        echo "Running a currency conversion test using the '$method_type' method."
+
+        local el val
+        local -i start_time end_time
+        start_time=$( get_time_in_tenthous )
+        for el in "${CURRENCY_ARRAY[@]}"; do
+            val=$( "$convertor" "$el" )
+        done
+        end_time=$( get_time_in_tenthous )
+        local elapsed_time=$( show_tenthous_as_floating_seconds $(( end_time - start_time )) )
+
+
+        printf "Ran %d conversions in (h:m:s.dddd) %s.\n" "${#CURRENCY_ARRAY[@]}" "$elapsed_time"
+    fi
+
+    to_continue
+}
+
+icv_nameref_conversion()
+{
+    if icv_array_is_populated; then
+        echo "Running a currency conversion test using fastest method with nameref."
+
+        local el val
+        local -i val
+        local -i start_time end_time
+        start_time=$( get_time_in_tenthous )
+        for el in "${CURRENCY_ARRAY[@]}"; do
+            in_cent_ivize_nameref_conversion "val" "$el"
+        done
+        end_time=$( get_time_in_tenthous )
+        local elapsed_time=$( show_tenthous_as_floating_seconds $(( end_time - start_time )) )
+
+        printf "Using namerefs, ran %d conversions in (h:m:s.dddd) %s.\n" "${#CURRENCY_ARRAY[@]}" "$elapsed_time"
+    fi
+
+    to_continue
+}
+
+icv_indexed_conversion()  { icv_run_named_conversion "loop"; }
+icv_read_conversion()     { icv_run_named_conversion "read"; }
+icv_globbed_conversion()  { icv_run_named_conversion "glob"; }
+icv_replaced_conversion() { icv_run_named_conversion "replace"; }
+
+ivc_main()
+{
+    local -a IVC_MAIN_MENU=(
+        2 0
+        "Populate global currency array"                  icv_populate_array
+        "per-character conversion by index"               icv_indexed_conversion
+        "per-character conversion by read"                icv_read_conversion
+        "per-string conversion by globbed substitution"   icv_globbed_conversion
+        "per-string converrsion by replacement (fastest)" icv_replaced_conversion
+        "per-string replacement to nameref"               icv_nameref_conversion
+    )
+    lui_list_init "IVC_MAIN_MENU"
+    lui_list_runner "IVC_MAIN_MENU"
+}
+
+
