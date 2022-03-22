@@ -135,6 +135,43 @@ commaize_number()
     fi
 }
 
+declare IN_CENT_IVIZE_RE=[[:digit:]].[[:digit:]]{2}
+
+# Currency to cents using a series of substitutions to remove punctuation.
+#
+# Bash only handles integer math, so this function helps by converting
+# currency (US currency style) to cents.
+#
+# Args
+#    (name):     name of variable in which the answer is returned.
+#    (string):   string representation of currency value
+in_cent_ivize()
+{
+    local -n ss_val="$1"
+
+    local val sign=""
+    if [ "${2:0:1}" == "-" ]; then
+        sign="-"
+        val="${2:1}"
+    else
+        val="$2"
+    fi
+
+    val="${val/\$/}"
+    val="${val/,/}"
+
+    # handle case with whole dollars and no cents.
+    if [[ "$val" =~ $IN_CENT_IVIZE_RE ]]; then
+        val="${val/./}"
+    else
+        val="${val}00"
+    fi
+
+    ss_val="$sign"$(( 10#$val ))
+}
+
+
+
 # @def String search functions
 
 # Gets 0-based character position in first string of the first
