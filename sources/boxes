@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# -*- mode: sh; sh-shell: bash -*-
 
 # requires "small_stuff" module
 
@@ -38,7 +38,34 @@ declare c_flat=$'\u2500'
 # # Move cursor out of box to avoid disturbing the box borders:
 # echo
 
+# Function to help select an safe and appropriate content width.
+#
+# This function is meant to help format messages.  It may not
+# be appropriate for picking a screen width for table or other
+# views that may want to exploit as much screen width as possible.
+#
+# Args
+#    (name):     name of variable in which the result is written
+#    (integer):  optional preferred width
+get_pleasing_content_width()
+{
+    local -n gpw_columns="$1"
+    local -i preferred="${2:-60}"
 
+    local -i srows scols
+    get_screen_size "srows" "scols"
+
+    # Leave at least two characters of  margins
+    (( scols -= 4 ))
+
+    if (( preferred > 0 && preferred < scols )); then
+        (( gpw_columns = preferred ))
+    elif (( scols > 100 )); then
+         (( gpw_columns = 100 ))
+    else
+        (( gpw_columns = scols ))
+    fi
+}
 
 # Draws an empty box at the specified position and extent.
 #
