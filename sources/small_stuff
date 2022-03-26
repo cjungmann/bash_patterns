@@ -514,7 +514,6 @@ format_paragraphs()
 #    (name):   name of variable to test
 named_var_exists() { declare -p "$1" &>/dev/null; }
 
-
 # Tests if a named variable is of a given type
 #
 # Args
@@ -535,11 +534,39 @@ named_var_is_type()
     return 1
 }
 
+
+# Recursively resolves nameref variables back to non-nameref variable
+# 
+# Args
+#    (name):   name of variable to discern
+original_var_name()
+{
+    local str=$( declare -p "$1" 2>/dev/null )
+    if [ "${str:8:2}" == "-n" ]; then
+        if [[ "$str" =~ =\"([^\"]+)\" ]]; then
+            original_var_name "${BASH_REMATCH[1]}"
+        else
+            echo "Failed to match the '$str'" >&2
+            to_continue
+        fi
+    else
+        echo "$1"
+    fi
+}
+
 # Alias for named_var_is_type $1 'i'
-named_var_is_int() { named_var_is_type "$1" "i"; }
+named_var_is_int()
+{
+    local n=$( original_var_name "$1" );
+    named_var_is_type "$n" "i";
+}
 
 # Alias for named_var_is_type $1 'a'
-named_var_is_array() { named_var_is_type "$1" "a"; }
+named_var_is_array()
+{
+    local n=$( original_var_name "$1" );
+    named_var_is_type "$n" "a";
+}
 
 # Indicates if a given name is a function
 named_var_is_function() { [ $( type -t "$1" ) == "function" ]; }
