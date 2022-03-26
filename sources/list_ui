@@ -285,33 +285,6 @@ lui_list_build_letter_array()
     done
 }
 
-# Build a key action list from an array of letters.
-#
-# Created to support lui_list_auto_menu() for a quick
-# letter-enabled menu.
-#
-# Args
-#    (name):   name of array in which the keylist will be written
-#    (name):   name of array of letters that will trigger the callback
-#    (name):   name of callback function to be triggered with matching
-#              letters
-lui_list_build_menu_keylist()
-{
-    local -n llbmk_keylist="$1"
-    local -n llbmk_letters="$2"
-    local callback="$3"
-
-    local IFS='|'
-
-    llbmk_keylist=(
-        $'\e:LUI_ABORT:Quit menu'
-        $'\n:LUI_SELECT:Select'
-        "${llbmk_letters[*]}:${callback}:"
-    )
-
-    return 0
-}
-
 # @def list row action functions
 #
 # Access the lui_list contents with row action functions.
@@ -479,13 +452,12 @@ lui_list_ndx_from_row_cell_indirect()
     local -n llnf_ndx="$ndx_name"
     local -n llnf_list="$list_name"
     local -i cols="${llnf_list[0]}"
-    local -i rows="${llnf_list[1]}"
     local -i els="${#llnf_list[@]}"
 
-    local -i ndx=$(( 2 + (row * cols) + cell ))
+    local -i loc_ndx=$(( 2 + (row * cols) + cell ))
 
-    if (( ndx >= 2 && ndx < els )); then
-        llnf_ndx="$ndx"
+    if (( loc_ndx >= 2 && loc_ndx < els )); then
+        llnf_ndx="$loc_ndx"
         return 0
     fi
 
@@ -634,13 +606,11 @@ lui_list_menu_display_line()
     local -i hilite="$1"
     local -i padding="$2"
 
-    # Shift to make function parameters positions match row elements
-    shift 2
-
     if [ "$hilite" -ne 0 ]; then
         echo -n $'\e[44m'
     fi
-    hilite_pad "$1" "$padding"
+
+    hilite_pad "$3" "$padding"
     echo $'\e[m'
 }
 
@@ -1288,7 +1258,11 @@ named_var_is_lui_list()
     if named_var_is_array "$1"; then
         if lui_list_validate "$1"; then
             return 0
+        else
+            echo "Variable name '$1' is not a lui_list." >&2
         fi
+    else
+        echo "Variable '$1' is not an array." >&2
     fi
 
     return 1
@@ -1575,85 +1549,6 @@ lui_list_build_menu_list()
 
     lui_list_init "$options_name"
 }
-
-# Generates a centered menu from an array of strings.
-#
-# Intended for rather short lists of options for context
-# menues.  Indicate that a letter triggers a match by preceding
-# a letter with an underscore.  The pre-underscored letter will
-# be color highlighted.
-#
-# Args
-#    (name):    name of variable in which the selection is returned
-#    (name):    name of array of menu option strings
-#    (integer): flag to allow capital triggers. By default, letters
-#               are converted to lower-case so uses don't need to
-#               capitalize their responses.  If you need to
-#               distinguish between 'f' and 'F', set this parameter
-#               to 1 (or any non-zero integer).
-lui_list_auto_menu()
-{
-    local selected_name="$1"
-    local strings_name="$2"
-    local -i allow_capitals="$3"
-
-    local -i row col rows cols
-    get_block_centering_values "row" "col" "rows" "cols" "$strings_name"
-
-    # inscribe a box around the menu:
-    local -i brow=$((row-1)) bcol=$((col-1)) brows=$((rows+2)) bcols=$((cols+2))
-    draw_box "$brow" "$bcol" "$brows" "$bcols"
-
-    # Build a keylist from letters extracted from option strings:
-    local -a letters=()
-    lui_list_build_letter_array "letters" "$strings_name" "$allow_capitals"
-
-    # Make searchable list of letters
-    local OIFS="$IFS"
-    local IFS=''
-    local letterarray="${letters[*]}"
-    IFS="$OIFS"
-
-    llam_key_action()
-    {
-        local keyp="$1"
-        local -n llam_selected="$selected_name"
-        local -i ndx
-        if ndx=$( strstrndx "$letterarray" "$keyp" ); then
-            llam_selected="$ndx"
-            return 2
-        fi
-
-        return 0
-    }
-
-    local -a mkeylist=()
-    lui_list_build_menu_keylist "mkeylist" "letters" "llam_key_action"
-
-    # Build the menu entries lui_list from the option strings:
-    local -a options_list=()
-    lui_list_build_menu_list "options_list" "$strings_name" "$cols"
-
-    # Minimal line display for formated strings
-    llam_line_display()
-    {
-        if [ "$1" -ne 0 ]; then echo -n $'\e[48;2;64;64;64m'; fi
-        echo "$3"$'\e[m'
-    }
-
-    local -a args=(
-        "$selected_name"
-        "options_list"
-        "$row" "$col" "$rows" "$cols"
-        "llam_line_display"
-        "mkeylist"
-    )
-
-    lui_list_generic "${args[@]}"
-
-    block_erase "$brow" "$bcol" "$brows" "$bcols"
-}
-
 
 # Radio-button interaction implemented with lui_list_generic
 #
