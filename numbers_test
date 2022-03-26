@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+
+source sources/include numbers keypress list_ui small_stuff
+
+to_continue() { read -n1 -p Press\ any\ key\ to\ continue.; }
+
+local -a INT_VALUES=(
+    1234567
+    -12345678
+    987654
+    )
+
+test_commaize_number()
+{
+    local -i val
+    local result_whole result_bcd
+
+    echo "Testing function commaize_number()."
+    echo "Converting an integer to a number with comma separators"
+    echo "and, optionally, a decimal point followed by cents."
+    echo
+
+    for val in "${INT_VALUES[@]}"; do
+        result_whole=$( commaize_number "$val" )
+        result_bcd=$( commaize_number "$val" 1)
+        echo "Converted $val to '$result_whole' and '$result_bcd' (BCD)"
+    done
+
+    echo
+    to_continue
+}
+
+test_in_cent_ivize()
+{
+    local -a values=(
+        "-\$12,345.67"
+        "\$9,876.54"
+        "\$100"
+    )
+    local -i result
+
+    echo "Testing function in_cent_ivize()."
+    echo "Converting a currency value with commas, decimal point, and"
+    echo "dollar sign to an integer value in cents."
+    echo
+
+    local val
+    for val in "${values[@]}"; do
+        in_cent_ivize "result" "$val"
+        echo "$val was converted to $result"
+    done
+
+    echo
+    to_continue
+}
+
+test_de_cent_ivize()
+{
+    echo "Testing function de_cent_ivize()."
+    echo "Converting a cents value to dollars.cents."
+    echo
+
+    local -i val
+    local result
+    for val in "${INT_VALUES[@]}"; do
+        de_cent_ivize "result" "$val"
+        echo "$val was converted to $result"
+    done
+
+    echo
+    to_continue
+}
+
+
+# @def Terminal State restoration code
+#
+# Use a global variable (STARTING_STTY) to save the state, then set
+# traps to restore the state.
+declare STARTING_STTY
+
+# Save state and hide cursor upon entry to program
+prepare_console()
+{
+    STARTING_STTY=$( stty -g )
+    hide_cursor
+}
+
+# Restores the console from state saved in prepare_console()
+restore_console()
+{
+    stty "$STARTING_STTY"
+    show_cursor
+    # leave cursor in expected left-most column
+    echo
+}
+
+
+
+###########################
+#          MAIN           #
+#  Execution Begins Here  #
+###########################
+
+prepare_console
+trap restore_console SIGINT
+trap restore_console EXIT
+
+
+declare -a MAIN_MENU=(
+    2 0
+    "Test commaize_number"  test_commaize_number
+    "Test in_cent_ivize"    test_in_cent_ivize
+    "Test de_cent_ivize"    test_de_cent_ivize
+)
+lui_list_init "MAIN_MENU"
+
+declare -a paras
+bind_paragraphs "paras" <<EOF
+Select a test and press ENTER to perform the test.
+
+Press ESC or 'q' to terminate the program."
+EOF
+
+lui_list_runner "MAIN_MENU" "paras"
+
+
