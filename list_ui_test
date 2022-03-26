@@ -597,32 +597,12 @@ test_lui_list_ndx_from_row_cell()
     to_continue
 }
 
-test_lui_list_auto_menu()
-{
-    local -a moptions=(
-        _File
-        _Edit
-        _Save
-        Save\ _As
-        _Quit
-    )
-
-    local -i selection
-
-    if lui_list_auto_menu "selection" "moptions"; then
-        reset_screen
-        echo "You selected $selection"
-        to_continue
-    fi
-}
-
 ##############
 #    Main    #
 ##############
 
 declare -a MAIN_MENU=(
     2 0
-    "test auto_menu"        test_lui_list_auto_menu
     "test lui_list_ndx_from_row_cell" test_lui_list_ndx_from_row_cell
     "test key_advice_list"  test_key_advice_list
     "test padding"          test_padding
