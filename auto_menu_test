@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+
+source sources/include
+
+
+to_continue() { read -n1 -p Press\ any\ key\ to\ continue.; }
+
+declare -a DEMO_MENU=(
+    2 0
+    _New        "Open new file"
+    _Open       "Open existing file"
+    _Close      "Close current file"
+    _Save       "Save file"
+    "Save _As"  "Save work to new file"
+)
+lui_list_init "DEMO_MENU"
+
+
+test_auto_menu_get_letter_array()
+{
+    local -a letters_array
+    auto_menu_get_letter_array "letters_array" "DEMO_MENU"
+    echo "The menu letters are: '${letters_array[*]}'"
+    to_continue
+}
+
+test_auto_menu()
+{
+    local -i selection
+    if auto_menu "selection" "DEMO_MENU"; then
+        local -i ndx=12
+        lui_list_ndx_from_row_cell_indirect "ndx" "DEMO_MENU" "$selection" 1
+        echo "The value of element $ndx is '${DEMO_MENU[$ndx]}'"
+    else
+        echo "You declined to make a choice."
+    fi
+    to_continue
+}
+
+test_auto_menu_array()
+{
+    local -a smenu=(
+        _Undo
+        _Redo
+        _Cut
+        "Copy _X"
+        _Paste
+    )
+
+    local -i selection
+    if auto_menu_array "selection" "smenu"; then
+        echo "You selected option $selection, ${smenu[$selection]}"
+    else
+        echo "You declined to make a choice."
+    fi
+    to_continue
+}
+
+
+
+
+# @def Terminal State restoration code
+#
+# Use a global variable (STARTING_STTY) to save the state, then set
+# traps to restore the state.
+declare STARTING_STTY
+
+# Save state and hide cursor upon entry to program
+prepare_console()
+{
+    STARTING_STTY=$( stty -g )
+    hide_cursor
+}
+
+# Restores the console from state saved in prepare_console()
+restore_console()
+{
+    stty "$STARTING_STTY"
+    show_cursor
+    # leave cursor in expected left-most column
+    echo
+}
+
+
+
+###########################
+#          MAIN           #
+#  Execution Begins Here  #
+###########################
+
+prepare_console
+trap restore_console SIGINT
+trap restore_console EXIT
+
+
+# @def The menu lui_list array
+#
+# lui_list_runner() only uses the first two columns
+# of a row, the first column is what is displayed in the
+# list interaction, and the second column is the function
+# to call.
+declare -a MAIN_MENU=(
+    2 0
+    "test auto_menu_get_letter_array" test_auto_menu_get_letter_array
+    "test auto_menu"                  test_auto_menu
+    "test auto_menu_array"            test_auto_menu_array
+)
+lui_list_init "MAIN_MENU"
+
+declare -a paras
+bind_paragraphs "paras" <<EOF
+Select a test and press ENTER to perform the test.
+
+Press ESC or 'q' to terminate the program."
+EOF
+
+# The following function call will run the whole program.
+# The `paras` parameter is optional.
+lui_list_runner "MAIN_MENU" "paras"
+
