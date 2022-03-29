@@ -9,7 +9,7 @@ collect_source_files()
     local filename
     local -a files
     if [ "$#" == 0 ]; then
-        files=( $( ls -1 $root/* ) )
+        files=( "$root/"* )
     else
         files=( "$@" )
         local -i ndx limit="$#"
