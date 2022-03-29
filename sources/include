@@ -1,7 +1,11 @@
 # -*- mode: sh; sh-shell: bash -*-
+# shellcheck disable=SC2148    # #! not appropriate for sourced script, using mode instead
 
 collect_source_files()
 {
+    local -n csf_array="$1"
+    shift
+
     # Grab directory from submitted source file value
     local bs="${BASH_SOURCE[0]}"
     local root="${bs%/*}"
@@ -20,7 +24,7 @@ collect_source_files()
 
     for filename in "${files[@]}"; do
         if ! [[ "$filename" =~ ^.*\.md ]] && [ "${filename##*/}" != "include" ]; then
-            echo "$filename"
+            csf_array+=( "$filename" )
         fi
     done
 }
@@ -28,9 +32,10 @@ collect_source_files()
 # source files in global space to preserve contents
 
 declare -a include_files_array
-include_files_array=( $( collect_source_files "$@" ) )
+collect_source_files "include_files_array" "$@"
 declare include_file
 for include_file in "${include_files_array[@]}"; do
+    # shellcheck disable=SC1090   # non-constant source is the point of this script
     source "$include_file"
 done
 
