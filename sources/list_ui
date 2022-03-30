@@ -1137,7 +1137,7 @@ lui_list_calc_top_row()
     local -i selected="$2"
     local -i line_count="$3"
     if [ "$selected" -lt "$llctr_top_row" ]; then
-        echo "$selected"
+        (( llctr_top_row = selected ))
     elif [ "$selected" -gt $(( llctr_top_row + line_count - 1 )) ]; then
         (( llctr_top_row = selected - line_count + 1 ))
     fi
