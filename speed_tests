@@ -26,28 +26,6 @@ test_get_time_in_tenthous()
     to_continue
 }
 
-test_commaize_number()
-{
-    local -a values=(
-        100
-        1000
-        10000
-        100000
-        1000000
-        10000000
-    )
-
-    local -i val
-    local commaized
-    for val in "${values[@]}"; do
-        commaized=$( commaize_number "$val" )
-        echo "For commaized string for $val is $commaized"
-    done
-
-    to_continue
-}
-
-
 # @def Terminal State restoration code
 #
 # Use a global variable (STARTING_STTY) to save the state, then set
@@ -95,6 +73,11 @@ test_tenthous_as_floating()
     to_continue
 }
 
+# Short cut to run standalone test scripts
+#
+# Args
+#    (string):  script name (assumed to be in speed_test.d directory)
+#    (string):  name of main function in script
 run_directory_test()
 {
     local path="speed_tests.d/$1"
@@ -106,13 +89,13 @@ run_directory_test()
     else
         echo "failed to find directory '$path'"
     fi
-
-    to_continue
 }
 
 run_subshell_vs_nameref() { run_directory_test "subshell_nameref" "sn_subshell_vs_nameref"; }
-run_array_appends() { run_directory_test "array_appends" "aa_run_array_race"; }
-run_in_cent_ivize() { run_directory_test "in_cent_ivize" "ivc_main"; }
+run_array_appends()       { run_directory_test "array_appends" "aa_run_array_race"; }
+run_in_cent_ivize()       { run_directory_test "in_cent_ivize" "ivc_main"; }
+run_string_len_sans()     { run_directory_test "string_len_sans_csi" "string_len_sans_csi_main"; }
+run_commaizers()          { run_directory_test "commaizers" "commaizers_main"; }
 
 prepare_console
 trap restore_console SIGINT
@@ -120,12 +103,13 @@ trap restore_console EXIT
 
 declare -a MAIN_MENU=(
     2 0
-    "test commaize_number"           test_commaize_number
     "get_time_in_tenthous test"      test_get_time_in_tenthous
     "test show_tenthous_as_floating" test_tenthous_as_floating
     "run subshell_vs_nameref"        run_subshell_vs_nameref
     "run append to array tests"      run_array_appends
     "currency evaluation methods"    run_in_cent_ivize
+    "run string_len_sans_csi_tests"  run_string_len_sans
+    "run commaizers test"            run_commaizers
 )
 lui_list_init "MAIN_MENU"
 
