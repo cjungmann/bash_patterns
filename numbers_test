@@ -8,21 +8,86 @@ local -a INT_VALUES=(
     1234567
     -12345678
     987654
+    95
+    100
+    0
     )
 
-test_commaize_number()
+# Recursive function to add commas to a whole number.
+#
+# This function failed to make the cut for the "sources"
+# scripts.  It was shown to be slower than the nameref version,
+# and banished from sources/numbers as a result.  The function
+# lives on here in the test file to reeun the proof.
+#
+# Args
+#    (integer):   integer value to be formatted
+#    (integer):   BCD flag.  If 1, show cents with a period
+commaize_echo()
+{
+    local -i val="$1"
+    local -i bcd="$2"
+
+    local -i cents=0
+
+    if [ "$val" -lt 0 ]; then
+        echo -n "-"
+        (( val = -val ))
+    fi
+
+    if [ "$bcd" -ne 0 ]; then
+        (( cents = ($val % 100) + 100 ))
+        (( val /= 100 ))
+    fi
+
+    local -i locpart=$(( val % 1000 ))
+    local -i passpart=$(( val / 1000 ))
+    if [ "$passpart" -gt 0 ]; then
+        (( locpart += 1000 ))
+        commaize_echo "$passpart"
+        echo -n ",${locpart:1}"
+    else
+        echo -n "${locpart}"
+    fi
+
+    if [ "$bcd" -ne 0 ]; then
+        echo -n ".${cents:1}"
+    fi
+}
+
+test_commaize_echo()
 {
     local -i val
     local result_whole result_bcd
 
-    echo "Testing function commaize_number()."
+    echo "Testing function commaize_echo()."
     echo "Converting an integer to a number with comma separators"
     echo "and, optionally, a decimal point followed by cents."
     echo
 
     for val in "${INT_VALUES[@]}"; do
-        result_whole=$( commaize_number "$val" )
-        result_bcd=$( commaize_number "$val" 1)
+        result_whole=$( commaize_echo "$val" )
+        result_bcd=$( commaize_echo "$val" 1)
+        echo "Converted $val to '$result_whole' and '$result_bcd' (BCD)"
+    done
+
+    echo
+    to_continue
+}
+
+test_commaize_nameref()
+{
+   local -i val
+    local result_whole result_bcd
+
+    echo "Testing function commaize_direct()."
+    echo "Converting an integer to a number with comma separators"
+    echo "and, optionally, a decimal point followed by cents."
+    echo
+
+    for val in "${INT_VALUES[@]}"; do
+        commaize_number "result_whole" "$val"
+        commaize_number "result_bcd" "$val" 1
         echo "Converted $val to '$result_whole' and '$result_bcd' (BCD)"
     done
 
@@ -108,9 +173,10 @@ trap restore_console EXIT
 
 declare -a MAIN_MENU=(
     2 0
-    "Test commaize_number"  test_commaize_number
-    "Test in_cent_ivize"    test_in_cent_ivize
-    "Test de_cent_ivize"    test_de_cent_ivize
+    "Test echo-return commaize"    test_commaize_echo
+    "Test nameref-return commaize" test_commaize_nameref
+    "Test in_cent_ivize"           test_in_cent_ivize
+    "Test de_cent_ivize"           test_de_cent_ivize
 )
 lui_list_init "MAIN_MENU"
 
