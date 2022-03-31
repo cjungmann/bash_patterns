@@ -1,0 +1,214 @@
+# -*- mode: sh; sh-shell: bash -*-
+
+# @def Test speed of two versions of commaizers.
+#
+# A commaizer is a function that inserts commas and (sometimes)
+# decimcal points into an integer value to generate an easier-to-read
+# representation of the integer.
+
+# Commaize an integer to an echo output.
+#
+# This function is externally-recursive.  That is, it calls
+# itself.  This is different from commaize_nameref, which
+# includes a nested recursive function called within the
+# function.
+#
+# Args
+#    (integer):   integer value to be formatted
+#    (integer):   BCD flag.  If 1, show cents with a period
+commaize_echo()
+{
+    local -i val="$1"
+    local -i bcd="$2"
+
+    local -i cents=0
+
+    if [ "$val" -lt 0 ]; then
+        echo -n "-"
+        (( val = -val ))
+    fi
+
+    if [ "$bcd" -ne 0 ]; then
+        (( cents = ($val % 100) + 100 ))
+        (( val /= 100 ))
+    fi
+
+    local -i locpart=$(( val % 1000 ))
+    local -i passpart=$(( val / 1000 ))
+    if [ "$passpart" -gt 0 ]; then
+        (( locpart += 1000 ))
+        commaize_echo "$passpart"
+        echo -n ",${locpart:1}"
+    else
+        echo -n "${locpart}"
+    fi
+
+    if [ "$bcd" -ne 0 ]; then
+        echo -n ".${cents:1}"
+    fi
+}
+
+
+# Commaize an integer to a nameref output.
+#
+# This function includes a nested recursive function.
+#
+# Args
+#    (name):      name of variable in which the result will be stored
+#    (integer):   value to be commaized
+#    (integer):   BCD flag.  If 1, show cents with a period
+commaize_nameref()
+{
+    local -n return_var="$1"
+    local -i val="$2"
+    local -i bcd="$3"
+
+    local -i remains
+    local -a parts=()
+
+    looper()
+    {
+        local -i part=$(( remains % 1000 ))
+        (( remains /= 1000 ))
+        if [ "$remains" -gt 0 ]; then
+            looper
+            (( part += 1000 ))
+            parts+=( "${part:1}" )
+        else
+            parts+=( "$part" )
+        fi
+    }
+
+    local sign=""
+    if [ "$val" -lt 0 ]; then
+        sign="-"
+        (( remains = -val ))
+    else
+        (( remains = val ))
+    fi
+
+    local IFS=','
+    if [ "$bcd" -ne 0 ]; then
+        local -i cents=$(( (remains % 100) + 100 ))
+        (( remains /= 100 ))
+        looper
+        return_var="${sign}${parts[*]}.${cents:1}"
+    else
+        looper
+        return_var="${sign}${parts[*]}"
+    fi
+}
+
+# Incomplete function aspiring to test another strategy.
+#
+# The other methods use recursion with tail-write to reverse
+# the output order.  I thought about using a loop to fill an
+# array, then reversing the array before concatenating.  Without
+# a builtin array reverser, there is no way this can be faster
+# as Bash code is so slow.
+# 
+# Args
+#    (name):      name of variable in which the result will be stored
+#    (integer):   value to be commaized
+#    (integer):   BCD flag.  If 1, show cents with a period
+commaize_reverse_array()
+{
+    local -n return_var="$1"
+    local -i val="$2"
+    local -i bcd="$3"
+
+    local sign=""
+    local -i remains
+    if [ "$val" -lt 0 ]; then
+        sign="-"
+        (( val = -val ))
+    fi
+
+    if [ "$bcd" -ne 0 ]; then
+        (( cents = (val % 100) + 100 ))
+        (( val /= 100 ))
+    fi
+
+    local -a parts=()
+    local -i ipart
+    local part
+    while [ "$remains" -gt 0 ]; do
+        (( ipart = remains % 1000 + 1000 ))
+        (( remains /= 1000 ))
+        parts+=( "${part:1}" )
+    done
+
+    # magically reverse the array...
+
+    local IFS=","
+    return_var="${parts[*]}.${cents:1}"
+}
+
+# Create a reusable numbers list with which we can fairly compare
+# different methods.
+#
+# Args
+#    (name):    name of array to which a number list will be stored
+#    (integer); number of list numbers requested, default 1000
+make_numbers_list()
+{
+    local -n mnl_numarr="$1"
+    local -i limit="${2:-1000}"
+
+    mnl_numarr=()
+
+    local -i i
+    for (( i=0; i<limit; ++i )); do
+        mnl_numarr+=( "$RANDOM" )
+    done
+}
+
+commaizers_main()
+{
+    cat <<EOF
+This is a test of various methods for inserting commas and
+decimal points in integer values.
+
+Beyond the mechanics of the task, it may also be an illustration
+of the performance differences between tail-printing text or
+tail-assigning arrays in order to reverse outputs and perhaps
+other design ideas if I have new ideas.
+EOF
+
+    local ttype
+    local result_whole result_bcd
+    local -i number
+
+    local -i limit=1000
+    local -a numbers
+
+    echo
+    echo "Creating a common list of $limit random integers so"
+    echo "different test use consistent inputs."
+    make_numbers_list "numbers" "$limit"
+    echo
+
+    local -i start_time elapsed_time
+
+    ttype="echo method, commaizing $limit numbers."
+    echo "Running test $ttype"
+    start_time=$( get_time_in_tenthous )
+    for number in "${numbers[@]}"; do
+        result_whole=$( commaize_echo "$number" )
+        result_bcd=$( commaize_echo "$number" 1 )
+    done
+    elapsed_time=$(( $( get_time_in_tenthous) - start_time ))
+    echo "$( show_tenthous_as_floating_seconds $elapsed_time ) elapsed time."
+    echo
+
+    ttype="nameref method, commaizing $limit numbers."
+    echo "Running test $ttype"
+    start_time=$( get_time_in_tenthous )
+    for number in "${numbers[@]}"; do
+        commaize_nameref "result_whole" "$number"
+        commaize_nameref "result_bcd" "$number" 1
+    done
+    elapsed_time=$(( $( get_time_in_tenthous) - start_time ))
+    echo "$( show_tenthous_as_floating_seconds $elapsed_time ) elapsed time."
+    echo
+}
