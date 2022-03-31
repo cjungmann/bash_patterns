@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+# -*- mode: sh; sh-shell: bash -*-
+# shellcheck disable=SC2148    # #! not appropriate for sourced script, using mode instead
 
 # Simple implementation of a Yes/No prompt.
 # Waits for either Y or N (either case), returning 0

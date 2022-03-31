@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+# -*- mode: sh; sh-shell: bash -*-
+# shellcheck disable=SC2148    # #! not appropriate for sourced script, using mode instead
 
 # shellcheck disable=SC2206 # don't warn about initializing arrays with unquoted variables.
 # shellcheck disable=SC2059 # skip printf format variables warnings (it thinks $'\e' is a variable)
