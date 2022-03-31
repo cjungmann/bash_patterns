@@ -186,6 +186,41 @@ string_len_sans_csi()
     echo "$count"
 }
 
+
+string_len_sans_csi_fast()
+{
+    local -n slscf_len="$1"
+    local raw="$1"
+
+    local c
+    local in_esc=0
+    local in_csi=0
+    slscf_len=0
+    while IFS= read -rn1 c; do
+        if (( in_csi )); then
+            # CSI strings terminate with letter,
+            # or ']' (linux private CSI sequences)
+            # or '`' (HPA cursor placement instruction)
+            if [[ "$c" =~ [\]\`[:alpha:]] ]]; then
+                (( in_csi = in_esc = 0 ))
+            fi
+        elif (( in_esc == 1 )); then
+            if [ "$c" == '[' ]; then
+                in_csi=1
+            else
+                echo "Oops: escape followed by non-'[' character ($c)" >&2
+                exit 1
+            fi
+        elif [ "$c" == $'\e' ]; then
+            in_esc=1
+        else
+            (( ++slscf_len ));
+        fi
+    done <<< "$raw"
+
+    return 0
+}
+
 # 'Echo's the first character that follows the first
 # underscore in the string and returns TRUE (0).
 # If there is no underscore+character in the string,
@@ -445,7 +480,7 @@ format_paragraph()
     fp_lines=()
 
     for word in "${words[@]}"; do
-        wordlen=$( string_len_sans_csi "$word" )
+        string_len_sans_csi_fast "wordlen" "$word"
         # wordlen="${#word}"
         if [ "${#indent}" -gt 0 ]; then
             line=( "${indent}$word" )
