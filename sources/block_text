@@ -35,7 +35,7 @@ block_text_get_size()
     local -i curlen maxlen
     local line
     for line in "${btgs_lines[@]}"; do
-        curlen=$( string_len_sans_csi "$line" )
+        string_len_sans_csi_fast "curlen" "$line"
         (( maxlen = curlen > maxlen ? curlen : maxlen ))
     done
 
@@ -74,7 +74,7 @@ block_text_print()
     disable_autowrap
 
     for line in "${tarray[@]}"; do
-        curwide=$( string_len_sans_csi "$line" )
+        string_len_sans_csi_fast "curwide" "$line"
         if [ "$curwide" -lt "$cols" ]; then
             line="$line$( dupchar $(( cols - curwide )) ' ')"
         fi
