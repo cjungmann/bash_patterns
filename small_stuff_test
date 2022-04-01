@@ -349,6 +349,45 @@ test_original_var_name()
     to_continue
 }
 
+test_date_from_day_of_year()
+{
+    while IFS= read ; do
+        echo "$REPLY"
+    done <<EOF
+For this test, we're using a leap year (2020) and testing
+a small series of numbers.  On a leap year, day 365 should be
+December 30 and day 366 should be December 31.
+
+EOF
+
+    local -i base_year=2020   # A leap year
+
+    local -i year month day
+    local -i day_of_year=1
+
+    year="base_year"
+
+    local -a samples=(
+        1
+        32
+        365
+        366
+    )
+
+    local -i sample
+    for sample in "${samples[@]}"; do
+        echo -n "In year $base_year, day number $sample is "
+        date_from_day_of_year "year" "month" "day" "$sample"
+        if [ "$year" -eq "$base_year" ]; then
+            echo "$year / $month / $day"
+        else
+            echo "Unknown (shhh! There's been an error)."
+        fi
+    done
+
+    to_continue
+}
+
 ##############
 #    MAIN    #
 ##############
@@ -420,6 +459,7 @@ declare -a MAIN_MENU=(
     "test subshell console codes"        test_subshell_console_codes
     "test in_cent_ivize"                 test_in_cent_ivize
     "test original_var_name"             test_original_var_name
+    "test date_from_day_of_year"         test_date_from_day_of_year
 )
 
 declare STARTING_STTY
