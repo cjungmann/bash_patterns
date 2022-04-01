@@ -11,7 +11,7 @@ bash_is_new_enough()
 {
     local -i major="${BASH_VERSINFO[0]}"
     local -i minor="${BASH_VERSINFO[1]}"
-    if [ "$major" -ge 4 ] && [ "$minor" -ge 3 ]; then
+    if (( major > 4 || ( major == 4 && minor > 3 ) )); then
         return 0
     else
         echo "The script requires version 4.3 or newer of BASH."
