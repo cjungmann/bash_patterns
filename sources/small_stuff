@@ -5,6 +5,15 @@
 # shellcheck disable=SC2059 # skip printf format variables warnings (it thinks $'\e' is a variable)
 # shellcheck disable=SC2034 # "unused" nameref variables are read from in calling function
 
+# True if Bash verion is recent enough for these scripts.
+# That is, Bash version 4.3 or later.
+sufficient_bash_version()
+{
+    local -i major="${BASH_VERSION[0]}"
+    local -i minor="${BASH_VERSION[1]}"
+    (( major > 4 || ( major == 4 && minor > 3 ) ))
+}
+
 # @def Console-code screen functions
 # These functions use console codes (see man console_codes) to
 # set or read certain screen characteristics.
@@ -665,6 +674,32 @@ get_block_centering_values()
     (( gcrc_row = ( srows - gcrc_rows ) / 2 ))
     (( gcrc_col = ( scols - gcrc_cols ) / 2 ))
 }
+
+
+# Get a year, month, and day value for a day of year value in a given year.
+#
+# Args
+#    (name):    (in/out) name of integer variable where year value is read and returned
+#    (name):    (out) name of integer month variable
+#    (name):    (out) name of integer day variable
+#    (integer): day of year value.  December 31 of previous year
+date_from_day_of_year()
+{
+    local -n dfdoy_year="$1"
+    local -n dfdoy_month="$2"
+    local -n dfdoy_day="$3"
+    local -i day_of_year="$4"
+
+    local datestr="$dfdoy_year-01-01 + $day_of_year days - 1 day"
+    local work=$( date -d "$datestr" +%F )
+    local IFS='-'
+    local -a dparts=( $work )
+    dfdoy_year="10#${dparts[0]}"
+    dfdoy_month="10#${dparts[1]}"
+    dfdoy_day="10#${dparts[2]}"
+}
+
+
 
 # Get set or unset (-s or -u) for a shopt option.
 #
