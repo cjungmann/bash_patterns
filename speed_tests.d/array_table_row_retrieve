@@ -1,0 +1,301 @@
+# -*- mode: sh; sh-shell: bash -*-
+
+# @def Setup section
+#
+# Including an array of Payees and a set of functions to generate
+# random transactions for a year's worth of them.
+#
+# The main setup is to create an array of Payees in 3 columns,
+# name, expected occurances in a quarter (3 months), and a
+# threshhold value that is the total expected occurances of the
+# Payees preceeding the current Payee.  With the threshhold values,
+# we can generate a random number and find the first Payee that
+# exceeds the random number.
+
+declare -a Payees=(
+    "Gas Station"                6   0
+    "Grocery Store"             36   0
+    "Hair Stylist"               1   0
+    "Pizzaria"                   8   0
+    "Mexican Restaurant"         8   0
+    "Burger Drive-thru"         12   0
+    "Coffee Drive-thru"         60   0
+    "Big-box Electronics Store"  6   0
+    "Department store"           8   0
+    "Cable/Internet Provider"    3   0
+    "City Utilities"             3   0
+)
+
+declare Delim=$'\cD'
+
+declare -i Payee_Cols=3
+declare -i Payee_Els="${#Payees[@]}"
+declare -i Total_Chances=0
+declare -i Table_Cols=0
+
+# Assign threshhold value for each Payee.
+#
+# The Payee array will be updated with threshholds AND
+# the global Total_Chances will be the number past which
+# no Payee will be assigned (in other words, there's a
+# chance to transaction will take place).
+prepare_payees()
+{
+    local -n chances="Total_Chances"
+    local -i ndx
+    local -i row_freq row_start
+
+    for (( ndx=0; ndx<Payee_Els; ndx+=Payee_Cols )); do
+        (( row_freq = Payees[$((ndx+1))] ))
+        (( Payees[$((ndx+2))] = chances ))
+        (( chances += row_freq ))
+    done
+}
+
+# Make a date string YYYY/MM/DD from a year, month and day value
+#
+# Args
+#    (name):    name of string variable in which to write the date string
+#    (integer): year value
+#    (integer): month value
+#    (integer): day value
+datestr_from_vals()
+{
+    local -n dfv_datestr="$1"
+    local -i year="$2"
+    local -i month="$3"
+    local -i day="$4"
+
+    smoodge() { local s=$(( $1 + $2 )); echo "${s:1}"; }
+
+    dfv_datestr=$( smoodge "$year" 10000)"/"$( smoodge "$month" 100 )"/"$( smoodge "$day" 100 )
+}
+
+# Return a weighted random payee from the Payees table
+#
+# Args
+#    (name):   name of variable in which the result wil be returned
+#
+# Returns 0 (true) for success, 1 (false) if random choice is no choice.
+random_payee()
+{
+    local -n rp_payee_name="$1"
+    local -i event=$(( $RANDOM % 256 ))
+
+    rp_payee_name="BOGUS PAYEE: should have been ignored."
+
+    # Get previous year's number
+    local -i base_year=$( date +%Y )
+    (( --base_year ))
+
+    if [ "$event" -gt "$Total_Chances" ]; then
+        return 1
+    fi
+
+    local -i ndx row_limit
+    for (( ndx=0; ndx<Payee_Els; ndx+=Payee_Cols )); do
+        (( row_limit= Payees[$((ndx+2))] ))
+        if [ "$row_limit" -gt "$event" ]; then
+            rp_payee_name="${Payees[$ndx]}"
+            return 0
+        fi
+    done
+
+    # catch-all for no payee
+    return 1
+}
+
+# Fills two different type arrays with identical data.
+#
+# For each day of the previous year, this function generates multiple
+# transactions, limited to the number of passed in $3, of a random
+# payee and a random amount.
+#
+# Args
+#    (name):     name of array that will hold single element lines with packed values
+#    (name):     name of array that will hold lines of several elements
+#    (integer):  number of attempts to generate a random transaction per day
+#                Increase this value to generate larget datasets if necessary to
+#                discern performance differences.
+fill_arrays()
+{
+    local -n fa_packed="$1"
+    local -n fa_table="$2"
+    local -i repeats="${3:-3}"
+
+    # Get last year
+    local -i base_year=$( date +%Y )
+    (( --base_year ))
+
+    local -i year month day
+    year="$base_year"
+
+    local payee
+    local datestr
+    local -i amount
+    local -i cleared
+
+    local OIFS="$IFS"
+    local IFS
+
+    local -i doy
+    local -i rdx
+
+    for (( doy=1; doy <= 365; ++doy )); do
+        if date_from_day_of_year "year" "month" "day" "$doy"; then
+            datestr_from_vals "datestr" "$year" "$month" "$day"
+
+            for (( rdx=0; rdx < repeats; ++rdx )); do
+                if random_payee "payee"; then
+                    (( amount = $RANDOM ))
+                    (( cleared = $RANDOM % 2 ))
+                    row=( "$cleared" "$datestr" "$amount" "$payee" )
+
+                    # Set global variable from first actual row to catch row content changes:
+                    if [ "$Table_Cols" -eq 0 ]; then
+                        Table_Cols="${#row[@]}"
+                    fi
+
+                    fa_table+=( "${row[@]}" )
+                    IFS="$Delim"
+                    fa_packed+=( "${row[*]}" )
+                    IFS="$OIFS"
+                fi
+            done
+        fi
+    done
+}
+
+iterate_packed()
+{
+    local -n ptp_array="$1"
+    local row_user="$2"
+
+    local OIFS="$IFS"
+    local IFS="$Delim"
+    local -a row
+
+    local line
+    for line in "${ptp_array[@]}"; do
+        IFS="$Delim"
+        row=( $line )
+        IFS="$OIFS"
+        "$row_user" "${row[@]}"
+    done
+}
+
+iterate_table_slice()
+{
+    local -n ptt_array="$1"
+    local row_user="$2"
+
+    local -a row
+    local -i ndx
+    local -i limit="${#ptt_array[@]}"
+
+    for (( ndx=0; ndx < limit; ndx+=Table_Cols )); do
+        row=( "${ptt_array[@]:$ndx:$Table_Cols}" )
+        "$row_user" "${row[@]}"
+    done
+}
+
+iterate_table_build()
+{
+    local -n ptt_array="$1"
+    local row_user="$2"
+
+    local -a row=()
+    local -i ndx
+    local -i limit="${#ptt_array[@]}"
+
+    local val
+    for val in "${ptt_array[@]}"; do
+        row+=( "$val" )
+        if [ "${#row[@]}" -eq "$Table_Cols" ]; then
+            "$row_user" "${row[@]}"
+            row=()
+        fi
+    done
+}
+
+declare -i Common_Row_Tabulation
+common_row_user()
+{
+    local -i val="$3"
+
+    (( Common_Row_Tabulation += "$3" ))
+
+    # local IFS='|'
+    # echo "val is '$val' and row_user parameters are '$*'" >&2
+}
+
+iterate_packed_to_packed()
+{
+    local -n iptp_array="$1"
+    local row_user="$2"
+
+    local line
+    for line in "${iptp_array[@]}"; do
+        "$row_user" "$line"
+    done
+}
+
+packed_row_user()
+{
+    local IFS="$Delim"
+    local -a row=( $1 )
+    (( Common_Row_Tabulation += "${row[2]}" ))
+}
+
+######################
+#        Main        #
+# Start of Execution #
+######################
+
+array_retrieve_test_main()
+{
+    prepare_payees
+    local -a packed_array=()
+    local -a table_array=()
+
+    echo "Filling the transaction array with many elements.  Please wait."
+    fill_arrays "packed_array" "table_array" 3
+    echo "Done filling the transaction array.  There are ${#packed_array[@]} rows of ${Table_Cols} columns."
+    echo "The tests will now begin!"
+    echo
+
+    local -i start_time elapsed_time
+
+    Common_Row_Tabulation=0
+    start_time=$( get_time_in_tenthous )
+    iterate_table_slice "table_array" "common_row_user"
+    elapsed_time=$(( $( get_time_in_tenthous ) - start_time ))
+    echo "Slicing elements of a table array took $( show_tenthous_as_floating_seconds $elapsed_time )."
+    echo "The cumulative total amount was ${Common_Row_Tabulation}."
+    echo
+
+    Common_Row_Tabulation=0
+    start_time=$( get_time_in_tenthous )
+    iterate_table_build "table_array" "common_row_user"
+    elapsed_time=$(( $( get_time_in_tenthous ) - start_time ))
+    echo "Building rows from elements in a table array took $( show_tenthous_as_floating_seconds $elapsed_time )."
+    echo "The cumulative total amount was ${Common_Row_Tabulation}."
+    echo
+
+    Common_Row_Tabulation=0
+    start_time=$( get_time_in_tenthous )
+    iterate_packed "packed_array" "common_row_user"
+    elapsed_time=$(( $( get_time_in_tenthous ) - start_time ))
+    echo "Using an array of packed elements took $( show_tenthous_as_floating_seconds $elapsed_time )."
+    echo "The cumulative total amount was ${Common_Row_Tabulation}."
+    echo
+
+    Common_Row_Tabulation=0
+    start_time=$( get_time_in_tenthous )
+    iterate_packed_to_packed "packed_array" "packed_row_user"
+    elapsed_time=$(( $( get_time_in_tenthous ) - start_time ))
+    echo "Splitting packed array rows in called function took $( show_tenthous_as_floating_seconds $elapsed_time )."
+    echo "The cumulative total amount was ${Common_Row_Tabulation}."
+    echo
+}
+

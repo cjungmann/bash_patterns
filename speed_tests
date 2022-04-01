@@ -96,6 +96,7 @@ run_array_appends()       { run_directory_test "array_appends" "aa_run_array_rac
 run_in_cent_ivize()       { run_directory_test "in_cent_ivize" "ivc_main"; }
 run_string_len_sans()     { run_directory_test "string_len_sans_csi" "string_len_sans_csi_main"; }
 run_commaizers()          { run_directory_test "commaizers" "commaizers_main"; }
+run_array_retrievers()    { run_directory_test "array_table_row_retrieve" "array_retrieve_test_main"; }
 
 prepare_console
 trap restore_console SIGINT
@@ -110,6 +111,7 @@ declare -a MAIN_MENU=(
     "currency evaluation methods"    run_in_cent_ivize
     "run string_len_sans_csi_tests"  run_string_len_sans
     "run commaizers test"            run_commaizers
+    "run array_retrievers_test"      run_array_retrievers
 )
 lui_list_init "MAIN_MENU"
 
