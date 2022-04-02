@@ -227,7 +227,7 @@ dupchar()
 # Print string with ESCAPE and NEWLINE characters replaced by \e and \n
 #
 # Args
-#    (string):   keystroke key
+#    (string):   keystroke string
 print_keystroke()
 {
     local keyp="${1///\\e}"
@@ -685,5 +685,12 @@ get_shopt_setting()
 #    (name):    name of builtin function to be sought
 test_builtin() { help "$1" > /dev/null 2>&1; }
 
-
+# Simple test for subshell.
+#
+# When using a nameref to return values to a calling function,
+# the called function cannot be in a subshell or the changed
+# value will be lost to the calling function.
+#
+# list_ui::lui_list_generic() uses this function to provide an early
+# warning about this innocuous vulnerability.
 in_subshell() { [ "$$" -ne "$BASHPID" ]; }
