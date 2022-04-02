@@ -694,3 +694,20 @@ test_builtin() { help "$1" > /dev/null 2>&1; }
 # list_ui::lui_list_generic() uses this function to provide an early
 # warning about this innocuous vulnerability.
 in_subshell() { [ "$$" -ne "$BASHPID" ]; }
+
+
+# @def Console state functions
+#
+# Use the following functions to prepare you application to
+# gracefully recover from early termination, especially from
+# the "echo" state that is might be turned off for some situations
+# but would be inconvenient for the user if it were still off
+# when back at the command line.
+
+declare SS_STTY_STATE
+
+# Save state and hide the cursor
+save_console_state_hide_cursor()    { hide_cursor; SS_STTY_STATE=$( stty -g ); }
+
+# Restore the state and start showing the cursor
+restore_console_state_show_cursor() { show_cursor; stty "$SS_STTY_STATE"; }
