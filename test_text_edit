@@ -1,26 +1,57 @@
 #!/usr/bin/env bash
 
-source sources/small_stuff
-source sources/keypress
-source sources/text_edit
+source sources/include
+
 
 declare svalue="this is a string"
 
-
-
-main()
+test_standalone_edit_text()
 {
-    hide_cursor
     echo -n "Fill in the blank: "
     if edit_text "svalue" 40; then
         echo "The string value is '$svalue'"
     else
         echo "You didn't change the string"
     fi
-    show_cursor
+    }
+
+test_edit_text_dialog()
+{
+    echo -n "Fill in the blank: "
+    if edit_text_dialog "svalue" 40; then
+        echo "The string value is '$svalue'"
+    else
+        echo "You didn't change the string"
+    fi
 }
 
 
-main
 
+###########################
+#          MAIN           #
+#  Execution Begins Here  #
+###########################
+
+# Setup for unexpected termination
+save_console_state_hide_cursor
+trap restore_console_state_show_cursor SIGINT
+trap restore_console_state_show_cursor EXIT
+
+
+declare -a MAIN_MENU=(
+    2 0
+    "Test edit_text standalone"    test_standalone_edit_text
+    "Test edit_text_dialog"        test_edit_text_dialog
+)
+lui_list_init "MAIN_MENU"
+
+declare -a paras
+bind_paragraphs "paras" <<EOF
+This test exercises the edit_text and edit_text_dialog functions
+during development.  It may take on more tests following new ideas.
+
+Press ESC or 'q' to terminate the program."
+EOF
+
+lui_list_runner "MAIN_MENU" "paras"
 
