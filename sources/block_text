@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+# -*- mode: sh; sh-shell: bash -*-
+# shellcheck disable=SC2148    # #! not appropriate for sourced script, using mode instead
 
 # shellcheck disable=SC2034 # don't warn about nameref variables that are only read by caller
 
