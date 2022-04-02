@@ -74,11 +74,13 @@ edit_text()
            elif [ "$keyp_len" -eq 1 ]; then
                keyval=$( val_from_char "$keyp" )
                if [ "$keyval" == 127 ]; then
-                   # fix value
                    strlen="${#str}"
-                   str="${str:0:$(( strlen-1 ))}"
-                   # fix display
-                   echo -n $'\e[1D \e[1D'
+                   if [ "$strlen" -gt 0 ]; then
+                       # fix value
+                       str="${str:0:$(( strlen-1 ))}"
+                       # fix display
+                       echo -n $'\e[1D \e[1D'
+                   fi
                elif [ "$keyval" -ge 32 ]; then
                    str="${str}$keyp"
                    echo -n "$keyp"
