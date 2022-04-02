@@ -28,39 +28,15 @@ test_two()
 
 
 
-
-# @def Terminal State restoration code
-#
-# Use a global variable (STARTING_STTY) to save the state, then set
-# traps to restore the state.
-declare STARTING_STTY
-
-# Save state and hide cursor upon entry to program
-prepare_console()
-{
-    STARTING_STTY=$( stty -g )
-    hide_cursor
-}
-
-# Restores the console from state saved in prepare_console()
-restore_console()
-{
-    stty "$STARTING_STTY"
-    show_cursor
-    # leave cursor in expected left-most column
-    echo
-}
-
-
-
 ###########################
 #          MAIN           #
 #  Execution Begins Here  #
 ###########################
 
-prepare_console
-trap restore_console SIGINT
-trap restore_console EXIT
+# Setup for unexpected termination
+save_console_state_hide_cursor
+trap restore_console_state_show_cursor SIGINT
+trap restore_console_state_show_cursor EXIT
 
 
 # @def The menu lui_list array
@@ -76,6 +52,7 @@ declare -a MAIN_MENU=(
 )
 lui_list_init "MAIN_MENU"
 
+# Optionally define text to sit atop the test menu.
 declare -a paras
 bind_paragraphs "paras" <<EOF
 Select a test and press ENTER to perform the test.
