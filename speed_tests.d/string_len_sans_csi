@@ -1,4 +1,4 @@
- -*- mode: sh; sh-shell: bash -*-
+#! -*- mode: sh; sh-shell: bash -*-
 
 to_continue() { read -n1 -p "Press any key to continue."; }
 
@@ -54,7 +54,7 @@ string_len_sans_csi_nameref()
     local in_esc=0
     local in_csi=0
     slscf_len=0
-    while IFS= read -rn1 c; do
+    while IFS= read -rn1 c && [ "$c" != $'\0' ]; do
         if (( in_csi )); then
             # CSI strings terminate with letter,
             # or ']' (linux private CSI sequences)
