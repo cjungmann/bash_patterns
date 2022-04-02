@@ -33,6 +33,11 @@ edit_text_dialog()
 }
 
 
+# Creates a grey-background block in which a line of text can be edited.
+#
+# Args
+#    (name):    in/out reference to string that is in the grey block
+#    (integer): length, in characters, of the grey box
 edit_text()
 {
    local -n et_strvalue="$1"
