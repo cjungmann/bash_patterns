@@ -193,7 +193,7 @@ test_string_len_sans_csi()
     local -i wlen
     for word in "${words[@]}"; do
         tword=$( print_keystroke "$word" )
-        wlen=$( string_len_sans_csi "$word" )
+        string_len_sans_csi "wlen" "$word"
         echo "$word ($tword): $wlen characters"
     done
 
