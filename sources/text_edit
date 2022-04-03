@@ -77,9 +77,9 @@ edit_text()
                et_strvalue="$str"
                break
            elif [ "$keyp_len" -eq 1 ]; then
+               strlen="${#str}"
                keyval=$( val_from_char "$keyp" )
                if [ "$keyval" == 127 ]; then
-                   strlen="${#str}"
                    if [ "$strlen" -gt 0 ]; then
                        # fix value
                        str="${str:0:$(( strlen-1 ))}"
@@ -87,8 +87,10 @@ edit_text()
                        echo -n $'\e[1D \e[1D'
                    fi
                elif [ "$keyval" -ge 32 ]; then
-                   str="${str}$keyp"
-                   echo -n "$keyp"
+                   if [ "$strlen" -lt "$length" ]; then
+                       str="${str}$keyp"
+                       echo -n "$keyp"
+                   fi
                fi
            fi
            # ignore mult-char keystrokes for new

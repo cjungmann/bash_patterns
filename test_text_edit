@@ -7,8 +7,12 @@ declare svalue="this is a string"
 
 test_standalone_edit_text()
 {
-    echo -n "Fill in the blank: "
-    if edit_text "svalue" 40; then
+    local -i edit_len=40
+    local prompt="Fill in the blank: "
+    dupchar $(( edit_len + ${#prompt} )) '+'
+    echo
+    echo -n "$prompt"
+    if edit_text "svalue" "$edit_len"; then
         echo "The string value is '$svalue'"
     else
         echo "You didn't change the string"
