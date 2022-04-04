@@ -54,6 +54,19 @@ edit_text()
    local str="$et_strvalue"
    local -i keyval
    local -i retval=2
+   local -i cur_col str_pos
+   local str_before str_after
+
+   # frequently-used internal code as embedded function
+   plot_str()
+   {
+       local -i prows bcols
+       get_cursor_position "prows" "pcols"
+       set_cursor_position "$row" "$col"
+       echo -n "$str"
+       dupchar $(( length - ${#str} )) ' '
+       set_cursor_position "$prows" "$pcols"
+   }
 
    # Will frequently return to starting position
    local -i row col
@@ -66,7 +79,18 @@ edit_text()
    echo -n "$str"
    show_cursor
 
+   # Disable echo to prevent display of extraneous characters
+   local oldstty
+   oldstty=$( stty -g )
+   stty -echo
+
    while :; do
+       get_cursor_position "" "cur_col"
+       (( str_pos = cur_col - col ))
+       str_before="${str:0:$str_pos}"
+       str_after="${str:$(( str_pos ))}"
+       strlen="${#str}"
+
        if get_keypress "keyp"; then
            keyp_len="${#keyp}"
            if [ "$keyp" == $'\e' ]; then
@@ -76,27 +100,48 @@ edit_text()
                retval=0
                et_strvalue="$str"
                break
+           # Typeable characters are one-character long
            elif [ "$keyp_len" -eq 1 ]; then
-               strlen="${#str}"
                keyval=$( val_from_char "$keyp" )
                if [ "$keyval" == 127 ]; then
                    if [ "$strlen" -gt 0 ]; then
-                       # fix value
-                       str="${str:0:$(( strlen-1 ))}"
-                       # fix display
-                       echo -n $'\e[1D \e[1D'
+                       echo -n $'\e[1D'
+                       str="${str_before:0:-1}${str_after}"
+                       plot_str
                    fi
                elif [ "$keyval" -ge 32 ]; then
                    if [ "$strlen" -lt "$length" ]; then
-                       str="${str}$keyp"
-                       echo -n "$keyp"
+                       echo -n $'\e1C'
+                       str="${str_before}${keyp}${str_after}"
+                       plot_str
                    fi
+               fi
+           # Control characters less common, test last
+           elif [ "$keyp" == $'\e[H' ]; then   # Home key
+               echo -n $'\e['"${row};${col}H"
+           elif [ "$keyp" == $'\e[F' ]; then  # End key
+               echo -n $'\e['"${row};$(( col + strlen ))H"
+           elif [ "$keyp" == $'\e[D' ]; then   # Left arrow
+               if [ "$str_pos" -gt 0 ]; then
+                   echo -n $'\e[1D'
+               fi
+           elif [ "$keyp" == $'\e[C' ]; then   # Right arrow
+                if [ "$str_pos" -lt "$strlen" ]; then
+                    echo -n $'\e[1C'
+                fi
+           elif [ "$keyp" == $'\e[3~' ]; then   # DEL key
+               # remote_print $(( row+3 )) 1 "You pressed the DEL key" 1
+               if [ "${#str_after}" -gt 0 ]; then
+                   str="${str_before}${str_after:1}"
+                   plot_str
                fi
            fi
            # ignore mult-char keystrokes for new
        fi
    done
 
+   # Retore console settings (assume cursor is hidden elsewhere):
+   stty "${oldstty}"
    hide_cursor
    echo "$COLOFF"
 
