@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-source sources/keypress
-source sources/small_stuff
-source sources/block_text
+declare -a Source_Includes=( keypress small_stuff block_text )
+source sources/include
 
 declare -a TEXT_BLOCK
 mapfile -t "TEXT_BLOCK" <<EOF
