@@ -163,7 +163,7 @@ strstrndx()
 string_len_sans_csi()
 {
     local -n slscf_len="$1"
-    local raw="$1"
+    local raw="$2"
 
     local c
     local in_esc=0
@@ -177,11 +177,12 @@ string_len_sans_csi()
             if [[ "$c" =~ [\]\`[:alpha:]] ]]; then
                 (( in_csi = in_esc = 0 ))
             fi
-        elif (( in_esc == 1 )); then
+        elif (( in_esc )); then
             if [ "$c" == '[' ]; then
                 in_csi=1
             else
                 echo "Oops: escape followed by non-'[' character ($c)" >&2
+                read -n1 -p "Press any key!"
                 exit 1
             fi
         elif [ "$c" == $'\e' ]; then
