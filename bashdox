@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 # Load appropriate sources even if script is a symlink:
-declare SFOLDER=$( readlink -f "$0" ); SFOLDER="${SFOLDER%/*}/sources"
-source "$SFOLDER"/include ""    # empty first parameter ignores command line arguments
+declare SFOLDER=$( readlink -f "$0" )
+SFOLDER="${SFOLDER%/*}/sources"
+source "$SFOLDER"/include
 
 declare FILE_COLOR=$'\e[48;5;4;1;38;5;15;1m'
 declare FUNC_COLOR=$'\e[36;1m'
