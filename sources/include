@@ -1,6 +1,46 @@
 # -*- mode: sh; sh-shell: bash -*-
 # shellcheck disable=SC2148    # #! not appropriate for sourced script, using mode instead
 
+# @def This script will 'source' some or all scripts in this directory.
+#
+# Sourcing this file (include) will result in all scripts in this
+# directory to be sourced to the file from which this script is
+# sourced.
+#
+# If only a subset of scripts are to be requested, declare and
+# populate (with desired script names) an array named
+# "Include_Sources" just before sourcing 'include'.
+#
+# Example, include all scripts:
+#
+# declare SFOLDER=$( readlink -f "$0" )
+# SFOLDER="${SFOLDER%/*}/sources"
+# source "$SFOLDER"/include
+#
+# Example, include subset of scripts
+
+# declare SFOLDER=$( readlink -f "$0" )
+# SFOLDER="${SFOLDER%/*}/sources"
+# declare -a Include_Sources=( small_stuff debugging keypress list_ui )
+# source "$SFOLDER"/include
+#
+# In nearly all cases, it is advised to simply load all the scripts by
+# omitting the 'Include_Sources' array.
+
+
+
+# Populates an array with script names to be sourced.
+#
+# The first parameter is an array name, subsequent parameters are
+# taken to be script names to be checked into the named array.  If
+# no parameters follow the array name, all scripts in this directory
+# will be added to the named array.
+#
+# Args
+#    (name):    (out) name of array to which script names will be written
+#    (string):  remaining parameters will all be interpreted as script
+#               names to be loaded.  If there are none, the namereffed
+#               array will be filled with ALL the script names.
 collect_source_files()
 {
     local -n csf_array="$1"
@@ -30,9 +70,9 @@ collect_source_files()
 }
 
 # source files in global space to preserve contents
-
 declare -a include_files_array
-collect_source_files "include_files_array" "$@"
+collect_source_files "include_files_array" "${Include_Sources[@]}"
+
 declare include_file
 for include_file in "${include_files_array[@]}"; do
     # shellcheck disable=SC1090   # non-constant source is the point of this script
@@ -41,5 +81,5 @@ done
 
 # Leave the campsite as we found it
 unset include_files_array include_file
-
+unset collect_source_files
 
