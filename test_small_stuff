@@ -187,6 +187,8 @@ test_string_len_sans_csi()
     local -a words=(
         $'\e[43;31mword[m'
         $'\e[38;2;255;128;0;48;2;63;63;255mword\e[m'
+        $'\e[32;1mexpeditiously\e[m'
+        $'\e[34;1mThis\e[m is a \e[34;1mhilited\e[m word.  This \e[34;1msentence\e[m is long enough to elicit an \e[34;1merror\e[m.'
     )
 
     local word tword
@@ -194,7 +196,7 @@ test_string_len_sans_csi()
     for word in "${words[@]}"; do
         tword=$( print_keystroke "$word" )
         string_len_sans_csi "wlen" "$word"
-        echo "$word ($tword): $wlen characters"
+        printf $'%3d chars: %s \e[48;5;237m(%s)\e[m\n' "$wlen" "$word" "$tword"
     done
 
     to_return
