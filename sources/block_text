@@ -35,6 +35,7 @@ block_text_get_size()
 
     local -i curlen maxlen
     local line
+
     for line in "${btgs_lines[@]}"; do
         string_len_sans_csi "curlen" "$line"
         (( maxlen = curlen > maxlen ? curlen : maxlen ))
@@ -140,10 +141,6 @@ block_text_display()
     local -i maxtop=$(( blk_rows - print_rows  ))
 
     local -i top=0
-
-    # echo "blk_rows=$blk_rows, $blk_cols=$blk_cols" >&2
-    # echo "scr_rows=$scr_rows, print_rows=$print_rows, scr_cols=$scr_cols, print_cols=$print_cols" >&2
-
     local -a text_block_args=(
         "$array_name"                         # name of array of text lines
         0                                     # top row, starting at 0
