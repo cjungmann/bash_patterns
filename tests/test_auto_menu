@@ -29,7 +29,7 @@ test_auto_menu()
     local -i selection
     if auto_menu "selection" "DEMO_MENU"; then
         local -i ndx=12
-        lui_list_ndx_from_row_cell_indirect "ndx" "DEMO_MENU" "$selection" 1
+        lui_list_ndx_from_row_cell_nameref "ndx" "DEMO_MENU" "$selection" 1
         echo "The value of element $ndx is '${DEMO_MENU[$ndx]}'"
     else
         echo "You declined to make a choice."
