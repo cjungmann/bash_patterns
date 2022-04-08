@@ -443,7 +443,7 @@ lui_list_ndx_from_row_cell()
 #    (name):    name of the lui_list from which the row will be read
 #    (integer): row of interest
 #    (integer): cell of interest
-lui_list_ndx_from_row_cell_indirect()
+lui_list_ndx_from_row_cell_nameref()
 {
     local ndx_name="$1"
     local list_name="$2"
