@@ -390,6 +390,27 @@ EOF
     to_continue
 }
 
+
+test_bind_array_to_paragraph()
+{
+    local -a input=(
+        ""
+        ""
+        "Line 1 of first paragraph.  "
+        "Line 2 of first paragraph.  "
+        "Line 3 of first paragraph.  "
+        ""
+        "Line 1 of second paragraph.  "
+        "Line 2 of second paragraph.  "
+    )
+
+    local -a output=()
+
+    bind_array_to_paragraphs "output" "input"
+    echo "There are ${#input[@]} input lines bound to ${#output[@]} paragraphs."
+    to_continue
+}
+
 ##############
 #    MAIN    #
 ##############
@@ -462,6 +483,7 @@ declare -a MAIN_MENU=(
     "test in_cent_ivize"                 test_in_cent_ivize
     "test original_var_name"             test_original_var_name
     "test date_from_day_of_year"         test_date_from_day_of_year
+    "test bind_array_to_paragraph"       test_bind_array_to_paragraph
 )
 
 declare STARTING_STTY

@@ -356,6 +356,30 @@ force_length()
     echo -n "$str"
 }
 
+# Prints CSI-encoded string at least at the length of $2.
+#
+# Short strings are supplemented with extra spaces,
+# long strings ARE NOT truncated at this time.
+#
+# Args
+#    (string)   string to be printed
+#    (integer)  number of characters to print
+force_length_csi()
+{
+    local str="$1"
+    local -i len="$2"
+
+    local -i csilen
+    string_len_sans_csi "csilen" "$1"
+
+    echo -n "$str"
+
+    local -i needed=$(( len - csilen ))
+    if [ "$needed" -gt 0 ]; then
+        dupchar "$needed" ' '
+    fi
+}
+
 # @def Paragraph formatting functions
 #
 # One function, bind_paragraphs(), scans text to group paragraphs,
@@ -425,6 +449,45 @@ bind_paragraphs()
     output+=( "${lines[*]}" )
 }
 
+# Paragraph binder to process arrays of strings.
+#
+# Args
+#    (name)   name of paragraphs array in which results are stored
+#    (name)   name of array of strings to bind into paragraphs
+bind_array_to_paragraphs()
+{
+    local -n batp_output="$1"
+    local -n batp_input="$2"
+    batp_output=()
+
+    local -a paragraph=()
+    local line
+    local nospaces
+
+    is_line_empty()       { [ "${#nospaces}" -eq 0 ]; }
+    is_paragraph_empty()  { [ "${#paragraph[@]}" -eq 0 ]; }
+
+    for line in "${batp_input[@]}"; do
+        nospaces="${line// /}"
+
+        # skip initial blank lines
+        if is_line_empty; then
+            if is_paragraph_empty; then
+                continue
+            else
+                # Concatenate accumulated lines and save to output
+                batp_output+=( "${paragraph[*]}" )
+                paragraph=()
+            fi
+        else
+            paragraph+=( "$line" )
+        fi
+    done
+
+    if ! is_paragraph_empty; then
+        batp_output+=( "${paragraph[*]}" )
+    fi
+}
 # Splits a submitted string of words into as many lines as necessary
 # to fit within the width constraints.
 #
