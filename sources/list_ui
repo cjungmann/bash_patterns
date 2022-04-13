@@ -97,15 +97,21 @@ lui_list_describe()
 lui_list_init()
 {
     local -n luii_list="$1"
-    local -i columns="${luii_list[0]}"
+    if value_is_int "${luii_list[0]}" && value_is_int "${luii_list[1]}"; then
+        local -i columns="${luii_list[0]}"
 
-    local -i count_els="${#luii_list[@]}"
-    if [ $(( (count_els - 2) % columns )) -ne 0 ]; then
-        echo "corrupted list, bad elements ratio." >&2
+        local -i count_els="${#luii_list[@]}"
+        if [ $(( (count_els - 2) % columns )) -ne 0 ]; then
+            echo "corrupted list, bad elements ratio." >&2
+            exit 1
+        fi
+
+        luii_list[1]=$(( ( count_els - 2 ) / columns ))
+    else
+        echo "Invalid dimension elements." >&2
         exit 1
     fi
 
-    luii_list[1]=$(( ( count_els - 2 ) / columns ))
     return 0
 }
 
@@ -1345,6 +1351,7 @@ lui_list_generic()
     fi
 
     if ! lui_list_confirm_arguments "$@"; then
+        echo "lui_list_generic argument type error." >&2
         exit 1
     fi
 
