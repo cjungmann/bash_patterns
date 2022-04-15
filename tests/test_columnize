@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+
+# Necessary subset of sources needed for this script
+declare -a Sources_Include=( small_stuff list_ui keypress columnize timer)
+
+# Load appropriate sources even if script is a symlink:
+declare SFOLDER=$( readlink -f "$0" )
+SFOLDER="${SFOLDER%/*}/sources"
+source "$SFOLDER"/include
+
+declare -a WList=(
+    a_american_beauty_inappropriate_behavoir
+    # a_american
+    a_barista
+    a_computer
+    a_destination
+    a_estimate
+    a_ferocious
+    a_geriatric
+    a_harrowing
+    a_ignition
+    a_jalopnik
+    a_kettlecorn
+    a_matador
+    a_nevernude
+    a_ostentatious
+    a_precipitation
+    a_qualitative
+    a_respectful
+    a_supercalifragilisticexpialadocious
+    # a_sensible
+    a_tomorrow
+    a_underhanded
+    a_victorious
+    a_waterboarding
+    a_xylophone
+    a_yellowgreen
+    a_zebra
+    imager
+    sources
+)
+
+test_populate_string_lengths_array()
+{
+    local -a string_lengths
+    populate_string_lengths_array "string_lengths" "WList"
+
+    cat <<EOF
+This simple test just runs a function that determines the size
+of each string in an array of strings, storing the values in a
+parallel array of integers.
+
+The test uses a shortish list of strings with an 'a_' prefix
+(the better for bulk erase without disturbing existing files).
+The string length is taken as the displayable characters, not
+counting characters that are part of CSI strings.
+
+
+EOF
+
+    local el
+    local -i ellen
+    local -i ndx=0
+
+    for el in "${WList[@]}"; do
+        ellen="${string_lengths[$ndx]}"
+        printf "%2d: %s\n" "$ellen" "$el"
+        (( ++ndx ))
+    done
+}
+
+test_get_average_string_length()
+{
+    local -a strings_lengths
+    populate_string_lengths_array "strings_lengths" "WList"
+
+    local -i avg_len
+    get_average_string_length "avg_len" "strings_lengths"
+    echo "The average string length is $avg_len"
+}
+
+test_assign_column_widths()
+{
+    local -a strings_lengths
+    populate_string_lengths_array "strings_lengths" "WList"
+
+    # Maked informed guess at optimum row count
+    local -i avg_length screen_width els_count
+    get_average_string_length "avg_length" "strings_lengths"
+    get_screen_size "" "screen_width"
+    els_count="${#strings_lengths[@]}"
+
+    echo "avg_length is $avg_length, screen_width is $screen_width els_count is $els_count"
+
+    # Return variables
+    local -a column_widths
+    local -i rows
+
+    if assign_column_widths "column_widths" "rows" "strings_lengths" "$screen_width" 2; then
+        echo "At $rows rows, we'll have ${#column_widths[@]} columns."
+    else
+        echo "Can't find workable number of columns."
+    fi
+}
+
+test_small_columnize()
+{
+    columnize "WList"
+
+    if [ -f "${WList[0]}" ]; then
+        echo
+        echo "Compare with output from ls:"
+        ls
+    fi
+}
+
+write_strings_as_filenames()
+{
+    local str
+    for str in "${WList[@]}"; do
+        touch "$str"
+    done
+}
+
+test_with_usr_bin_filenames()
+{
+    local -a usr_bin=( $( ls --color=always -1 /usr/bin ) )
+    local -i swidth
+    get_screen_size "" "swidth"
+    echo "There are ${#usr_bin[@]} strings in usr_bin to distribute over $swidth characters."
+    echo "This may take some time..."
+
+    local -i time_start=$( get_time_in_tenthous )
+    columnize "usr_bin" 3
+    local -i time_elapsed=$(( $( get_time_in_tenthous ) - time_start ))
+
+    echo "Elapsed time was "$( show_tenthous_as_floating_seconds "$time_elapsed" )
+}
+
+
+###########################
+#          MAIN           #
+#  Execution Begins Here  #
+###########################
+
+# Setup for unexpected termination
+save_console_state_hide_cursor
+trap restore_console_state_show_cursor SIGINT
+trap restore_console_state_show_cursor EXIT
+
+
+# @def The menu lui_list array
+#
+# lui_list_runner() only uses the first two columns
+# of a row, the first column is what is displayed in the
+# list interaction, and the second column is the function
+# to call.
+declare -a MAIN_MENU=(
+    2 0
+    "Test populate_string_lengths_array"   test_populate_string_lengths_array
+    "Test get_average_string_length"       test_get_average_string_length
+    "Test assign_column_widths"            test_assign_column_widths
+    "Test columnize with small list"       test_small_columnize
+    "Write strings as filenamess for ls"   write_strings_as_filenames
+    "Test with usr/bin filenames"          test_with_usr_bin_filenames
+
+)
+lui_list_init "MAIN_MENU"
+
+# Optionally define text to sit atop the test menu.
+declare -a paras
+bind_paragraphs "paras" <<EOF
+Select a test and press ENTER to perform the test.
+
+Press ESC or 'q' to terminate the program."
+EOF
+
+# The following function call will run the whole program.
+# The `paras` parameter is optional.
+lui_list_runner "MAIN_MENU" "paras"
+
