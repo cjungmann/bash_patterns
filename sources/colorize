@@ -1,0 +1,75 @@
+# -*- mode: sh; sh-shell: bash -*-
+# shellcheck disable=SC2148    # #! not appropriate for sourced script, using mode instead
+
+declare Cz_Bold="$LESS_TERMCAP_md"
+declare Cz_Ital="$LESS_TERMCAP_us"
+declare Cz_Undo="$LESS_TERMCAP_me"
+
+# @def This is a a very basic word colorizer.  It can only set
+# two colors
+# - ${Cz_Bold}bold${Cz_Undo} if a word is enclosed with
+#   either double asterisks or two underscores.  __bold__
+#
+# - ${Cz_Ital}italic${Cz_Undo} if a word is enclosed with
+#   either single asterisks or two underscores. _italic_.
+#
+# The color tokens are familiar from Markdown, but they are
+# nowhere near as powerful.  Each word must be colorized individually,
+# and they cannot be nested, that is, no bold-italc with triple
+# asterisks or underscores.
+#
+# Escpaing spaces will not work to group colored words because I'm
+# using a simple-minded builtin Bash method to separate words that
+# doesn't notice the escaped spaces.
+#
+# The returned array will have only the words without spaces, which
+# can be reconstitued by "${result[*]}" with IFS=$' '.
+
+
+# Colorize words by enclosing them with CSI colors.
+#
+# Args
+#    (name):   name of array in which the colorized words are returned
+#    (string): string of text to be colorized
+colorize_string()
+{
+    local -n cs_output="$1"
+    local cs_input="$2"
+
+    local bold_state=0 ital_state=0
+    in_bold() { [ "$bold_state" -ne 0 ]; }
+    in_ital() { [ "$ital_state" -ne 0 ]; }
+
+    bold_enclosed() { [[ "$1" =~ ^__(.*)__$ ]] || [[ "$1" =~ ^\*\*(.*)\*\*$ ]]; }
+    ital_enclosed() { [[ "$1" =~ ^_(.*)_$ ]] || [[ "$1" =~ ^\*(.*)\*$ ]]; }
+
+    read -ra "$1" <<< "$cs_input"
+
+    local word redo punct
+    local -i ndx=0
+    for word in "${cs_output[@]}"; do
+        redo=
+        if [[ "$word" =~ ^(.*)([,.!;:+&]+)$ ]]; then
+            word="${BASH_REMATCH[1]}"
+            punct="${BASH_REMATCH[2]}"
+        else
+            punct=
+        fi
+
+        if bold_enclosed "$word"; then
+            redo="${Cz_Bold}${BASH_REMATCH[1]}${Cz_Undo}"
+        elif ital_enclosed "$word"; then
+            redo="${Cz_Ital}${BASH_REMATCH[1]}${Cz_Undo}"
+        fi
+
+        if [ -n "$redo" ]; then
+            if [ -n "$punct" ]; then
+                redo="${redo}${punct}"
+            fi
+            cs_output["$ndx"]="$redo"
+        fi
+
+        (( ++ndx ))
+    done
+}
+
