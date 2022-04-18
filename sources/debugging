@@ -122,3 +122,6 @@ named_var_is_array()
 # Indicates if a given name is a function
 named_var_is_function() { [ $( type -t "$1" ) == "function" ]; }
 
+# Test a value rather than a variable
+value_is_int() { [[ "$1" =~ ^[+-]?[[:digit:]]+ ]]; }
+
