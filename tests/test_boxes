@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-source sources/small_stuff
-source sources/boxes
+declare -a Include_Sources=( small_stuff boxes )
+source sources/include
 
 reset_screen
 
