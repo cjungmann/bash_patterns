@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-source sources/small_stuff
-source sources/keypress
-source sources/list_ui
-source sources/csv_file
+declare -a Include_Sources=( small_stuff keypress list_ui debugging csv_file )
+source sources/include
 
 to_continue() { read -n1 -p "Press any key"; }
 
