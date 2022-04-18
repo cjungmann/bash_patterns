@@ -437,12 +437,14 @@ bind_paragraphs()
     local -a lines=()
     local IFS=' '
 
+    local -i lcount=0
+
     while IFS= read -r datext; do
         if [ -z "$datext" ]; then
             output+=( "${lines[*]}" )
             lines=()
         else
-            lines+=( $datext )
+            lines+=( "$datext" )
         fi
     done
 
