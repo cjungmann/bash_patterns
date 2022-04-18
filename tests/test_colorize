@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+source sources/include
+
+to_continue() { read -n1 -p "Press any key."; }
+
+declare -a Test_Lines=(
+    "The __quick__, **bright**, *fox* ran to the _woodshed_."
+    "The **rain** in **Spain** _falls_ mainly in the **plains.**"
+    "Demonstrate that it **won't** work to _escape\ spaces_."
+)
+
+test_line_by_line()
+{
+    declare line
+    declare -a result
+    declare IFS OIFS="$IFS"
+
+    echo "Test line-by-line conversion:"
+    for line in "${Test_Lines[@]}"; do
+        echo
+        colorize_string "result" "$line"
+        echo "'$line' was converted to:"
+        IFS=$' '
+        echo "'${result[*]}'"
+        IFS="$OIFS"
+    done
+}
+
+: 'This is a multiline
+comment.  I do not know
+how well it works.
+'
+
+
+test_bound_paragraphs()
+{
+    local -a paras
+    local filepath="../speed_tests.d/roosevelt.txt"
+    # local word="American"
+    # local scmd=s/"${word}"/*"${word}"*/g
+
+    local scmd=s/\(Americans?\)/\*\\1\*/g
+
+    bind_paragraphs 'paras' < <( sed -E $scmd "$filepath" )
+    colorize_array 'paras'
+
+    paragraphs_interaction 'paras' 80
+}
+
+###########################
+#          MAIN           #
+#  Execution Begins Here  #
+###########################
+
+# Setup for unexpected termination
+save_console_state_hide_cursor
+trap restore_console_state_show_cursor SIGINT
+trap restore_console_state_show_cursor EXIT
+
+
+# @def The menu lui_list array
+#
+# lui_list_runner() only uses the first two columns
+# of a row, the first column is what is displayed in the
+# list interaction, and the second column is the function
+# to call.
+declare -a MAIN_MENU=(
+    2 0
+    "Test line-by-line conversion"         test_line_by_line
+    "Test bound paragraphs"                test_bound_paragraphs
+)
+lui_list_init "MAIN_MENU"
+
+# Optionally define text to sit atop the test menu.
+declare -a paras
+bind_paragraphs "paras" <<EOF
+Select a test and press ENTER to perform the test.
+
+Press ESC or 'q' to terminate the program."
+EOF
+
+# The following function call will run the whole program.
+# The `paras` parameter is optional.
+lui_list_runner "MAIN_MENU" "paras"

@@ -73,3 +73,20 @@ colorize_string()
     done
 }
 
+colorize_array()
+{
+    local -n ca_strings_array="$1"
+
+    local IFS OIFS="$IFS"
+
+    local -a line_array
+    local string
+    local -i ndx=0
+
+    for string in "${ca_strings_array[@]}"; do
+        colorize_string "line_array" "$string"
+        IFS=$' '
+        ca_strings_array[$(( ndx++ ))]="${line_array[*]}"
+        IFS="$OIFS"
+    done
+}
