@@ -22,6 +22,7 @@ Here are a couple of pages that are useful for sussing out regular
 expressions:
 
 - [List of Regular Expression Flavors][flavors]
+
 - [Regular-expressions.info][re.info]
 
 ## Control Characters
@@ -37,15 +38,30 @@ serves when it is found in a regular expression.
 The main control characters are:
 - **(** and **)** for collecting matches into groups OR to contain
   a set of symbols like lookahead or lookbehind instructions
+
 - **[** and **]** for identifying a collection of characters
   (AKA a character class)
+
 - **{** and **}** enclose match count instructions
+
 - __?__, __+__, and __*__ quantifier meta characters for indicating
   the number of matches that can be accepted in a target string
+
 - __^__ and __$__ to match the beginning and end of a string or
   line
+
 - __|__ separates alternate equivalent matches
+
 - __.__ is a character wildcard, matching any character
+
+### Searching for Control Characters
+
+This can get pretty complicated.  Sometimes you need three (3)
+backslashes before a control character to defeat the expression
+engine's attempts to interpret the character as a control character.
+For example, the engine needs to see `\[`, so your string may need
+to escape the backslash (two backslashes) and the bracket (one more
+backslash), for a search string of `\\\[`.
 
 ## Regular Expression Flavors
 
