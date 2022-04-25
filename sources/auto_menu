@@ -6,9 +6,9 @@
 # menu.
 #
 # Args
-#    (name):   name of array in which the keylist will be written
-#    (name):   name of array of letters that will trigger the callback
-#    (name):   name of callback function to be triggered with matching
+#    (name-out): name of array in which the keylist will be written
+#    (name-in):  name of array of letters that will trigger the callback
+#    (string):   name of callback function to be triggered with matching
 #              letters
 auto_menu_build_keylist()
 {
@@ -34,8 +34,8 @@ auto_menu_build_keylist()
 # resulting in a display length less than the character length.
 #
 # Args
-#    (name):    name of integer variable in which the value is returned
-#    (string):  string of characters to process 
+#    (name-out): name of integer variable in which the value is returned
+#    (string):   string of characters to process
 auto_menu_line_gauge()
 {
     local -n amlg_len="$1"
@@ -49,8 +49,8 @@ auto_menu_line_gauge()
 # Collects the underscore-prefixed letters (first only for each string).
 #
 # Args
-#    (name):     name of array variable to which to store the letters
-#    (name):     name of lui_list whose first column contains menu strings
+#    (name-out): name of array variable to which to store the letters
+#    (name-in):  name of lui_list whose first column contains menu strings
 #    (integer):  flag, 1 if case-sensitive matching, 0 (default) to convert
 #                to and only match lower case letters.
 auto_menu_get_letter_array()
@@ -88,13 +88,13 @@ auto_menu_get_letter_array()
 # be color highlighted.
 #
 # Args
-#    (name):    name of variable in which the selection is returned
-#    (name):    name of array of menu option strings
-#    (integer): flag to allow capital triggers. By default, letters
-#               are converted to lower-case so uses don't need to
-#               capitalize their responses.  If you need to
-#               distinguish between 'f' and 'F', set this parameter
-#               to 1 (or any non-zero integer).
+#    (name-out): name of variable in which the selection is returned
+#    (name-in):  name of array of menu option strings
+#    (integer):  flag to allow capital triggers. By default, letters
+#                are converted to lower-case so uses don't need to
+#                capitalize their responses.  If you need to
+#                distinguish between 'f' and 'F', set this parameter
+#                to 1 (or any non-zero integer).
 auto_menu()
 {
     local selected_name="$1"
@@ -167,9 +167,9 @@ auto_menu()
 # Simple array version of auto_menu
 #
 # Args
-#    (name):   name of integer variable in which the selected element will be written
-#    (name):   name of simple array of strings from which the menu will be built
-#    (integer): capitalization flag (see auto_menu)
+#    (name-out): name of integer variable in which the selected element will be written
+#    (name-in):  name of simple array of strings from which the menu will be built
+#    (integer):  capitalization flag (see auto_menu)
 auto_menu_array()
 {
     local -n ama_array="$2"
