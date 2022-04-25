@@ -271,8 +271,8 @@ lui_list_max_len()
 #    (name):    name of array where result will be placed
 #    (name):    name of array of strings from which the letters
 #               will be harvested
-#    (integer): capitalization flag.  Default (0) is to convert upper-case
-#               letters to lower-case.  Non-zero values will preserve
+#    (integer): capitalization flag.  Default (0) is to save upper-case
+#               letters as lower-case options.  Non-zero values will preserve
 #               letters' cases to differentiate, for example, 'f' from 'F'.
 lui_list_build_letter_array()
 {
@@ -1391,6 +1391,7 @@ lui_list_generic()
     local -i head_lines=0
     local -i plot_head=0
     if [ "$head_array_name" ]; then
+        colorize_array "$head_array_name"
         format_paragraphs "head_text" "$head_array_name" "$chars_width" 0
         (( head_lines = "${#head_text[@]}" + 1 ))
     fi
