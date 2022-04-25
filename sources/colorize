@@ -5,8 +5,11 @@ declare Cz_Bold="$LESS_TERMCAP_md"
 declare Cz_Ital="$LESS_TERMCAP_us"
 declare Cz_Undo="$LESS_TERMCAP_me"
 
-# @def This is a a very basic word colorizer.  It can only set
-# two colors
+# @def Introduction
+#
+# This is a very basic word colorizer.  It can only set
+# two colors:
+# 
 # - ${Cz_Bold}bold${Cz_Undo} if a word is enclosed with
 #   either double asterisks or two underscores.  __bold__
 #
@@ -43,6 +46,18 @@ colorize_string()
     bold_enclosed() { [[ "$1" =~ ^__(.*)__$ ]] || [[ "$1" =~ ^\*\*(.*)\*\*$ ]]; }
     ital_enclosed() { [[ "$1" =~ ^_(.*)_$ ]] || [[ "$1" =~ ^\*(.*)\*$ ]]; }
 
+    local cz_undo="${Cz_Undo}"
+
+    if [[ "$cs_input" =~ ^![-*]{1,2} ]]; then
+        local -i mlen="${#BASH_REMATCH[0]}"
+        cs_input="${cs_input:${mlen}}"
+        if [ "$mlen" -eq 2 ]; then
+            cz_undo="$Cz_Ital"
+        elif [ "$mlen" -eq 3 ]; then
+            cz_undo="$Cz_Bold"
+        fi
+    fi
+
     read -ra "$1" <<< "$cs_input"
 
     local word redo punct
@@ -57,9 +72,9 @@ colorize_string()
         fi
 
         if bold_enclosed "$word"; then
-            redo="${Cz_Bold}${BASH_REMATCH[1]}${Cz_Undo}"
+            redo="${Cz_Bold}${BASH_REMATCH[1]}${cz_undo}"
         elif ital_enclosed "$word"; then
-            redo="${Cz_Ital}${BASH_REMATCH[1]}${Cz_Undo}"
+            redo="${Cz_Ital}${BASH_REMATCH[1]}${cz_undo}"
         fi
 
         if [ -n "$redo" ]; then
@@ -71,6 +86,11 @@ colorize_string()
 
         (( ++ndx ))
     done
+
+    if [ "$cz_undo" != "$Cz_Undo" ]; then
+        cs_output[0]="${cz_undo}${cs_output[0]}"
+        cs_output[-1]="${cs_output[-1]}${Cz_Undo}"
+    fi
 }
 
 colorize_array()
