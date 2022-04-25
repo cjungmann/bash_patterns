@@ -279,6 +279,7 @@ entry_show_details()
 
         entry_intro="${entry_intro}${name}$END_COLOR from script ${FILE_COLOR}${FILENAME}$END_COLOR"
         lines=( "$entry_intro" " " "${lines[@]}" )
+        colorize_array "lines"
 
         reset_screen
         set_window_title "$FILENAME  ->   $name  ($entry_type)"
