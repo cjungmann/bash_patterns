@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 
-source sources/boxes
-source sources/list_ui
-source sources/keypress
-source sources/small_stuff
-source sources/block_text
-source cocolors
+source sources/include
+source ../cocolors
 
 declare -a MYLIST=(
     2
