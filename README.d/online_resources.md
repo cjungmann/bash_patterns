@@ -56,9 +56,17 @@ raw console escape codes.
 
 ### Character Constants
 
-There are several characters for which one might want to recognize
-in a test or send to the console for some effect.  The guidelines are
-simple enough, but a [reference][ansi_c_quoting] is still nice.
+Most code consists of typeable and readable characters.  However,
+there are also many characters that do not match to keyboard keys and
+must be specified with special quoting.  The escape, newline, and
+control key characters are some examples, and Unicode characters may
+also require special invocation to be included in code.
+
+For users with **info** (most Linux flavors), the offline reference
+for quoting untypeable characters can be accessed by calling:  
+`info bash -n "ANSI-C Quoting"`
+
+This reference is also [available online][ansi_c_quoting].
 
 
 
