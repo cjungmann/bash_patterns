@@ -5,9 +5,12 @@ source sources/include
 to_continue() { read -n1 -p "Press any key."; }
 
 declare -a Test_Lines=(
+    "This is _italics_ and this is **bold**."
     "The __quick__, **bright**, *fox* ran to the _woodshed_."
     "The **rain** in **Spain** _falls_ mainly in the **plains.**"
     "Demonstrate that it **won't** work to _escape\ spaces_."
+    "!-Italicized string **bold** continuation"
+    "!**Bold string _italics_ continuation"
 )
 
 test_line_by_line()
