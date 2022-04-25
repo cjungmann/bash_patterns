@@ -10,9 +10,9 @@ cheatsheet or a library.
 
 ## Contents
 
-- **[Bash solutions to certain problems][cheats]**  
+- **[Bash solutions to certain problems][cheats]**
 
-- **[Suite of scripts for TUI (text user-interface) applications][tui]**  
+- **[Suite of scripts for TUI (text user-interface) applications][tui]**
 
 - **[Test scripts to confirm function behavior][tests]**
 
@@ -20,9 +20,12 @@ cheatsheet or a library.
 
 - **[Online resources for Bash programming][online]**
 
+- **[Command line hints][commandline]**
 
-[cheats]:   <README.d/cheats.md>           "Bash solutions"
-[tui]:      <README.d/tui_sources.md>      "TUI sources"
-[tests]:    <README.d/test_scripts.md>     "test scripts"
-[apps]:     <README.d/sample_apps.md>      "sample apps"
-[online]:   <README.d/online_resources.md> "online resources"
+
+[cheats]:      <README.d/cheats.md>           "Bash solutions"
+[tui]:         <README.d/tui_sources.md>      "TUI sources"
+[tests]:       <README.d/test_scripts.md>     "test scripts"
+[apps]:        <README.d/sample_apps.md>      "sample apps"
+[online]:      <README.d/online_resources.md> "online resources"
+[commandline]: <README.d/command_line.md>     "command line hints"
