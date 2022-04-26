@@ -445,10 +445,10 @@ lui_list_ndx_from_row_cell()
 # Calculate the index of the beginning of a given row
 #
 # Args
-#    (name):    name of integer variable in which the result is returned
-#    (name):    name of the lui_list from which the row will be read
-#    (integer): row of interest
-#    (integer): cell of interest
+#    (name-out):  name of integer variable in which the result is returned
+#    (name-in):   name of the lui_list from which the row will be read
+#    (integer):   row of interest
+#    (integer):   cell of interest
 lui_list_ndx_from_row_cell_nameref()
 {
     local ndx_name="$1"
@@ -1484,8 +1484,8 @@ lui_list_generic()
             elif (( key_proc_exit == 1 || key_proc_exit == 2 )); then
                 break
             elif (( key_proc_exit > 2 )); then
-                echo "Gotcha, you have to figure out a custom response." ?&2
-                read -n1 -p "Press any key to continue without custom response."
+                echo "Gotcha, you have to figure out a custom response for exit code $key_proc_exit." >&2
+                read -n1 -p "Press any key to continue without custom response." >&2
             fi
         else
             echo "get_keypress unexpectedly returned without getting a key!" >&2
