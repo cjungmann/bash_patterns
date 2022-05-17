@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 source sources/keypress
+source sources/small_stuff  # keypress needs char_from_val()
 
 echo "Keypress test mode.  Type any key to see the emitted character string."
 echo "Type 'q' to quit."

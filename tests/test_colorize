@@ -9,24 +9,62 @@ declare -a Test_Lines=(
     "The __quick__, **bright**, *fox* ran to the _woodshed_."
     "The **rain** in **Spain** _falls_ mainly in the **plains.**"
     "Demonstrate that it **won't** work to _escape\ spaces_."
-    "!-Italicized string **bold** continuation"
-    "!**Bold string _italics_ continuation"
+    "!- Italicized string **bold** continuation"
+    "!** Bold string _italics_ continuation"
+    "!! This   has   _three_   **space**   intervals"
+    "!^ This should be centered"
 )
+
+test_parse_colorize_flags()
+{
+    local -a tests=(
+        "!"
+        "!_"
+        "!!"
+        "!__^"
+        "!__*!"
+        "!**_"
+        "!_!"
+    )
+
+    show_test()
+    {
+        local name="$1"
+        local -n st_val="$name"
+        if [ "$st_val" -eq 0 ]; then
+            echo -n $'\e[31;1m'
+        else
+            echo -n $'\e[32;1m'
+        fi
+        echo -n "$name"$'\e[m '
+    }
+
+    local -i ital
+    local -i bold format center
+    local test
+    for test in "${tests[@]}"; do
+        echo -n "testing '${test:1}' "
+        parse_colorize_flags "ital" "bold" "format" "center" "${test:1}"
+        show_test "ital"
+        show_test "bold"
+        show_test "format"
+        show_test "center"
+        echo
+    done
+}
 
 test_line_by_line()
 {
     declare line
-    declare -a result
+    declare colorline
     declare IFS OIFS="$IFS"
 
     echo "Test line-by-line conversion:"
     for line in "${Test_Lines[@]}"; do
         echo
-        colorize_string "result" "$line"
+        colorize_string "colorline" "$line"
         echo "'$line' was converted to:"
-        IFS=$' '
-        echo "'${result[*]}'"
-        IFS="$OIFS"
+        echo "$colorline"
     done
 }
 
@@ -72,6 +110,7 @@ declare -a MAIN_MENU=(
     2 0
     "Test line-by-line conversion"         test_line_by_line
     "Test bound paragraphs"                test_bound_paragraphs
+    "Test parse_colorize_flags"            test_parse_colorize_flags
 )
 lui_list_init "MAIN_MENU"
 

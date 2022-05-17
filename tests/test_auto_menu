@@ -7,11 +7,11 @@ to_continue() { read -n1 -p Press\ any\ key\ to\ continue.; }
 
 declare -a DEMO_MENU=(
     2 0
-    _New        "Open new file"
-    _Open       "Open existing file"
-    _Close      "Close current file"
-    _Save       "Save file"
-    "Save _As"  "Save work to new file"
+    \&New        "Open new file"
+    \&Open       "Open existing file"
+    \&Close      "Close current file"
+    \&Save       "Save file"
+    "Save &As"  "Save work to new file"
 )
 lui_list_init "DEMO_MENU"
 
@@ -40,11 +40,11 @@ test_auto_menu()
 test_auto_menu_array()
 {
     local -a smenu=(
-        _Undo
-        _Redo
-        _Cut
-        "Copy _X"
-        _Paste
+        \&Undo
+        \&Redo
+        \&Cut
+        "Copy &X"
+        \&Paste
     )
 
     local -i selection

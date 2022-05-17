@@ -3,11 +3,10 @@
 source sources/include small_stuff list_ui keypress
 
 declare -a HL_TEST=(
-    "one"         "_"    "na"
-    "_one"        "_"    0
-    "o_ne"        "_"    1
-    "tw_enty-one" "_"    2
-    "tw_enty_one" "_"    2
+    "one"         "&"    "na"
+    "&one"        "&"    0
+    "o&ne"        "&"    1
+    "tw&enty-one" "&"    2
     "home game"   "home" 0
 )
 
@@ -71,18 +70,41 @@ test_hilite_substr()
     return 0
 }
 
+test_hilite_ampersand()
+{
+    echo
+    echo "Testing 'hilite_ampersand' function.  Skips first ampersand"
+    echo "and hilites character after ampersand, if found."
+
+    local -i ndx=0
+    for el in "${HL_TEST[@]}"; do
+        if [ $(( ndx % 3 )) == 0 ]; then
+            echo -n "Test hiliting unscore letter in string '$el': "
+            hilite_ampersand "$el"
+            echo $'\e[m'
+        fi
+        (( ++ndx ))
+    done
+
+    to_return
+
+    return 0
+}
+
 test_hilite_pad()
 {
     local -a test
 
     echo
-    echo "Testing 'hilite_pad' function.  Skips first underscore and hilites character after underscore, if found."
+    echo "Testing 'hilite_pad' function.  Skips first ampersand and"
+    echo "hilites character after ampersand, if found.  All strings"
+    echo "will be the same length."
 
     for el in "${HL_TEST[@]}"; do
         test+=( "$el" )
         if [ "${#test[@]}" -eq 3 ]; then
-            echo -n "Test hiliting letter after '${test[1]} in '${test[0]}'   $ACOL"
-            hilite_pad "${test[0]}" 15
+            echo -n "Testing conversion of ${test[0]} "
+            hilite_pad "${test[0]}"
             echo $'\e[m'
             test=()
         fi
@@ -473,6 +495,7 @@ declare -a MAIN_MENU=(
     "test string len sans csi"           test_string_len_sans_csi
     "test strstrndx"                     test_strstrndx
     "test hilite substring"              test_hilite_substr
+    "test hilite_ampersand"              test_hilite_ampersand
     "test hilite pad"                    test_hilite_pad
     "test paragraph-formatting heredoc"  test_heredoc_paragraphs
     "test paragraph-formatting markdown" test_markdown_paragraphs
