@@ -226,8 +226,11 @@ lui_list_iterate()
 # Determine the longest display length of a lui_list
 #
 # Args
-#    (name):     name of a lui_list for nameref access
-#    (name):     name of a gauge function that counts displayable characters
+#    (name-in):  name of a lui_list for nameref access
+#    (name-in):  name of a gauge function that counts displayable characters,
+#                the default function returns the max length of the first
+#                field in the lui_list.
+#
 #                The gauge function should accept the following arguments:
 #                $1    (name):    name of integer value in which the count is returned
 #                $2... (various): the fields of the current row
@@ -1413,6 +1416,14 @@ lui_list_generic()
         (( col = (scrn_cols - chars_width) / 2 ))
     fi
 
+    # Ensure menu doesn't extend past screen bottom
+    if (( row + line_count > scrn_rows )); then
+        echo
+        echo $'\e[31;1m'"Menu won't fit on screen."$'\e[m' >&2
+        read -n1 -p "Press any key to exit program." >&2
+        exit 1
+    fi
+
     local -i top_row
     local -a key_args proc_args
     local keyp
@@ -1525,6 +1536,13 @@ lui_list_menu()
     # cols="$cols_requested"
     lui_list_calc_suitable_width "cols" "$llm_list_name" "$cols_requested"
 
+    llm_line_display()
+    {
+        if [ "$1" -ne 0 ]; then echo -n $'\e[38;2;64;64;64;m'; fi
+        hilite_pad "$3" "$2"
+        echo $'\e[m'
+    }
+
     local -a args=(
         "$llm_selected_name"
         "$llm_list_name"
@@ -1532,7 +1550,7 @@ lui_list_menu()
         0                   # column location
         "$rows"
         "$cols"
-        ""                  # list displayer
+        "llm_line_display"
         ""                  # keystroke list
         "$llm_header_name"
     )
@@ -1668,13 +1686,14 @@ lui_list_runner()
     {
         local -a row
         if lui_list_copy_row "row" "$2" "$3"; then
-            read -n1 -p "Press key to start test."
             reset_screen
             "${row[1]}"
+            echo
             read -n1 -p "Press key to return to the test menu."
             reset_screen
             return 0
         else
+            echo
             echo "Failed to find row $3 from list $2" >&2
             read -n1 -p "Press key to return to the test menu."
             reset_screen

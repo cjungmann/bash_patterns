@@ -129,7 +129,71 @@ char_from_val() { printf $(printf "\\%03o" "$1"); }
 val_from_char() { LC_CTYPE=C; printf '%d' "'$1"; }
 
 
+# Quick array concatenation without side-effects
+#
+# Args
+#    (name-out):   variable to which output is written
+#    (name-in):    array to be concatenated
+#    (string):     optional delimiter character to go between elements,
+#                  concatenating without delimiters if left blank.
+concat_array()
+{
+    local -n ca_output="$1"
+    local -n ca_array="$2"
+    local delim="$3"
+
+    local OIFS="$IFS"
+    local IFS="$delim"
+    ca_output="${ca_array[*]}"
+    IFS="$OIFS"
+}
+
+# Quick string split to array without side-effects
+#
+# Args
+#    (name-out):  name of array to which the output will be written
+#    (string):    string to be split
+#    (string):    delimiter character marking element borders
+array_from_string()
+{
+    local -n afs_output="$1"
+    local input="$2"
+    local delim="$3"
+
+    local OIFS="$IFS"
+    local IFS="$delim"
+    afs_output=( $input )
+    IFS="$OIFS"
+}
+
 # @def String search functions
+
+
+# Nameref version of strstrndx
+#
+# Gets 0-based character position in first string of the first
+# occurance of the second string
+# Args
+#   (name-out):  name of integer variable to which result is written
+#   (string):    haystack, string to be searched
+#   (string):    needle, substring to be sought in haystack
+#
+# Returns
+#   *true*  (0) if found
+#   *false* (1) if not found
+strstrndx_nameref()
+{
+    local -n sn_ndx="$1"
+    local -i len1="${#2}"
+    local sub="${2#*$3}"
+    local -i sublen="${#sub}"
+    if [ "$len1" -eq "$sublen" ]; then
+        return 1
+    fi
+
+    (( sn_ndx = len1 - sublen - "${#3}" ))
+    return 0
+}
 
 # Gets 0-based character position in first string of the first
 # occurance of the second string
@@ -265,68 +329,157 @@ indent_print()
 
 # This variable can be changed in a calling script to set a different default.
 # Consult `man console_colors` for color-setting instructions.
-declare SS_HILITE_COLOR="36;1"
+declare SS_HILITE_COLOR=$'\e[36;1m'
+
+# Find and hilite substring in string (if found)
+# Args
+#    (name-out): string for the result
+#    (string):   string to print
+#    (string):   substring for which the color should be changed
+#    (string):   optional color string to use when coloring the substring
+#    (string):   optional unhilight color to use after hilighted part
+hilite_substr_nameref()
+{
+    local -n hsn_output="$1"
+    local str="$2"
+    local substr="$3"
+    local color_hl="${4:-$SS_HILITE_COLOR}"
+    local color_off=$'\e[m'
+    if [ "${#5}" -gt 0 ]; then color_off="$5"; fi
+    local -i pos
+    if pos=$( strstrndx "$str", "$substr" ); then
+        local -i lensub="${#substr}"
+        local -a parts=(
+            "$color_off"
+            "${str:0:$((pos))}"
+            "$color_hl"
+            "$substr"
+            "$color_off"
+            "${str:$((pos+lensub))}"
+        )
+        local OIFS="$IFS"
+        local IFS=''
+        hsn_output="${parts[*]}"
+        local IFS="$OIFS"
+    else
+        hsn_output="$str"
+    fi
+}
 
 # Find and hilite substring in string (if found)
 # Args
 #    (string):   string to print
 #    (string):   substring for which the color should be changed
 #    (string):   optional color string to use when coloring the substring
+#    (string):   optional unhilight color to use after hilighted part
 hilite_substr()
 {
-    local str="$1"
-    local substr="$2"
-    local color="${3:-$SS_HILITE_COLOR}"
-    local -i pos
-    if pos=$( strstrndx "$str", "$substr" ); then
-        local -i lensub="${#substr}"
-
-        echo -n "${str:0:$((pos))}"
-        echo -n $'\e['"${color}m${substr}"$'\e[m'
-        echo -n "${str:$((pos+lensub))}"
-    fi
+    local output
+    hilite_substr_nameref "output" "$1" "$2" "$3" "$4"
+    echo -n "$output"
 }
 
+# Hilights the character following the first ampersand in the stirng
+# Default colors will be used unless alternates are provided.  The
+# result will be store in the first argument, a nameref variable.
+#
+# Args
+#    (name-out): where result is stored
+#    (string):   string to process
+#    (string):   optional hilight color string
+#    (string):   optional normal color string
+hilite_ampersand_nameref()
+{
+    local -n hun_output="$1"
+    local str="$2"
+    local color_hl="${3:-$SS_HILITE_COLOR}"
+    local color_off=$'\e[m'
+    if [ -n "$4" ]; then color_off="$4"; fi
+
+    local -i strlen="${#str}"
+    local -a parts=( "$color_off" )
+
+    if pos=$( strstrndx "$str" '&' ); then
+        local left="${str:0:$pos}"
+        local letter="${str:$(( ++pos )):1}"
+        local right="${str:$(( ++pos ))}"
+        parts+=(
+            "$left"
+            "$color_hl"
+            "$letter"
+            "$color_off"
+            "$right"
+        )
+    else
+        parts+=( "$str" )
+    fi
+
+    concat_array "hun_output" "parts"
+}
+
+# Hilights the character following the first amersand in the stirng
+# Default colors will be used unless alternates are provided.  The
+# result will be 'echo'ed to stdout.
+#
+# Args
+#    (string):   string to process
+#    (string):   optional hilight color string
+#    (string):   optional normal color string
+hilite_ampersand()
+{
+    local hu_output
+    hilite_ampersand_nameref "hu_output" "$1" "$2" "$3"
+    echo -n "$hu_output"
+}
+
+
 # Print a string, hilighting the character following the first
-# underscore, and adding optionally padding to a requested length.
+# ampersand, and adding optionally padding to a requested length.
 # Args
 #    (string):    string to print
 #    (integer):   total characters to print, with spaces filling
 #                 positions unfilled with the string.  Negative
 #                 values will pad to the left.
-#    (string):    ANSI color string (without '\e[' prefix or 'm' suffix,
-#                 they will be added when written out).
-#                 NOTE: quote strings that include semicolons or the
-#                 first semicolon will terminate the string.
+#    (string):    optional ANSI hilite color string
+#    (string):    ANSI normal color string.  Set this parameter
+#                 if the color of the string is not the default
+#                 text color.
 hilite_pad()
 {
     local str="$1"
     local -i pad="$2"
-    local -i absolute_pad="${pad#-}"
-    local -i len="${#1}"
-    local color="${3:-$SS_HILITE_COLOR}"
 
-    local -i pos
-    if pos=$( strstrndx "$str" '_' ); then
-        (( --len ))
-        if [ "$pad" -lt 0 ]; then
-            dupchar $(( absolute_pad - len )) ' '
-        fi
-        echo -n "${str:0:$((pos))}"
-        echo -n $'\e7'                # save attributes and cursor position (mainly interested in color)
-        echo -n $'\e['"${color}m"     # hilight color
-        echo -n "${str:$((++pos)):1}" # hilighted character
-        echo -n $'\e8\e[1C'           # restore saved stuff, advance cursor
-        echo -n "${str:$((++pos))}"   # print remainder of string
-    else
-        if [ "$pad" -lt 0 ]; then
-            dupchar $(( absolute_pad - len )) ' '
-        fi
-        echo -n "$str"
+    local -i absolute_pad="${pad#-}"
+
+    local str_no_amp="${str/&/}"
+    local -i len_no_amp="${#str_no_amp}"
+    local -i len_str="${#str}"
+
+    # truncate before colors added
+    if (( absolute_pad != 0 && len_nul > absolute_pad )); then
+        str="${str:0:$absolute_pad}"
+        absolute_pad=0
     fi
 
-    if [ "$pad" -gt 0 ]; then
-        dupchar $(( absolute_pad - len )) ' '
+    local processed_str
+
+    # if underscore exists
+    if [ "$len_no_amp" -lt "$len_str" ]; then
+        hilite_ampersand_nameref "processed_str" "$str" "$3" "$4"
+    else
+        processed_str="$str"
+    fi
+
+    if [ "$absolute_pad" -ne 0 ]; then
+        if [ "$pad" -lt 0 ]; then
+            dupchar $(( absolute_pad - len_no_amp )) ' '
+            echo -n "$processed_str"
+        else
+            echo -n "$processed_str"
+            dupchar $(( absolute_pad - len_no_amp )) ' '
+        fi
+    else
+        echo -n "$processed_str"
     fi
 }
 

@@ -49,7 +49,7 @@ block_text_get_size()
 # Lines with ANSI codes near the end may 
 #
 # Args
-#    (name):     name of array of text strings to be printed
+#    (name-in):  name of array of text strings to be printed
 #    (integer):  index of the first line to print in text strings array
 #    (integer):  row position from which to start printing text
 #    (integer):  column position from which to start printing text
@@ -227,6 +227,12 @@ block_erase()
     set_cursor_column 1
 }
 
+# Create interactive display of paragraphs, formatted according
+# to the current screen size.
+#
+# Args
+#   (name-in):  name of array of unformatted paragraphs
+#   (integer):  optional target content width
 paragraphs_interaction()
 {
     local paras_var_name="$1"

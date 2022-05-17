@@ -69,7 +69,7 @@ auto_menu_get_letter_array()
     local -i ndx
     local letter
     for (( ndx=2; ndx < els; ndx+=cols )); do
-        if [[ "${amla_entries[$ndx]}" =~ _([[:alnum:]]) ]]; then
+        if [[ "${amla_entries[$ndx]}" =~ \&([[:alnum:]]) ]]; then
             letter="${BASH_REMATCH[1]}"
             if [ "$case_sensitive" -eq 0 ]; then
                 letter="${letter,,}"
@@ -142,8 +142,12 @@ auto_menu()
     # Minimal line display for formated strings
     llam_line_display()
     {
-        if [ "$1" -ne 0 ]; then echo -n $'\e[48;2;64;64;64m'; fi
-        hilite_pad "$3" "$2"
+        local col_normal=$'\e[37;1m'
+        local col_emph=$'\e[38;5;208m'
+        if [ "$1" -ne 0 ]; then
+            col_normal="${col_normal}"$'\e[48;5;238m'
+        fi
+        hilite_pad "$3" "$2" "$col_emph" "$col_normal"
         echo $'\e[m'
     }
 
