@@ -53,19 +53,17 @@ collect_source_files()
     local filename
     local -a files
     if [ "$#" == 0 ]; then
-        files=( "$root/"* )
+        files=( "$root/"*.sh )
     else
         files=( "$@" )
         local -i ndx limit="$#"
         for (( ndx=0; ndx<limit; ++ndx )); do
-            files[$ndx]="${root}/${files[$ndx]}"
+            files[$ndx]="${root}/${files[$ndx]}.sh"
         done
     fi
 
     for filename in "${files[@]}"; do
-        if ! [[ "$filename" =~ ^.*\.md ]] && [ "${filename##*/}" != "include" ]; then
-            csf_array+=( "$filename" )
-        fi
+        csf_array+=( "$filename" )
     done
 }
 
