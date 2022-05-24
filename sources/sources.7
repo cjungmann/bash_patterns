@@ -1,0 +1,152 @@
+.TH Bash Patterns Sources 7 2022-05-24
+.
+.ds Nm \fILUI\fP
+.ds Lb \(lqlibrary\(rq
+.
+.\" ==========================================================
+.SH NAME
+.\" ==========================================================
+.B sources
+\(em Simple usage example of a list user-interface (\*(Nm) \*(Lb
+.\" ==========================================================
+.SH DESCRIPTION
+.\" ==========================================================
+.PP
+Starting a \*(Nm is done with a call to the function
+.BR lui_list_generic .
+.
+.B lui_list_generic
+has many arguments, most of which can be set to an empty string
+to use default values.
+.
+The second argument, a
+.BR lui_list ,
+is the only required argument.
+.
+The simplest interaction would be to display the list from which
+a user will select one item.
+.PP
+The
+.B list_ui
+\*(Lb is designed to be customized.
+.
+There are two services for which a developer might provide custom
+code, for
+.br
+\(bu
+.IR "line display functions" ,
+and
+.br
+\(bu
+.IR "key response functions" .
+.
+.\" ==================================
+.SS Line Display Function
+.PP
+.B my_line_display
+.I hilite_flag width
+.RI [ "row_element" "...]"
+.PP
+.B lui_list_generic
+calls this function for each element of a
+.B lui_list
+interaction.
+This function must print all the requested
+characters (using spaces if necessary), and differentiating between
+hilighted and unhighligted states.
+The function is called with the following arguments:
+.TP
+.B hilite flag
+If
+.BR True
+(0), the indicated line is currently indicated in the interface.
+Usually printed in reverse video, but may also indicate its status
+with a prefix.
+.TP
+.B width
+is the number of characters to print, truncate to fit or pad with
+spaces.
+.TP
+.B row_elements
+The fields of the current row follow the
+.B width
+argument.
+Use them in place, starting with
+.IR $3 ,
+or use
+.B shift
+to align the function argument positions with the row indexes.
+
+   
+.
+.\" ==================================
+.SS Key Action List
+.PP
+Each invocation of
+.B lui_list_generic
+needs a list of key execution functions, with at least one
+key execution function that terminates the interaction.
+.
+The \*(Lb provides a default key action list with a default
+termination key action and a line-select key action.
+.PP
+.RS
+.EX
+declare -a LUI_DEFAULT_TERM_KEYS=(
+    $'\\e|q:LUI_ABORT:Quit immediately'
+    $'\\n:LUI_SELECT:Save and Quit'
+)
+.EE
+.RE
+.PP
+Notice that
+.B LUI_DEFAULT_TERM_KEYS
+is a two-element array.
+Each element is a packed (single-string) array with sub-elements
+separated by colons
+.RB ( , ).
+The first sub-element is further delimited by pipes
+.RB ( | )
+to separate the keycodes that trigger the key action.
+The first two sub-elements of the key action array, the keycodes
+list and the name of the key action function.
+The optional third sub-element is a help string that will be
+displayed if the user clicks the question mark key
+.RB ( ? ).
+Look below for the design of a
+.BR "key response function" .
+.
+.\" ==================================
+.SS The Key Response Function
+.PP
+.B my_key_action
+.I keycode list_name index
+.RI [ extra ...]
+.PP
+A key response function will be called when an associated
+keycode is recognized to be in the first sub-element of the
+.BR "key action list" .
+.TP
+.B keycode
+is the keycode of the key pressed by the user.
+.TP
+.B list_name
+is the name of the
+.B lui_list
+from which the interaction was built.  This name will be
+used to initialize a
+.B nameref
+variable to access the contents of source data.
+.TP
+.B index
+is the integer row number of the
+.BR lui_list .
+The number is used to access the source row to read the original
+content or to change it in place.
+.TP
+.B extra
+Any extra arguments beyond the defined parameters used to call
+.B lui_list_generic
+will be passed to the
+.BR "key response functions" .
+
