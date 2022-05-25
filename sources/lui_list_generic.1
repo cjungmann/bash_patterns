@@ -1,0 +1,287 @@
+.TH lui_list_generic 1 2022-05-24
+.
+.de function_lui_list_generic
+.    SY lui_list_generic
+.    RI [ selection_name ]
+.    I list_name
+.    RI [ row ]
+.    RI [ column ]
+.    RI [ height ]
+.    RI [ width ]
+.    RI [ line_display_callback ]
+.    RI [ key_action_array_name ]
+.    RI [ paragraphs_array_name ]
+.    RI [ extra ...]
+.    YS
+..
+.de proto_display
+.    SY line_display_callback
+.    RI [ hilite ]
+.    RI [ width ]
+.    RI [ row_element ...]
+.    YS
+..
+.de proto_key_action
+.    SY key_action_callback
+.    RI [ keycode ]
+.    RI [ list_name ]
+.    RI [ row_index ]
+.    RI [ extra ...]
+.    YS
+..
+.de sample_key_action_array
+.PP
+.EX
+declare -a \fBkey_action_array\fP=(
+   $'\ee|q:LUI_ABORT:Move up one level'
+   $'\en:LUI_SELECT:Select and return'
+)
+.EE
+..
+
+.
+.\" ==========================================================
+.SH NAME
+.\" ==========================================================
+.B lui_list_generic
+\(em Flexible list-based interaction function 
+.
+.\" ==========================================================
+.SH SYNOPSIS
+.\" ==========================================================
+.function_lui_list_generic
+.
+.RS -4
+.PP
+Callback Prototypes:
+.RE
+.
+.proto_display
+.proto_key_action
+.
+.RS -4
+.PP
+Key Action Array Prototype:
+.RE
+.sample_key_action_array
+.
+.\" ==========================================================
+.SH DESCRIPTION
+.\" ==========================================================
+.\" ===================================
+.SS FUNCTION lui_list_generic
+.PP
+.B lui_list_generic
+is the main entry point for a list-base user
+interface included in the
+.B bash_patterns
+project.
+.PP
+Argument #2 is the only required argument.
+Other arguments can be omitted or set to an empty string to
+use default or generated values.
+.PP
+.function_lui_list_generic
+.PP
+.B ARGUMENTS:
+.RS 4
+.TP
+.B selection_name
+is the name of an integer variable.  The index of the selected
+row will be returned in this variable.  If this value is not
+needed, it can be an empty string.
+.TP
+.B list_name
+is the only required argument.  It must be an array in the
+.B lui_list
+configuration.
+.TP
+.B row
+.TQ
+.B column
+.TQ
+.B height
+.TQ
+.B width
+Integer values defining the position
+.RI ( row ", " column )
+and dimensions
+.RI ( height ", " width )
+of the full extent of the output of
+.BR lui_list_generic .
+.TP
+.B line_display_callback
+is the name of a callback function through which
+.B lui_list_generic
+assigns a
+.B lui_list
+row to be written.
+.TP
+.B key_action_array_name
+is the name of an array of key action instructions.
+.TP
+.B paragraphs_array_name
+is the name of an array of paragraphs.
+Each element of the array is a full paragraph in a single line.
+The content will be formatted according to the
+.I width
+argument in the
+.B lui_list_generic
+function call.
+.TP
+.B extra
+Any arguments following the
+.B paragraphs_array_name
+are sent to the
+.B key action
+function following the defined arguments.  This allows for ad hoc
+values to be sent where convenient.
+.RE
+.\" ===================================
+.SS PROTOTYPE line_display_callback
+.PP
+.B lui_list_generic
+calls this function for each element of a
+.B lui_list
+interaction.
+This function must print all the requested
+characters (using spaces if necessary), and differentiating between
+hilighted and unhighligted states.
+.PP
+.proto_display
+.PP
+.B ARGUMENTS:
+.RS 4
+.TP
+.B hilite flag
+If
+.BR True
+(0), the indicated line is currently indicated in the interface.
+Usually printed in reverse video, but may also indicate its status
+with a prefix.
+.TP
+.B width
+is the number of characters to print, truncate to fit or pad with
+spaces.
+.TP
+.B row_elements
+The fields of the current row follow the
+.B width
+argument.
+Use them in place, starting with
+.IR $3 ,
+or use
+.B shift
+to align the function argument positions with the row indexes.
+.RE
+.\" ===================================
+.SS PROTOTYPE key_action_callback
+.PP
+.B lui_list_generic
+calls this function when a user's keystroke matches one of a keycode
+list of an element in a
+.BR key_action_array .
+.PP
+.proto_key_action
+.PP
+.PP
+.B ARGUMENTS
+.RS 4
+.TP
+.B keycode
+is a string variable that represents the user's keystroke
+.TP
+.B list_name
+is the name of the
+.B lui_list
+that was used to contruct the interaction.
+.TP
+.B row_index
+is an integer value with which the
+.B key_action_callback
+can access the row of the
+.B lui_list
+that is selected when the key was pressed.
+.TP
+.B extra
+represents all arguments to the function
+.B lui_list_generic
+that follow the last defined parameter.
+.RE
+.PP
+.B RETURN VALUE
+.RS 4
+.PP
+The return value from this function determines how
+.B lui_list_generic
+proceeds.
+Allowed return values are
+.IR 0 ", " 1 ", and " 2 .
+.TP
+Return value \fI0
+indicates that the
+.B lui_list_generic
+interaction should continue to wait for additional user
+input.
+It replots the header text, if any, and the entire
+list interaction.
+.TP
+Return value \fI1
+indicates that the
+.B lui_list_generic
+should terminate and that any user changes should be ignored.
+.TP
+Return value \fI2
+indicates that the
+.B lui_list_generic
+should terminate and the the calling process should note the
+return state, either the selection value or whatever custom
+values are left to read through the
+.I extra
+arguments.
+.RE
+.\" ===================================
+.SS SAMPLE key_action_array
+.PP
+.B lui_list_generic
+uses this array to interpret users' intentions.
+The array consists of
+.B key_action
+entry that associate a set of keycodes with a
+.B key_action_callback
+function and an optional help string.
+.PP
+An entry separates the parts with colons
+.RB ( : )
+and recognizes a pipe character
+.RB ( | )
+to separate equivalent keycodes.
+.PP
+.sample_key_action_array
+
+Looking at the first entry of the sample array,
+.br
+.IR "$'\ee|q:LUI_ABORT:Move up one level'" ,
+.br
+the string is enclosed in single quotes to enable
+escaped characters, like the
+.BR \ee.
+The entry consists of three parts, separated by colons:
+.RS 4
+.TP
+.B \ee|q
+two keycodes separated by the pipe character, representing the
+.BR ESCAPE " and \(lq" q \(rq
+keys.
+.TP
+.B LUI_ABORT
+is the
+.B key_action_function
+that will process the user's request, and
+.TP
+.RB \(lq "Move up one level" \(rq
+is the string that will be used for a generated
+help display if the user clicks on the question mark
+key.
+.RE
+
