@@ -1,0 +1,32 @@
+#!manlinks
+# -*- mode:sh -*-
+
+Bash &Patterns Sources
+
+Reference to my Bash-based interaction library
+
+4 0
+
+&small_stuff
+Catch-all general functions
+bd
+|small_stuff.sh
+
+&list_ui
+Flexible interactions derived from lists
+bd
+|list_ui.sh
+
+&timer
+High-precision time measurement for testing
+bd
+|timer.sh
+
+lui_list_&generic
+Manpage explaining basic use of *lui_list_generic*
+man
+|-l|lui_list_generic.1
+
+
+
+
