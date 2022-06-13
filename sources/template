@@ -7,3 +7,38 @@
 declare SFOLDER=$( readlink -f "$0" )
 SFOLDER="${SFOLDER%/*}/sources"
 source "$SFOLDER"/include
+
+# Empty function with expected arguments defined
+barebones_line_display()
+{
+    local -i hilite="$1"
+    local -i padding="$2"
+    local row=( "${@:3}" )
+
+}
+
+# Empty function with expected arguments defined
+barebones_line_execute()
+{
+    local keyp="$1"
+    local list_name="$2"
+    local -i row_ndx="$3"
+    # If included:
+    # local -a extras=( "${@:4}" )
+}
+
+####
+# .
+# .
+# Your code here
+# .
+# .
+####
+
+# Manage set and restore console state during app:
+
+save_console_state_hide_cursor
+trap restore_console_state_show_cursor SIGINT
+trap restore_console_state_show_cursor EXIT
+
+# Call your starting function after console management prepared
