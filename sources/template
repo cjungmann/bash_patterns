@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Start your sources-based script with the following statements
+# (Use this template script for a head-start.):
+
+# Load appropriate sources even if script is a symlink:
+declare SFOLDER=$( readlink -f "$0" )
+SFOLDER="${SFOLDER%/*}/sources"
+source "$SFOLDER"/include
