@@ -556,7 +556,7 @@ lui_list_line_length_selection()
 # $2 (integer)    A padding value. It is the length of the longest of
 #                 the first column elements, and can be used to ensure
 #                 all list elements are the same length.
-# ${@:2}          Parameters $3 and beyond are the elements of the
+# ${@:3}          Parameters $3 and beyond are the elements of the
 #                 selected row which can be used to 
 #
 # There are several built-in display line functions:
