@@ -9,7 +9,42 @@
 .B sources
 \(em Simple usage example of a list user-interface (\*(Nm) \*(Lb
 .\" ==========================================================
-.SH DESCRIPTION
+.SH SETUP
+.PP
+Use
+.B Bash Patterns Sources
+by making a symbolic directory link under your Bash program:
+.IP
+.EX
+ln -s ~/bash_patterns/sources sources
+.EE
+.PP
+.B Sources
+scripts can be included individually, but it is far more convenient
+to use a
+.B Sources
+script to include the entire package:
+.IP
+.EX
+#!/usr/bin/env bash
+source "sources/include"
+.EE
+.PP
+Finally, in order to make the script available as a command, it needs
+to find the included scripts from whereever the script is called.
+Consider using the following code:
+.IP
+.EX
+#!/usr/bin/env bash
+declare APPFOLDER=$( readlink -f "$0" )
+source "$APPFOLDER/sources/include"
+.EE
+.PP
+Look at the notes in the file
+.B sources/include
+for more help using
+.BR Sources .
+.SH TOPICS
 .\" ==========================================================
 .PP
 Starting a \*(Nm is done with a call to the function
