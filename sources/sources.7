@@ -36,7 +36,8 @@ Consider using the following code:
 .IP
 .EX
 #!/usr/bin/env bash
-declare APPFOLDER=$( readlink -f "$0" )
+declare APPFOLDER=$( readlink -f "$0" )  # full script path
+APPFOLDER="${APPFOLDER%/*}"              # trim script name
 source "$APPFOLDER/sources/include"
 .EE
 .PP
