@@ -7,7 +7,12 @@ Reference to my Bash-based interaction library
 
 4 0
 
-&small_stuff
+&Sources
+Introduction to Sources
+groffer
+|--tty|sources.7
+
+s&mall_stuff
 Catch-all general functions
 bd
 |small_stuff.sh
