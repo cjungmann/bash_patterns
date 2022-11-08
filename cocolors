@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source sources/keypress.sh
+
 # Ignore 'used as array ... assigned a string' caused by namerefs.
 # Nameref variables extensively used in this script.
 # shellcheck disable=SC2178
