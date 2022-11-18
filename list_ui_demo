@@ -277,7 +277,7 @@ get_demo_function_list()
 {
     local -n gdfl_list="$1"
     local IFS=$'\n'
-    gdfl_list=( $( grep -Po '^demo[[:alnum:]-_]+(?=\(\))' "list_ui_demo" ) )
+    gdfl_list=( $( grep -o '^demo[-[:alnum:]_]\+' "list_ui_demo" ) )
 }
 
 # Key action function for function main()
