@@ -752,6 +752,47 @@ get_string_array_extent()
     done
 }
 
+# Searchs for a letter in a string, returning the index if found.
+#
+# The search begins at the position in nameref $1, and proceeds to
+# start of the string when the end-of-string is encountered.
+# If the string contains multiple instances of the letter, it
+# will cycle between the instances.
+#
+# Args
+#    (name-io):  starting index upon entry, found index on exit
+#    (string):   haystack, string in which letters will be sought
+#    (string):   char, actually.  The character to be sought.
+#
+# Unusual Return:
+#   *true*  (0)  if letter found and it's a singleton, immediately open item
+#   *false* (1)  if letter found, but there's another, OR
+#                the letter was not found
+progressive_letter_search()
+{
+    local -n pls_index="$1"
+    local pls_haystack="$2"
+    local pls_needle="$3"
+
+    local current="${pls_haystack:$pls_index:1}"
+    local right="${pls_haystack:$(( pls_index+1 ))}"
+    local left="${pls_haystack:0:$pls_index}"
+    local search="${right}${left}${current}"
+
+    local -i ndx
+    if strstrndx_nameref "ndx" "$search" "$pls_needle"; then
+        local -i hcount="${#pls_haystack}"
+        local -i lcount="${#left}"
+        (( pls_index = ( ndx + lcount + 1 ) % hcount ))
+
+        if ! strstrndx_nameref "ndx" "${search:$(( ndx+1 ))}" "$pls_needle"; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 # Returns row/column value to center a defined area
 #
 # Args
