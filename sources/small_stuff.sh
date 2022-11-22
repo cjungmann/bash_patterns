@@ -384,22 +384,25 @@ hilite_substr()
 # result will be store in the first argument, a nameref variable.
 #
 # Args
-#    (name-out): where result is stored
-#    (string):   string to process
-#    (string):   optional hilight color string
-#    (string):   optional normal color string
-hilite_ampersand_nameref()
+#    (name-out):  where result is stored
+#    (string):    string to process
+#    (string):    optional hilight color string
+#    (string):    optional normal color string
+#    (character): prefix character to recognize (default &)
+hilite_prefixed_char()
 {
     local -n hun_output="$1"
     local str="$2"
     local color_hl="${3:-$SS_HILITE_COLOR}"
     local color_off=$'\e[m'
+    local prefix_char='&'
     if [ -n "$4" ]; then color_off="$4"; fi
+    if [ -n "$5" ]; then prefix_char="${5:0:1}"; fi
 
     local -i strlen="${#str}"
     local -a parts=( "$color_off" )
 
-    if pos=$( strstrndx "$str" '&' ); then
+    if pos=$( strstrndx "$str" "$prefix_char" ); then
         local left="${str:0:$pos}"
         local letter="${str:$(( ++pos )):1}"
         local right="${str:$(( ++pos ))}"
@@ -428,7 +431,7 @@ hilite_ampersand_nameref()
 hilite_ampersand()
 {
     local hu_output
-    hilite_ampersand_nameref "hu_output" "$1" "$2" "$3"
+    hilite_prefixed_char "hu_output" "$1" "$2" "$3"
     echo -n "$hu_output"
 }
 
@@ -465,7 +468,7 @@ hilite_pad()
 
     # if underscore exists
     if [ "$len_no_amp" -lt "$len_str" ]; then
-        hilite_ampersand_nameref "processed_str" "$str" "$3" "$4"
+        hilite_prefixed_char "processed_str" "$str" "$3" "$4"
     else
         processed_str="$str"
     fi
