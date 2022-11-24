@@ -259,6 +259,34 @@ string_len_sans_csi()
     return 0
 }
 
+# Remove the first occurance of a character from a string.
+#
+# This function exists because the Bash substitute expansion ${//}
+# does not accept a variable as the pattern.
+#
+# Args
+#   (name):    name of string variable to which the result is stored
+#   (string):  string value to be parsed
+#   (string):  char value (using only first letter of a string) of delimiter
+remove_char_from_string()
+{
+    local -n mrcfs_return="$1"
+    local mrcfs_value="$2"
+    local mrcfs_delim="$3"
+
+    local OIFS="$IFS"
+    local IFS="${mrcfs_delim:0:1}"
+    local -a mrcfs_parts=( $mrcfs_value )
+    if [ "${#mrcfs_parts[*]}" -gt 1 ]; then
+        mrcfs_return="${mrcfs_parts[0]}"
+        mrcfs_parts=( "${mrcfs_parts[@]:1}" )
+        mrcfs_return="${mrcfs_return}${mrcfs_parts[*]}"
+    else
+        mrcfs_return="$mrcfs_value"
+    fi
+    IFS="$OIFS"
+}
+
 # 'Echo's the first character that follows the first
 # underscore in the string and returns TRUE (0).
 # If there is no underscore+character in the string,
