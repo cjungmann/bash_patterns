@@ -1,0 +1,283 @@
+.TH lui_list 7 "Miscellaneous Manual Page"
+.ds LU \fBlui_list\fP
+.ds llg \fBlui_list_generic\fP
+.ds kaa \fBkeytroke action array\fP
+.SH NAME
+.B lui_list
+\- Basic lui_list programming guide
+.SH DESCRIPTION
+.PP
+Getting a \*(LU script to work involves several steps, especially
+when it is being customized.
+This guide aspires to help programmers who understand how the
+system works but need reminders about how to put it together.
+.SH SAMPLE PROGRAM
+.PP
+This document will demonstrate how to create a \*(LU application
+with the most commonly-used functions.
+We will cover:
+.br
+\(bu Line displayer function
+.br
+\(bu Line executor function
+.br
+\(bu Keystroke action array
+.br
+\(bu Introductory paragraphs array
+.br
+\(bu Call to library function \*[llg].
+.br
+.SS LUI_LIST_GENERIC
+.PP
+This function is the main driver the list-based user-interface.
+It manages scrolling through the elements of a list, with customization
+hooks for displaying and taking action on list elements, and
+context-based generated user help.
+.TP
+.B Arguments
+.sp -1
+.TS
+tab(|);
+l lx .
+integer name|T{
+Optional, use empty string if not using this argument.
+Upon return from \*[llg], the variable to which the name refers
+will be set with the row number of the target at exit.
+T}
+_
+lui_list name|T{
+The only required argument, this is the name of the lui_list that
+describes the interaction.
+T}
+_
+integer|T{
+row at which to begin printing the list.  Use 0 for a
+horizontally-centered list.
+T}
+_
+integer|T{
+column at which to begin printing the list.  Use 0 for a
+vertically-centered list.
+T}
+_
+integer|T{
+requested size of list in lines, constrained by screen size.
+Use 0 for maximum possible lines high.
+T}
+_
+integer|T{
+requested size of list in rows, constrained by screen size.
+Use 0 for maximum possible characters width.
+T}
+_
+function name|T{
+name of a
+.BR "line display function " "(see below)"
+T}
+_
+array name|T{
+name of a
+.BR "keystroke action list " "(see below)"
+T}
+_
+array name|T{
+name of an array of paragraphs to print above the list
+T}
+_
+various|T{
+any arguments following the paragraphs array are simply
+passed on to the
+.B line display function
+and the
+.B line executor function
+for information not based on the current lui_list line.
+T}
+.TE
+
+
+.SS LINE DISPLAYER FUNCTION
+.PP
+This function is called for each table row that is to be
+displayed by \*[llg].  The function uses the contents of the
+row to inform how it will fill the line, ending with spaces,
+if necessary, to complete the line.
+.TP
+.B Default Implementation
+The default line displayer function prints the first field
+of the table row, adding spaces to the end to fill out the
+padding requirement.
+.TP
+.B Parameters
+.sp -1
+.TS
+tab(|);
+c c cx
+l l lx .
+argument|data type|description
+_
+\(Do1|integer|1 if line to be marked as target, 0 otherwise
+\(Do2|integer|number of characters to print (pad with spaces)
+\(Do3 ...|various|fields of current row
+.TE
+.TP
+.B Example
+.sp -1
+.IP
+.EX
+line_displayer()
+{
+   local -i target="$1"
+   local -i padding="$2"
+   local field0="$3"
+   local field1="$4"
+
+   if [ "$target" -eq 1 ]; then
+      echo -n $'\(rse[44m'
+   fi
+
+   force_length "$field0" "$padding"
+
+   # Cancel formatting changes:
+   echo -n $'\(rse[m'
+
+   # Make sure to end with a linebreak:
+   echo
+}
+.EE
+.SS LINE EXECUTOR FUNCTION
+.PP
+This type of function will be called when a user presses
+a key that is associated to the function in a keystroke
+action array.
+.EX
+.TP
+.B Parameters
+.sp -1
+.TS
+tab(|);
+c c c
+l l lx .
+argument|data type|description
+_
+\(Do1|string|keystroke string
+\(Do2|name|name of the current \*(LU
+\(Do3|integer|row number of targeter row in \*(LU
+\(Do4 ...|various|T{
+extra parameters submitted to \*[llg] are passed to this function
+T}
+.TE
+.TP
+.B Return value
+Return a 0 if there are no errors, non-0 for unsuccessful execution
+.TP
+.B Example
+line_executor()
+{
+   local keyp="$1"
+   local list_name="$2"
+   local -i row_ndx="$3"
+   local -a extra=( "${@:3}" )
+
+   local -a row_copy
+   if lui_list_copy_row "row_copy" "$list_name" "$row_ndx"; then
+      (( row_copy[1] = (row_copy[1] + 1 ) %2 ))
+      lui_list_replace_row "$list_name" "row_copy" "$row_ndx"
+      return 0
+   fi
+
+   return 1
+}
+.EE
+.SS KEYSTROKE ACTION ARRAY
+.PP
+This is an array of strings, each of which consists of two or three
+values separated by colons.
+.TS
+tab(|);
+l lx .
+keystroke(s)|T{
+bar-separated list of keystroke strings that will match
+this keystroke action
+T}
+keystroke action|T{
+name of function to be called if one of the keystrokes
+are detected
+T}
+description|T{
+Optional help string that describes this action.
+T}
+.TE
+.TP
+.B Example
+.EX
+declare -a key_list=(
+  $'\(rse|q:LUI_ABORT:Leave Context'  # use default funtion LUI_ABORT
+  $'\(rsn:line_executor:Execute line'
+)
+.EE
+.SS INTRODUCTORY PARAGRAPHS ARRAY
+.PP
+The last defined \*[llg] parameter is for the name of an array of
+formatted text lines that will be displayed above the list.
+The library provides two functions to help with this, 
+.BR bind_paragraphs ,
+which concatenates consecutive text lines into single-line
+paragraphs (blank lines separate paragraphs), and
+.BR format_paragraphs ,
+which splits the single-line paragraphs into lines that fit in
+the width contraints of one of its parameters.
+that aid with this.
+.PP
+.BI bind_paragraphs " paragraph_array_name"
+.br
+reads from stdin to fill the array.
+.PP
+.B format_paragraphs
+.I formatted_array_name paragraph_array_name max_width
+.br
+Writes lines from
+.IR paragraph_array_name ,
+truncated according to
+.IR max_width ,
+to the array named in
+.IR formatted_array_name .
+.IP
+.EX
+declare -a paras_array
+declare -a lines_array
+bind_paragraphs "paras_array" <<EOF
+Follow these instructions to use this display.
+This second line will be part of the first paragraph.
+
+Following a blank line, this begins a second paragraph.
+
+format_paragraphs "lines_array" "paras_array" 60
+.EE
+.PP
+Now \(lqlines_array\(rq is ready to use as an argument to
+\*[llg] for use as the introductory text of the list
+interaction.
+.SS ELEGANT STARTING AND STOPPING
+.PP
+It can be disconcerting to watch the cursor flit around the screen
+while running a \*(LU application.
+A good practice is to disable
+.B echo
+and hide the cursor before beginning, and to restore them before
+upon exit.
+Traps should be used to restore the screen in case of an error.
+.PP
+Assuming that the application is bundled into a function,
+.BR main ,
+the following example shows how the builtin functions might be used:
+.TP
+.B Example
+.sh -1
+.IP
+.EX
+trap restore_console_state_show_cursor SIGINT
+trap restore_console_state_show_cursor EXIT
+
+save_console_state_hide_cursor
+main()
+.EE
