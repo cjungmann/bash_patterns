@@ -86,6 +86,26 @@ lui_list_describe()
     echo "with $colcount columns in $rowcount rows."
 }
 
+# Debugging function that show contents of a lui_list
+#
+# Args:
+#   (name):   name of lui_list
+lui_list_dump()
+{
+    local -n lld_list="$1"
+    local -i rsize="${lld_list[0]}"
+    local -i ecount="${#lld_list[*]}"
+    local -i ndx=0
+    for (( ndx=0; (ndx+2)<ecount; ++ndx )); do
+        if (( (ndx % rsize) == 0 )); then
+            echo -n "------ "
+            echo -n "record #$(( (ndx / rsize) + 1))"
+            echo " ------"
+        fi
+        echo "  ${lld_list[$(( ndx+2 ))]}"
+    done
+}
+
 # Checks and updates row count of properly-constructed lui_list.
 # 
 # Sets the row-count element (list[1]) by calculating the number
