@@ -899,6 +899,16 @@ get_shopt_setting()
     return 1
 }
 
+# Alternate to get_shopt_setting that returns 0 (true) if
+# requested shopt option is 'on'
+shopt_opt()
+{
+    local -a opt_setting=( $( shopt "$1" ) )
+    [ "${opt_setting[1]}" == "on" ]
+}
+
+
+
 # Silently test if a builtin script function exists
 #
 # Rather than check for a version number or something else,
