@@ -66,7 +66,7 @@ Use 0 for maximum possible lines high.
 T}
 _
 integer|T{
-requested size of list in rows, constrained by screen size.
+requested size of list in columns, constrained by screen size.
 Use 0 for maximum possible characters width.
 T}
 _
@@ -245,11 +245,13 @@ to the array named in
 .EX
 declare -a paras_array
 declare -a lines_array
+
 bind_paragraphs "paras_array" <<EOF
 Follow these instructions to use this display.
 This second line will be part of the first paragraph.
 
 Following a blank line, this begins a second paragraph.
+EOF
 
 format_paragraphs "lines_array" "paras_array" 60
 .EE
