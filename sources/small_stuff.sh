@@ -125,7 +125,14 @@ set_cursor_column() { echo -en $'\e['"${1}G"; }
 
 # Returns ASCII character when given an integer value.
 char_from_val() { printf $(printf "\\%03o" "$1"); }
+
 # Returns an integer value associated with an ASCII character
+#
+# Refer to printf(1p).  Search for "the leading character is a single-quote"
+# for an explanation of "'$1".
+#
+# For some reason, this seems to output an octal value.  If the
+# output value seems nonsensical, consider the value in other bases.
 val_from_char() { LC_CTYPE=C; printf '%d' "'$1"; }
 
 
