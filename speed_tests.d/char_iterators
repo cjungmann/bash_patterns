@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+do_nothing() { :; }
+
+iterate_with_read()
+{
+    local str="$1"
+    local callback="${2:-do_nothing}"
+
+    local rc_char
+    while IFS= read -r -n1 -d '' rc_char; do
+        if [ "$rc_char" != $'\n' ]; then
+            "$callback" "$rc_char"
+        fi
+    done <<< "$str"
+}
+
+iterate_with_indexed()
+{
+    local str="$1"
+    local callback="${2:-do_nothing}"
+
+    local -i ndx=0
+    local -i len="${#str}"
+
+    for (( ndx=0; ndx<len; ++ndx )); do
+        "$callback" "${str:$ndx:1}"
+    done
+}
+
+
+declare -a iterator_strings=(
+    "supercalifragilisticexpialidocous"
+    "extemporaneously"
+    "superimposed"
+    "extraterrestrial"
+    "A sentence that includes spaces"
+    "Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in liberty, and dedicated to the proposition that all men are created equal. “Now we are engaged in a great civil war, testing whether that nation, or any nation so conceived and so dedicated, can long endure. We are met on a great battlefield of that war. We have come to dedicate a portion of that field as a final resting place for those who here gave their lives that that nation might live. It is altogether fitting and proper that we should do this. “But in a larger sense we cannot dedicate, we cannot consecrate, we cannot hallow this ground. The brave men, living and dead, who struggled here have consecrated it, far above our poor power to add or detract. The world will little note, nor long remember, what we say here, but it can never forget what they did here. It is for us the living, rather, to be dedicated here to the unfinished work which they who fought here have thus far so nobly advanced. It is rather for us to be here dedicated to the great task remaining before us,that from these honored dead we take increased devotion to that cause for which they gave the last full measure of devotion, that we here highly resolve that these dead shall not have died in vain, that this nation, under God, shall have a new birth of freedom, and that government of the people, by the people, for the people, shall not perish from the earth."
+)
+
+iterator_test()
+{
+    local fname="$1"
+    local callback="$2"
+    local show_result="${3:-do_nothing}"
+    local word
+
+    local -i loop_start loop_end loop_elapsed
+
+    loop_start=$( get_time_in_tenthous )
+    for word in "${iterator_strings[@]}"; do
+        "$fname" "$word" "${callback}"
+        "$show_result"
+    done
+    loop_end=$( get_time_in_tenthous )
+
+    (( loop_elapsed = loop_end - loop_start ))
+    echo "${#iterator_strings[*]} words processed with '$fname' in " $( show_tenthous_as_floating_seconds $loop_elapsed)
+    echo
+}
+
+
+announce() { echo; echo $'\e[33;1m'"$1"$'\e[m'; }
+
+
+char_iterators_main()
+{
+    cat <<EOF
+This is a series of speed tests to determine which is the fastest
+method of iterating through the characters of a string.
+
+The first set of tests will call a 'do nothing' function for each
+character.  Subsequent tests will increase the per-character load
+to compare elapsed times.
+EOF
+
+    announce "Iterate with no load, report results upon completion."
+    iterator_test iterate_with_indexed
+    iterator_test iterate_with_read
+
+    local -a cim_array
+    append_cim_array() { cim_array+=( "$1" ); }
+    clear_cim_array()  { cim_array=(); }
+    demo_cim_array()   { echo "cim_array has ${#cim_array[@]} elements."; clear_cim_array; }
+
+    announce "Iterate, adding each character to an array, no per-string report."
+    iterator_test "iterate_with_indexed" "append_cim_array" "clear_cim_array"
+    iterator_test "iterate_with_read"    "append_cim_array" "clear_cim_array"
+
+    announce "Iterate, adding each character to an array, produce per-string report."
+    iterator_test "iterate_with_indexed" "append_cim_array" "demo_cim_array"
+    iterator_test "iterate_with_read"    "append_cim_array" "demo_cim_array"
+}
+
