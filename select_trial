@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+cat <<EOF
+While experimenting with Bash internals and looking at the
+Bash builtins header files, I notices provisions for a command
+type with which I was not familiar: *select*.
+
+It is documented in the Bash manpage, so it's not a secret,
+but I'm not familiar with it.  This script is an experiment
+and a demonstration of the *select* command.
+
+EOF
+
+declare -a selopts=(
+    Debian
+    Fedora
+    Arch
+    None\ of\ the\ above
+)
+
+declare distro
+select distro in "${selopts[@]}"; do
+    if [ -z "$distro" ]; then
+        continue;
+    fi
+
+    echo "You selected distro '$distro'"
+    break
+done
+
+cat <<EOF
+
+Interestingly, the *select* command is handled in Bash with
+the same status as building block commands like *if*, *for*,
+*case*, and *while*.
+
+In the end, I'm not that impressed with the *select* command.
+It does one thing in a very rigid manner.  I feel like it
+should be offered as a builtin like *ls*, *cd*, etc, to provide
+a specific service rather than as a language fundamental like
+*if* or *while*.
+EOF
