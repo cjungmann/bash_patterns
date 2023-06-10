@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 source sources/keypress.sh
+source sources/small_stuff.sh
 
 # Ignore 'used as array ... assigned a string' caused by namerefs.
 # Nameref variables extensively used in this script.
@@ -675,7 +676,7 @@ edit_color()
                     (( foreground['blink'] = (foreground['blink']+1) % 2 ))
                 fi
                 ;;
-            $'\t' )
+            '^J' )  # ^J is returned when TAB is pressed
                 if [ "$curcol" == "foreground" ]; then
                     curcol="background"
                 else
